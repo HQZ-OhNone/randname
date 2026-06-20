@@ -11,9 +11,9 @@ You should have received a copy of the GNU General Public License along with thi
 """
 读取:
     randname/config/
-    randname/config/names.json
+    randname/config/seats.json
 执行:
-    将 names.json 读取为字典
+    将 seats.json 读取为字典(鍵值均為字符串)
     打印测试
 """
 from pathlib import Path
@@ -23,26 +23,26 @@ import json
 path_code = Path(__file__).parent
 path_root = path_code.parent
 path_config = path_root / "config"
-path_names = path_config / "names.json"
+path_seats = path_config / "seats.json"
 
 # 判断所需文件是否齐全
 passon = True
 if path_config.exists():
     print("找到: config")
-elif not path_names.exists():
-    print("names.json 不存在！")
+elif not path_seats.exists():
+    print("seats.json 文件不存在！")
     print("退出")
     passon = False
 else:
-    print("config 文件夹不存在！")
+    print("config 目錄不存在！")
     print("退出")
     passon = False
-print("找到: names.json")
+print("找到: seats.json")
 
 # 如果文件齐全，则执行：
 if passon:
     # 读取JSON
-    names = json.loads(path_names.read_text(encoding="utf-8"))
-    print("已导入: names.json")
-    print(names)
+    seats = json.loads(path_seats.read_text(encoding="utf-8"))
+    print("已导入: seats.json")
+    print(seats)
 
