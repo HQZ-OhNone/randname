@@ -26,22 +26,21 @@ path_root = path_code.parent
 path_config = path_root / "config"
 path_names = path_config / "names.json"
 """
-path_config = Path(__file__).parent / "config"
+path_config = Path(__file__).parent.parent / "config"
 path_names = path_config / "names.json"
 
 # 判断所需文件是否齐全
 passon = True
 if path_config.exists():
     print("找到: config")
-elif not path_names.exists():
-    print("names.json 不存在！")
-    print("退出")
-    passon = False
 else:
     print("config 文件夹不存在！")
-    print("退出")
     passon = False
-print("找到: names.json")
+if path_names.exists():
+    print("找到: names.json")
+else:
+    print("names.json 不存在！")
+    passon = False
 
 # 如果文件齐全，则执行：
 if passon:
@@ -49,4 +48,5 @@ if passon:
     names = json.loads(path_names.read_text(encoding="utf-8"))
     print("已导入: names.json")
     print(names)
-
+else:
+    print("退出")

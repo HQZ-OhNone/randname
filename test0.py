@@ -8,11 +8,8 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-"""
-实现:
-    单抽
-输出:
-    {"模式": "单抽", "结果": {0: 11}}
-    打印输出
-"""
 
+from lib import importnames
+from lib import Lift
+
+Lift.Lift(importnames.names, 4)
