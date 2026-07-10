@@ -8,8 +8,38 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
+"""
+                      _                            
+  _ __ __ _ _ __   __| |_ __   __ _ _ __ ___   ___  
+ | '__/ _` | '_ \ / _` | '_ \ / _` | '_ ` _ \ / _ \ 
+ | | | (_| | | | | (_| | | | | (_| | | | | | |  __/ 
+ |_|  \__,_|_| |_|\__,_|_| |_|\__,_|_| |_| |_|\___| 
+                                                    
+"""
+"""
+   __ ______  ____     ____  __   _  __             
+  / // / __ \/_  /____/ __ \/ /  / |/ /__  ___  ___ 
+ / _  / /_/ / / //___/ /_/ / _ \/    / _ \/ _ \/ -_)
+/_//_/\___\_\/___/   \____/_//_/_/|_/\___/_//_/\__/ 
+                                                    
+"""
+print("""
+                      _                            
+  _ __ __ _ _ __   __| |_ __   __ _ _ __ ___   ___  
+ | '__/ _` | '_ \ / _` | '_ \ / _` | '_ ` _ \ / _ \ 
+ | | | (_| | | | | (_| | | | | (_| | | | | | |  __/ 
+ |_|  \__,_|_| |_|\__,_|_| |_|\__,_|_| |_| |_|\___| 
+                                                                                                     
+""")
 
 from lib import importnames
 from lib import Lift
+from lib import Single
 
-Lift.Lift(importnames.names, 4)
+#print(importnames.names.keys())
+
+Lift.Lift(importnames.names, 3)
+Single.Single(importnames.names)
+
+print("=> exit: randname")
+

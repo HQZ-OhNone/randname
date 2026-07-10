@@ -18,33 +18,41 @@ You should have received a copy of the GNU General Public License along with thi
 
 import random
 
-def Lift(names, num):
+def Lift(names, quantity):
     """
     減量抽取
     :param names: dict
-    :param num: int
+    :param quantity: int
     :return: dict
     """
     # 初始化量
-    output = {}
+    print(f"=> mode: Lift")
+    print(f"==> quantity: {quantity}")
+    output = {"mode": "Lift"}
+    outdict = {}
+    outlist = []
     selected_keys = []
 
     # 判斷是否滿足減量抽取
-    if num > len(names):
-        raise ValueError("減量抽取的數量不能大於字典的長度。")
+    if quantity > len(names):  # 如果不滿足，則提示後退出
+        print(f"==> warn: 給定數量({quantity})大於總數({len(names)})")
+        print("==> exit: warn")
     else:    # 如果滿足減量抽取，則執行
-        print("=> Lift")
-        for i in range(num):
-            keys_remain = list(names.keys())
-             # 隨機選擇出鍵
-            selected_key = keys_remain.pop(int(random.choice(keys_remain)))
+        keys_remain = list(names.keys())
+        for i in range(quantity):
+            # 隨機選擇出鍵
+            selected_key = random.choice(keys_remain)
             selected_keys.append(selected_key)
+            keys_remain.remove(selected_key)
+            print(keys_remain)
 
-        # 生成输出字典
-        for i in selected_keys:
-            output[i] = names[i]
+        # 生成输出，每次循環加入一個選中的鍵值對
+        for i in range(len(selected_keys)):
+            outdict[i] = {selected_keys[i]: names[selected_keys[i]]}
+        output["outdict"] = outdict
 
         # 輸出結果
-        print(f"=> Lift: {output}")
+        print(f"==> output: {output}")
+        print("==> exit: Lift")
         return output
 

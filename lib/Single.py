@@ -24,14 +24,18 @@ def Single(names):
     :param names: dict
     :return: str
     """
+    # 初始化
+    print("=> mode: Single")
+    output = {"mode": "Single"}
     # 隨機選擇
     slected_key = random.choice(list(names.keys()))
     slected_value = names[slected_key]
 
     # 生成输出字典
-    output = {slected_key: slected_value}
+    output["outdict"] = {"code": slected_key, "name": slected_value}
 
     # 輸出結果
-    print(f"=> Single: {output}")
+    print(f"==> output: {output}")
+    print("==> exit: Single")
     return slected_value
 
