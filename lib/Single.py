@@ -12,11 +12,16 @@ You should have received a copy of the GNU General Public License along with thi
 实现:
     单抽
 输出:
-    {"module": "Single", "output": {0: 11}}
-    打印输出
+example = {"mode":"Single",
+           "time":"2026-03-15-12:30:23",
+           "quantity":{"total":6,
+                       "selected":1},
+           "outdict":{"0":{"name":"李華","code":"1"}},
+           }
 """
 
 import random
+from datetime import datetime
 
 def Single(names):
     """
@@ -26,7 +31,16 @@ def Single(names):
     """
     # 初始化
     print("=> mode: Single")
-    output = {"mode": "Single"}
+    output = {"mode": "Single",
+              "quantity": {"total": len(names),
+                           "selected": 1}
+    }
+
+    # 獲取當前時間
+    now = datetime.now()
+    time_str = now.strftime("%Y-%m-%d-%H:%M:%S")
+    output["time"] = time_str
+
     # 隨機選擇
     slected_key = random.choice(list(names.keys()))
     slected_value = names[slected_key]
@@ -35,7 +49,7 @@ def Single(names):
     output["outdict"] = {"code": slected_key, "name": slected_value}
 
     # 輸出結果
-    print(f"==> output: {output}")
-    print("==> exit: Single")
+    print(f"===> output: {output}")
+    print("===> exit: Single")
     return slected_value
 

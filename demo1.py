@@ -8,38 +8,26 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-"""
+logo_randname = r"""
                       _                            
   _ __ __ _ _ __   __| |_ __   __ _ _ __ ___   ___  
  | '__/ _` | '_ \ / _` | '_ \ / _` | '_ ` _ \ / _ \ 
  | | | (_| | | | | (_| | | | | (_| | | | | | |  __/ 
  |_|  \__,_|_| |_|\__,_|_| |_|\__,_|_| |_| |_|\___| 
-                                                    
+---HQZ-OhNone <ohnone_hqz@outlook.com>
 """
-"""
-   __ ______  ____     ____  __   _  __             
-  / // / __ \/_  /____/ __ \/ /  / |/ /__  ___  ___ 
- / _  / /_/ / / //___/ /_/ / _ \/    / _ \/ _ \/ -_)
-/_//_/\___\_\/___/   \____/_//_/_/|_/\___/_//_/\__/ 
-                                                    
-"""
-print("""
-                      _                            
-  _ __ __ _ _ __   __| |_ __   __ _ _ __ ___   ___  
- | '__/ _` | '_ \ / _` | '_ \ / _` | '_ ` _ \ / _ \ 
- | | | (_| | | | | (_| | | | | (_| | | | | | |  __/ 
- |_|  \__,_|_| |_|\__,_|_| |_|\__,_|_| |_| |_|\___| 
-                                                                                                     
-""")
+print(logo_randname, end="\n\n")
 
 from lib import importnames
 from lib import Lift
 from lib import Single
+from lib import Multi
 
 #print(importnames.names.keys())
 
-Lift.Lift(importnames.names, 3)
+Lift.Lift(importnames.names, importnames.names, 3)
 Single.Single(importnames.names)
+Multi.Multi(importnames.names, 3)
 
 print("=> exit: randname")
 

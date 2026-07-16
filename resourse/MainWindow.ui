@@ -29,7 +29,7 @@
     <property name="currentIndex">
      <number>3</number>
     </property>
-    <widget class="QWidget" name="page_Single" native="true">
+    <widget class="QWidget" name="page_Single">
      <widget class="QWidget" name="verticalLayoutWidget">
       <property name="geometry">
        <rect>
@@ -109,7 +109,7 @@
         <x>180</x>
         <y>30</y>
         <width>461</width>
-        <height>101</height>
+        <height>136</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="MultiSetting">
@@ -497,7 +497,7 @@
      <x>0</x>
      <y>0</y>
      <width>797</width>
-     <height>30</height>
+     <height>31</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_file">
@@ -515,7 +515,6 @@
     </property>
     <addaction name="action_Single"/>
     <addaction name="action_Multi"/>
-    <addaction name="action_Autosingle"/>
     <addaction name="action_Lift"/>
     <addaction name="action_Seats"/>
    </widget>
