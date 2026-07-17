@@ -46,7 +46,12 @@ def Multi(alllist, quantity):
     # 判斷是否滿足多抽
     if quantity > len(alllist):  # 如果不滿足，則提示後退出
         print(f"===> warn: 給定數量({quantity})大於總數({len(alllist)})，無法進行多抽。")
-        print("===> exit: warn")
+        # 生成 outdict ，直接返回空字典
+        output["outdict"] = {}
+        # 輸出結果
+        print(f"===> output: {output}")
+        print("===> exit: Multi")
+        return output
     else:    # 如果滿足多抽，則執行
         keys_remain = list(alllist.keys())
         for i in range(quantity):
@@ -64,5 +69,5 @@ def Multi(alllist, quantity):
 
         # 輸出結果
         print(f"===> output: {output}")
-        print("===> exit: Multi")
+        print("===> exit: Multi\n")
         return output

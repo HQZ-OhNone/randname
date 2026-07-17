@@ -58,9 +58,24 @@ def Lift(alllist, Liftdict, quantity):
     output["time"] = time_str
 
     # 判斷是否滿足減量抽取
-    if quantity > len(Liftdict):  # 如果不滿足，則提示後退出
+    if len(Liftdict) == 0:  # 如果 Liftdict 為空，則提示後退出
+        print(f"===> warn: Liftdict 為空，無法進行減量抽取。")
+        # 生成 Liftdict ，直接返回原始 Liftdict
+        output["Liftdict"] = Liftdict
+        output["outdict"] = {}
+        # 輸出結果
+        print(f"===> output: {output}")
+        print("===> exit: Lift\n")
+        return output
+    elif quantity > len(Liftdict):  # 如果不滿足，則提示後退出
         print(f"===> warn: 給定數量({quantity})大於總數({len(Liftdict)})，無法進行減量抽取。")
-        print("===> exit: warn")
+        # 生成 Liftdict ，直接返回原始 Liftdict
+        output["Liftdict"] = Liftdict
+        output["outdict"] = {}
+        # 輸出結果
+        print(f"===> output: {output}")
+        print("===> exit: Lift\n")
+        return output
     else:    # 如果滿足減量抽取，則執行
         keys_remain = list(Liftdict.keys())
         for i in range(quantity):
@@ -83,6 +98,6 @@ def Lift(alllist, Liftdict, quantity):
 
         # 輸出結果
         print(f"===> output: {output}")
-        print("===> exit: Lift")
+        print("===> exit: Lift\n")
         return output
 

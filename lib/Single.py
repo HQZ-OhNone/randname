@@ -50,6 +50,6 @@ def Single(names):
 
     # 輸出結果
     print(f"===> output: {output}")
-    print("===> exit: Single")
+    print("===> exit: Single\n")
     return slected_value
 

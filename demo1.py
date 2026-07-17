@@ -23,11 +23,16 @@ from lib import Lift
 from lib import Single
 from lib import Multi
 
-#print(importnames.names.keys())
-
-Lift.Lift(importnames.names, importnames.names, 3)
+print("\ntest Single\n")
 Single.Single(importnames.names)
+print("test Multi\n\n")
 Multi.Multi(importnames.names, 3)
+print("test Lift\n")
+a = Lift.Lift(importnames.names, importnames.names, 4)
+b = Lift.Lift(importnames.names, a["Liftdict"], 6)
+c = Lift.Lift(importnames.names, b["Liftdict"], 5)
+Lift.Lift(importnames.names, c["Liftdict"], 2)
+
 
 print("=> exit: randname")
 
