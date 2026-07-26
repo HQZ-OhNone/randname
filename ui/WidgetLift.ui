@@ -102,7 +102,7 @@
 </string>
        </property>
        <property name="text">
-        <string>增加</string>
+        <string>减少</string>
        </property>
       </widget>
      </item>
