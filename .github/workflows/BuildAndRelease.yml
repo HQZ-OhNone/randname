@@ -1,0 +1,260 @@
+#  将项目编译为 Windows 软件包（使用 Nuitka ）。
+name: Build & Release
+
+on:
+  "push":
+    branches: [main, master]
+  "workflow_dispatch":
+
+jobs:
+  # ─────────────────────────────────────────────
+  # 从 commit message 中提取版本号
+  # 匹配模式：X.Y.Z[upgrade]_描述  或  X.Y.Z[upgrade]
+  # ─────────────────────────────────────────────
+  extract-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      should_build: ${{ steps.check_commit.outputs.should_build }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Check commit message for [upgrade]
+        id: check_commit
+        shell: bash
+        run: |
+          COMMIT_MSG="${{ github.event.head_commit.message || github.event.commits[0].message }}"
+          echo "Commit message: $COMMIT_MSG"
+          if echo "$COMMIT_MSG" | grep -q '\[upgrade\]'; then
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_build=false" >> $GITHUB_OUTPUT
+            echo "No [upgrade] tag found, skipping build."
+          fi
+
+      - name: Extract version
+        if: steps.check_commit.outputs.should_build == 'true'
+        id: get_version
+        shell: bash
+        run: |
+          COMMIT_MSG="${{ github.event.head_commit.message || github.event.commits[0].message }}"
+          # 提取 X.Y.Z 格式版本号
+          VERSION=$(echo "$COMMIT_MSG" | grep -oP '^\d+\.\d+\.\d+(?=\[upgrade\])')
+          if [ -z "$VERSION" ]; then
+            echo "ERROR: Commit message contains [upgrade] but no version found."
+            echo "Expected format: 3.1.2[upgrade]_描述"
+            exit 1
+          fi
+          echo "Extracted version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+  # ─────────────────────────────────────────────
+  # Linux x64 构建
+  # ─────────────────────────────────────────────
+  build-linux:
+    needs: extract-version
+    if: needs.extract-version.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install system dependencies (Qt6 + Nuitka deps)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            qt6-base-dev \
+            qt6-base-private-dev \
+            libqt6core6 \
+            libqt6gui6 \
+            libqt6widgets6 \
+            libqt6network6 \
+            libxcb-cursor0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-shape0 \
+            libxcb-sync1 \
+            libxcb-xfixes0 \
+            libxcb-xkb1 \
+            libxkbcommon-x11-0 \
+            zstd \
+            patchelf
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install nuitka PySide6
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Build with Nuitka
+        run: |
+          nuitka \
+            --standalone \
+            --enable-plugin=pyside6 \
+            --include-data-dir=config=config \
+            --include-data-dir=ui=ui \
+            --output-dir=build \
+            --output-filename=randname \
+            --show-progress \
+            --lto=yes \
+            main.py
+
+      - name: Verify build output
+        id: find_dist
+        run: |
+          ls -la build/
+          ls -la build/main.dist/ 2>/dev/null || ls -la build/randname.dist/ 2>/dev/null
+          # Nuitka 输出目录名取决于版本，兼容两种命名
+          if [ -d "build/main.dist" ]; then
+            echo "DIST_DIR=build/main.dist" >> $GITHUB_OUTPUT
+          elif [ -d "build/randname.dist" ]; then
+            echo "DIST_DIR=build/randname.dist" >> $GITHUB_OUTPUT
+          else
+            echo "ERROR: Cannot find Nuitka output directory"
+            exit 1
+          fi
+
+      - name: Package as .tar.zst
+        run: |
+          VERSION="${{ needs.extract-version.outputs.version }}"
+          DIST_DIR="${{ steps.find_dist.outputs.DIST_DIR }}"
+          echo "Using dist dir: $DIST_DIR"
+          # 先重命名 dist 目录为统一名称
+          cp -r "$DIST_DIR" "randname-${VERSION}"
+          # 打包为 zstd 压缩的 tar
+          tar --zstd -cf "randname-${VERSION}.linux.x64.tar.zst" "randname-${VERSION}/"
+          ls -lh "randname-${VERSION}.linux.x64.tar.zst"
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-package
+          path: randname-${{ needs.extract-version.outputs.version }}.linux.x64.tar.zst
+
+  # ─────────────────────────────────────────────
+  # Windows x64 构建
+  # ─────────────────────────────────────────────
+  build-windows:
+    needs: extract-version
+    if: needs.extract-version.outputs.should_build == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install nuitka PySide6
+          if (Test-Path requirements.txt) { pip install -r requirements.txt }
+
+      - name: Build with Nuitka
+        run: |
+          nuitka `
+            --standalone `
+            --enable-plugin=pyside6 `
+            --include-data-dir=config=config `
+            --include-data-dir=ui=ui `
+            --output-dir=build `
+            --output-filename=randname.exe `
+            --show-progress `
+            --lto=yes `
+            main.py
+
+      - name: Verify build output
+        id: find_dist
+        shell: pwsh
+        run: |
+          Get-ChildItem build/ -Recurse | Select-Object FullName | Format-List
+          if (Test-Path "build\main.dist") {
+            echo "DIST_DIR=build\main.dist" >> $env:GITHUB_OUTPUT
+          } elseif (Test-Path "build\randname.dist") {
+            echo "DIST_DIR=build\randname.dist" >> $env:GITHUB_OUTPUT
+          } else {
+            echo "ERROR: Cannot find Nuitka output directory"
+            exit 1
+          }
+
+      - name: Package as .7z
+        shell: pwsh
+        run: |
+          $VERSION = "${{ needs.extract-version.outputs.version }}"
+          $DIST_DIR = "${{ steps.find_dist.outputs.DIST_DIR }}"
+          echo "Using dist dir: $DIST_DIR"
+          # 安装 7-Zip 压缩
+          choco install 7zip -y
+          # 重命名 dist 目录
+          Copy-Item "$DIST_DIR" -Destination "randname-$VERSION" -Recurse
+          # 打包
+          7z a -t7z "randname-$VERSION.windows.x64.7z" "randname-$VERSION\"
+          Get-ChildItem "randname-$VERSION.windows.x64.7z" | Format-List Name, Length
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-package
+          path: randname-${{ needs.extract-version.outputs.version }}.windows.x64.7z
+
+  # ─────────────────────────────────────────────
+  # 创建 GitHub Release 并上传产物
+  # ─────────────────────────────────────────────
+  release:
+    needs: [extract-version, build-linux, build-windows]
+    if: needs.extract-version.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Move packages to workspace root
+        run: |
+          mv artifacts/*.tar.zst . 2>/dev/null || true
+          mv artifacts/*.7z . 2>/dev/null || true
+
+      - name: List downloaded files
+        run: |
+          ls -lh *.tar.zst *.7z 2>/dev/null || true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.extract-version.outputs.version }}
+          name: randname v${{ needs.extract-version.outputs.version }}
+          body: |
+            ## Randname v${{ needs.extract-version.outputs.version }}
+
+            ### 下载
+            - **Linux x64**: `randname-${{ needs.extract-version.outputs.version }}.linux.x64.tar.zst`
+            - **Windows x64**: `randname-${{ needs.extract-version.outputs.version }}.windows.x64.7z`
+
+            ### 使用方式
+            - Linux: 解压后运行 `./randname`
+            - Windows: 解压后运行 `randname.exe`
+
+            ---
+            Built from commit: ${{ github.sha }}
+          files: |
+            randname-${{ needs.extract-version.outputs.version }}.linux.x64.tar.zst
+            randname-${{ needs.extract-version.outputs.version }}.windows.x64.7z
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
