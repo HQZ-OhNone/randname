@@ -110,9 +110,9 @@ jobs:
             --enable-plugin=pyside6 \
             --include-data-dir=config=config \
             --include-data-dir=ui=ui \
+            --include-data-dir=doc=doc \
             --output-dir=build \
             --output-filename=randname \
-            --show-progress \
             --lto=yes \
             --assume-yes-for-downloads \
             main.py
@@ -190,9 +190,9 @@ jobs:
             --enable-plugin=pyside6 `
             --include-data-dir=config=config `
             --include-data-dir=ui=ui `
+            --include-data-dir=doc=doc `
             --output-dir=build `
             --output-filename=randname.exe `
-            --show-progress `
             --lto=yes `
             --assume-yes-for-downloads `
             main.py
