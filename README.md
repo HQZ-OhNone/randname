@@ -49,11 +49,34 @@ pip install nuitka
 5. 使用 Nuitka 經行編譯，如：
 - Linux
 ```nuitka
-nuitka --standalone --enable-plugin=pyside6 --include-data-dir=config=config --include-data-dir=ui=ui --output-dir=build --output-filename=randname --show-progress --lto=yes main.py
+python -m nuitka \
+--standalone \
+--enable-plugin=pyside6 \
+--include-data-dir=config=config \
+--include-data-dir=ui=ui \
+--include-data-dir=doc=doc \
+--output-dir=build \
+--output-filename=randname \
+--show-progress \
+--lto=yes \
+--assume-yes-for-downloads \
+main.py
 ```
 - Windows
 ```nuitka
-nuitka --standalone --enable-plugin=pyside6 --include-data-dir=config=config  --include-data-dir=ui=ui --output-dir=build --output-filename=randname.exe --show-progress --lto=yes main.py
+python -m nuitka `
+--standalone `
+--enable-plugin=pyside6 `
+--include-data-dir=config=config `
+--include-data-dir=ui=ui `
+--include-data-dir=doc=doc `
+--output-dir=build `
+--output-filename=randname.exe `
+--show-progress `
+--lto=yes `
+--assume-yes-for-downloads `
+--windows-disable-console `
+main.py
 ```
 6. 找到 ```build``` 目錄下的可執行文件，運行即可。
 7. 編譯完成後亦可打包分發
