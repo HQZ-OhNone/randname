@@ -49,7 +49,7 @@ pip install nuitka
 5. 使用 Nuitka 經行編譯，如：
 - Linux
 ```nuitka
-python -m nuitka \
+nuitka \
 --standalone \
 --enable-plugin=pyside6 \
 --include-data-dir=config=config \
@@ -64,7 +64,7 @@ main.py
 ```
 - Windows
 ```nuitka
-python -m nuitka `
+nuitka `
 --standalone `
 --enable-plugin=pyside6 `
 --include-data-dir=config=config `
