@@ -42,7 +42,7 @@ git clone https://github.com/HQZ-OhNone/randname.git
 ```pip
 pip install pyside6
 ```
-4. 安裝 ```nuitka``` 庫，推薦使用 ```pip```
+4. 安裝 ```nuitka``` 庫，推薦使用 ```pip```，如：
 ```pip
 pip install nuitka
 ```
