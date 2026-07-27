@@ -51,7 +51,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-          cache-dependency-path: '**/requirements*.txt'
+#          cache-dependency-path: '**/requirements*.txt'
 
       - name: Install Nuitka cache
         uses: actions/cache@v4
@@ -64,7 +64,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+#          pip install -r requirements.txt
 
       - name: Build with Nuitka
         run: |
@@ -117,7 +117,7 @@ jobs:
           python-version: '3.12'
           architecture: 'x64'
           cache: 'pip'
-          cache-dependency-path: '**/requirements*.txt'
+#          cache-dependency-path: '**/requirements*.txt'
 
       - name: Install Nuitka cache
         uses: actions/cache@v4
@@ -130,7 +130,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+#          pip install -r requirements.txt
 
       - name: Build with Nuitka
         run: |
