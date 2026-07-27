@@ -64,6 +64,8 @@ mv main.dist randname-3.1
 tar -cavf randname-3.1_linux.tar.zst randname-3.1
 ```
 
+-----
+
 ### 未來開發
 可查看 [TODO](./doc/TODO)。
 
