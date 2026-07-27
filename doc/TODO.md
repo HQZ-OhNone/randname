@@ -19,19 +19,18 @@ GUI：
       减量抽
       抽座位坐标
     [x]关于：
-      作者
       许可证
       仓库
-      捐赠
-      反馈
+      [ ]捐赠
+      [ ]反馈
 
 抽取：
-  [ ]Single: 单抽
-  [ ]Multi: 连抽
-  [ ]Lift: 减量抽
+  [x]Single: 单抽
+  [x]Multi: 连抽
+  [x]Lift: 减量抽
   [ ]Seats: 抽座位坐标
 
 技术实现：
-  python3.14.5
+  python3.12.10
   qt6.11.1
 

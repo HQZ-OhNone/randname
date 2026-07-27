@@ -13,6 +13,13 @@
 - **功能豐富**，支持單抽、減量抽等多種不同模式。
 - **開源免費**，本程序在 [GPL v3.0](./doc/LICENCE.md) 下發佈，任何人可以使用。
 
+### 技術實現
+- python3.12.10
+- qt6.11.1
+
+### 許可證
+[GNU General Public License v3.0](./doc/LICENCE.md)
+
 -----
 
 ### 使用
