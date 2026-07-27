@@ -90,7 +90,7 @@ tar -cavf randname-3.1_linux.tar.zst randname-3.1
 -----
 
 ### 未來開發
-可查看 [TODO](./doc/TODO)。
+可查看 [TODO](./doc/TODO.md)。
 
 ### 反饋
 歡迎提 issue 或發郵件
