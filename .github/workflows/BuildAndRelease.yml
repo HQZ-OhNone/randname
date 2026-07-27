@@ -195,6 +195,7 @@ jobs:
             --output-filename=randname.exe `
             --lto=yes `
             --assume-yes-for-downloads `
+            --windows-disable-console `
             main.py
 
       - name: Verify build output
