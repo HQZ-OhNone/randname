@@ -15,7 +15,7 @@
 
 ### 技術實現
 - python3.12.10
-- qt6.11.1
+- qt6.11.1(pyside6)
 
 ### 許可證
 [GNU General Public License v3.0](./doc/LICENCE.md)
@@ -62,7 +62,6 @@ nuitka \
 --standalone \
 --enable-plugin=pyside6 \
 --include-data-dir=config=config \
---include-data-dir=ui=ui \
 --include-data-dir=doc=doc \
 --output-dir=build \
 --output-filename=randname \
@@ -77,7 +76,6 @@ nuitka `
 --standalone `
 --enable-plugin=pyside6 `
 --include-data-dir=config=config `
---include-data-dir=ui=ui `
 --include-data-dir=doc=doc `
 --output-dir=build `
 --output-filename=randname.exe `
@@ -92,8 +90,8 @@ main.py
 - Linux
 ```Zsh
 cd build
-mv main.dist randname-3.1
-tar -cavf randname-3.1_linux.tar.zst randname-3.1
+mv main.dist randname3
+tar -cavf randname3_linux.tar.zst randname3
 ```
 
 -----
@@ -106,4 +104,4 @@ tar -cavf randname-3.1_linux.tar.zst randname-3.1
 
 -----
 HQZ-OhNone \<ohnone_hqz@outlook.com>  
-lastedit: 2026-07-27
+lastedit: 2026-08-12
