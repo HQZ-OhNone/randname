@@ -6,8 +6,9 @@
 """
 
 from PySide6.QtWidgets import (
-    QWidget, QGridLayout, QStackedWidget, QMenuBar, QMenu, QAction, QStatusBar
+    QWidget, QGridLayout, QStackedWidget, QMenuBar, QMenu, QStatusBar
 )
+from PySide6.QtGui import QAction
 
 
 class Ui_MainWindow(object):
