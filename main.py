@@ -46,7 +46,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 
 ROOT_DIR = Path(__file__).resolve().parent
 UI_DIR = ROOT_DIR / "ui"
-LICENSE_PATH = ROOT_DIR / "doc" / "LICENCE.md"
+LICENSE_PATH = ROOT_DIR / "doc" / "gpl-3.0.txt"
 REPO_URL = "https://www.github.com/HQZ-OhNone/randname"
 
 

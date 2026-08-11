@@ -11,14 +11,14 @@
 ### 特點
 - **簡潔易用**，無需任何經驗、開箱即用、上手就會，學習成本極低。
 - **功能豐富**，支持單抽、減量抽等多種不同模式。
-- **開源免費**，本程序在 [GPL v3.0](./doc/LICENCE.md) 下發佈，任何人可以使用。
+- **開源免費**，本程序在 [GPL v3.0](./doc/gpl-3.0.txt) 下發佈，任何人可以使用。
 
 ### 技術實現
 - python3.12.10
 - qt6.11.1(pyside6)
 
 ### 許可證
-[GNU General Public License v3.0](./doc/LICENCE.md)
+[GNU General Public License v3.0](./doc/gpl-3.0.txt)
 
 -----
 
