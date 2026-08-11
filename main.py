@@ -28,15 +28,19 @@ import logging
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QFile, QUrl
+from PySide6.QtCore import QUrl
 from PySide6.QtGui import QAction, QDesktopServices
-from PySide6.QtUiTools import QUiLoader
-from PySide6.QtWidgets import QApplication, QLabel, QMainWindow, QMessageBox, QPushButton, QStackedWidget
+from PySide6.QtWidgets import QApplication, QLabel, QMainWindow, QMessageBox, QPushButton, QStackedWidget, QWidget, QMenuBar, QStatusBar
 
 from lib import Lift as lift_module
 from lib import Multi as multi_module
 from lib import Single as single_module
 from lib import importnames
+# 導入已經由 pyside6-uic 編譯並放在 lib/ 的 UI 模塊
+from lib import ui_main
+from lib import ui_widgetsingle
+from lib import ui_widgetmulti
+from lib import ui_widgetlift
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
@@ -62,25 +66,9 @@ MainWindow 负责：
 """
 
 
-def load_ui(ui_path):
-    """加载 .ui 文件并返回对应的 QWidget。"""
-    ui_file_path = Path(ui_path)
-    if not ui_file_path.is_absolute():
-        ui_file_path = ROOT_DIR / ui_file_path
-
-    ui_file = QFile(str(ui_file_path))
-    if not ui_file.open(QFile.ReadOnly):
-        raise RuntimeError(f"无法打开 UI 文件: {ui_file_path}")
-
-    loader = QUiLoader()
-    widget = loader.load(ui_file)
-    ui_file.close()
-
-    if widget is None:
-        raise RuntimeError(f"无法加载 UI 文件: {ui_file_path}")
-
-    logging.info("Loaded UI: %s", ui_file_path)
-    return widget
+# 注意：UI 不再在运行时从 .ui 动态加载
+# 已改为在构建前用 pyside6-uic 编译 .ui 为 Python 模块，放在 lib/ 目录下
+# 因此不需要 load_ui 函数（也避免运行时依赖 ui/ 目录）
 
 
 class MainWindow(QMainWindow):
@@ -128,17 +116,19 @@ class MainWindow(QMainWindow):
         return {}
 
     def _build_ui(self):
+        # 使用已編譯的 Python UI 模塊（lib/ui_*.py），避免運行時依賴 .ui 文件
         try:
-            self.ui = load_ui(UI_DIR / "Main.ui")
-            # 在移动 UI 元素之前查找 stackedWidget
-            self.stacked_widget = self.ui.findChild(QStackedWidget, "stackedWidget")
+            # Ui_MainWindow.setupUi 會把 menubar, centralwidget, statusbar 等設置到本 QMainWindow 實例上
+            self.ui_main = ui_main.Ui_MainWindow()
+            self.ui_main.setupUi(self)
+
+            # 獲取 stacked widget（必須由 Ui 定義為屬性 stackedWidget）
+            self.stacked_widget = getattr(self.ui_main, "stackedWidget", None)
             if self.stacked_widget is None:
                 raise RuntimeError("未找到 stackedWidget")
-            
-            self.setWindowTitle(self.ui.windowTitle() or "randname")
-            self.setCentralWidget(self.ui.centralWidget())
-            self.setMenuBar(self.ui.menuBar())
-            self.setStatusBar(self.ui.statusBar())
+
+            # 設置標題（Ui.setupUi 通常已經設置，但保險起見保留回退值）
+            self.setWindowTitle(self.windowTitle() or "randname")
         except Exception as exc:  # pragma: no cover - defensive path for runtime errors
             logging.exception("加载主窗口失败: %s", exc)
             self._show_error("主窗口加载失败", str(exc))
@@ -153,12 +143,13 @@ class MainWindow(QMainWindow):
             self._show_error("界面初始化失败", str(exc))
 
     def _bind_menu_actions(self):
-        self.action_single = self.ui.findChild(QAction, "action_Single")
-        self.action_multi = self.ui.findChild(QAction, "action_Multi")
-        self.action_lift = self.ui.findChild(QAction, "action_Lift")
-        self.action_exit = self.ui.findChild(QAction, "action_exit")
-        self.action_license = self.ui.findChild(QAction, "action_license")
-        self.action_repository = self.ui.findChild(QAction, "action_repository")
+        # 從編譯後的 Ui_MainWindow 模塊獲取 QAction，避免使用 findChild
+        self.action_single = getattr(self.ui_main, "action_Single", None)
+        self.action_multi = getattr(self.ui_main, "action_Multi", None)
+        self.action_lift = getattr(self.ui_main, "action_Lift", None)
+        self.action_exit = getattr(self.ui_main, "action_exit", None)
+        self.action_license = getattr(self.ui_main, "action_license", None)
+        self.action_repository = getattr(self.ui_main, "action_repository", None)
 
         if self.action_single:
             self.action_single.triggered.connect(self._show_single_page)
@@ -177,9 +168,21 @@ class MainWindow(QMainWindow):
         if self.stacked_widget is None:
             raise RuntimeError("stackedWidget 未初始化")
 
-        self.page_single = load_ui(UI_DIR / "WidgetSingle.ui")
-        self.page_multi = load_ui(UI_DIR / "WidgetMulti.ui")
-        self.page_lift = load_ui(UI_DIR / "WidgetLift.ui")
+        # 使用已編譯的 UI 類來建立各頁面（避免依賴 ui/ 目錄）
+        # Single 頁面
+        self.page_single = QWidget()
+        self.ui_single = ui_widgetsingle.Ui_Form()
+        self.ui_single.setupUi(self.page_single)
+
+        # Multi 頁面
+        self.page_multi = QWidget()
+        self.ui_multi = ui_widgetmulti.Ui_Form()
+        self.ui_multi.setupUi(self.page_multi)
+
+        # Lift 頁面
+        self.page_lift = QWidget()
+        self.ui_lift = ui_widgetlift.Ui_Form()
+        self.ui_lift.setupUi(self.page_lift)
 
         self.stacked_widget.addWidget(self.page_single)
         self.stacked_widget.addWidget(self.page_multi)
@@ -187,17 +190,19 @@ class MainWindow(QMainWindow):
         self.stacked_widget.setCurrentWidget(self.page_single)
 
     def _bind_page_actions(self):
-        self.single_button = self.page_single.findChild(QPushButton, "pushButton")
-        self.single_label = self.page_single.findChild(QLabel, "label_SingleOutput")
+        # Single 頁面綁定
+        self.single_button = getattr(self.ui_single, "pushButton", None)
+        self.single_label = getattr(self.ui_single, "label_SingleOutput", None)
         if self.single_button and self.single_label:
             self.single_button.clicked.connect(self._handle_single)
             self.single_label.setText("等待输入")
 
-        self.multi_button = self.page_multi.findChild(QPushButton, "pushButton_Multi")
-        self.multi_label = self.page_multi.findChild(QLabel, "label_MultiOutput")
-        self.multi_quantity_label = self.page_multi.findChild(QLabel, "label_MultiQuantity")
-        self.multi_up_button = self.page_multi.findChild(QPushButton, "pushButton_MultiQuantityUp")
-        self.multi_down_button = self.page_multi.findChild(QPushButton, "pushButton_MultiQuantityDown")
+        # Multi 頁面綁定
+        self.multi_button = getattr(self.ui_multi, "pushButton_Multi", None)
+        self.multi_label = getattr(self.ui_multi, "label_MultiOutput", None)
+        self.multi_quantity_label = getattr(self.ui_multi, "label_MultiQuantity", None)
+        self.multi_up_button = getattr(self.ui_multi, "pushButton_MultiQuantityUp", None)
+        self.multi_down_button = getattr(self.ui_multi, "pushButton_MultiQuantityDown", None)
         if self.multi_quantity_label is not None:
             self._set_quantity_label(self.multi_quantity_label, self.multi_quantity)
         if self.multi_up_button is not None:
@@ -208,12 +213,13 @@ class MainWindow(QMainWindow):
             self.multi_button.clicked.connect(self._handle_multi)
             self.multi_label.setText("等待输入")
 
-        self.lift_button = self.page_lift.findChild(QPushButton, "pushButton_Lift")
-        self.lift_label = self.page_lift.findChild(QLabel, "label_LiftOutput")
-        self.lift_quantity_label = self.page_lift.findChild(QLabel, "label_LiftQuantity")
-        self.lift_up_button = self.page_lift.findChild(QPushButton, "pushButton_LiftQuantityUp")
-        self.lift_down_button = self.page_lift.findChild(QPushButton, "pushButton_LiftQuantityDown")
-        self.lift_renew_button = self.page_lift.findChild(QPushButton, "pushButton_LiftRenew")
+        # Lift 頁面綁定
+        self.lift_button = getattr(self.ui_lift, "pushButton_Lift", None)
+        self.lift_label = getattr(self.ui_lift, "label_LiftOutput", None)
+        self.lift_quantity_label = getattr(self.ui_lift, "label_LiftQuantity", None)
+        self.lift_up_button = getattr(self.ui_lift, "pushButton_LiftQuantityUp", None)
+        self.lift_down_button = getattr(self.ui_lift, "pushButton_LiftQuantityDown", None)
+        self.lift_renew_button = getattr(self.ui_lift, "pushButton_LiftRenew", None)
         if self.lift_quantity_label is not None:
             self._set_quantity_label(self.lift_quantity_label, self.lift_quantity)
         if self.lift_up_button is not None:

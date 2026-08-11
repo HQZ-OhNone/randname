@@ -103,13 +103,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install nuitka PySide6
 
+      - name: Compile UI files
+        run: |
+          # 將 ui/*.ui 編譯為 Python 模塊，放到 lib/（確保已安裝 PySide6）
+          pyside6-uic ui/Main.ui -o lib/ui_main.py
+          pyside6-uic ui/WidgetSingle.ui -o lib/ui_widgetsingle.py
+          pyside6-uic ui/WidgetMulti.ui -o lib/ui_widgetmulti.py
+          pyside6-uic ui/WidgetLift.ui -o lib/ui_widgetlift.py
+
       - name: Build with Nuitka
         run: |
           nuitka \
             --standalone \
             --enable-plugin=pyside6 \
             --include-data-dir=config=config \
-            --include-data-dir=ui=ui \
             --include-data-dir=doc=doc \
             --output-dir=build \
             --output-filename=randname \
@@ -183,13 +190,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install nuitka PySide6
 
+      - name: Compile UI files
+        run: |
+          # 將 ui/*.ui 編譯為 Python 模塊，放到 lib/（確保已安裝 PySide6）
+          pyside6-uic ui/Main.ui -o lib/ui_main.py
+          pyside6-uic ui/WidgetSingle.ui -o lib/ui_widgetsingle.py
+          pyside6-uic ui/WidgetMulti.ui -o lib/ui_widgetmulti.py
+          pyside6-uic ui/WidgetLift.ui -o lib/ui_widgetlift.py
+
       - name: Build with Nuitka
         run: |
           nuitka `
             --standalone `
             --enable-plugin=pyside6 `
             --include-data-dir=config=config `
-            --include-data-dir=ui=ui `
             --include-data-dir=doc=doc `
             --output-dir=build `
             --output-filename=randname.exe `
