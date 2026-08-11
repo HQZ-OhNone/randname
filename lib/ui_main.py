@@ -1,78 +1,74 @@
 # -*- coding: utf-8 -*-
-"""
-由 pyside6-uic 編譯生成（或等效手動實現）的 UI 模塊（主視窗）。
-此檔案經過簡化：只建立 main.ui 中在程式中需要的部份屬性（如 stackedWidget、actions、menubar、statusbar、centralwidget）。
-註：運行時不再需要 ui/Main.ui，程式會直接 import 該模塊。
-"""
 
-from PySide6.QtWidgets import (
-    QWidget, QGridLayout, QStackedWidget, QMenuBar, QMenu, QStatusBar
-)
-from PySide6.QtGui import QAction
+################################################################################
+## Form generated from reading UI file 'Main.ui'
+##
+## Created by: Qt User Interface Compiler version 6.11.1
+##
+## WARNING! All changes made in this file will be lost when recompiling UI file!
+################################################################################
 
+from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale,
+    QMetaObject, QObject, QPoint, QRect,
+    QSize, QTime, QUrl, Qt)
+from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient,
+    QCursor, QFont, QFontDatabase, QGradient,
+    QIcon, QImage, QKeySequence, QLinearGradient,
+    QPainter, QPalette, QPixmap, QRadialGradient,
+    QTransform)
+from PySide6.QtWidgets import (QApplication, QGridLayout, QMainWindow, QMenu,
+    QMenuBar, QSizePolicy, QStackedWidget, QStatusBar,
+    QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
-        MainWindow.setObjectName("MainWindow")
+        if not MainWindow.objectName():
+            MainWindow.setObjectName(u"MainWindow")
         MainWindow.resize(800, 600)
-
-        # central widget 與 stackedWidget（Main.ui 中的結構）
+        self.action_Single = QAction(MainWindow)
+        self.action_Single.setObjectName(u"action_Single")
+        self.action_Multi = QAction(MainWindow)
+        self.action_Multi.setObjectName(u"action_Multi")
+        self.action_Lift = QAction(MainWindow)
+        self.action_Lift.setObjectName(u"action_Lift")
+        self.action_exit = QAction(MainWindow)
+        self.action_exit.setObjectName(u"action_exit")
+        self.action_license = QAction(MainWindow)
+        self.action_license.setObjectName(u"action_license")
+        self.action_repository = QAction(MainWindow)
+        self.action_repository.setObjectName(u"action_repository")
         self.centralwidget = QWidget(MainWindow)
-        self.centralwidget.setObjectName("centralwidget")
+        self.centralwidget.setObjectName(u"centralwidget")
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.centralwidget.sizePolicy().hasHeightForWidth())
+        self.centralwidget.setSizePolicy(sizePolicy)
         self.gridLayout = QGridLayout(self.centralwidget)
-        self.gridLayout.setObjectName("gridLayout")
-
+        self.gridLayout.setObjectName(u"gridLayout")
         self.stackedWidget = QStackedWidget(self.centralwidget)
-        self.stackedWidget.setObjectName("stackedWidget")
+        self.stackedWidget.setObjectName(u"stackedWidget")
+
         self.gridLayout.addWidget(self.stackedWidget, 0, 0, 1, 1)
 
         MainWindow.setCentralWidget(self.centralwidget)
-
-        # menubar 與 actions
         self.menubar = QMenuBar(MainWindow)
-        self.menubar.setObjectName("menubar")
-
-        # File 菜單
+        self.menubar.setObjectName(u"menubar")
+        self.menubar.setGeometry(QRect(0, 0, 800, 30))
         self.menu_file = QMenu(self.menubar)
-        self.menu_file.setObjectName("menu_file")
-        self.menu_file.setTitle("文件")
-
-        # Mode 菜單
+        self.menu_file.setObjectName(u"menu_file")
         self.menu_mode = QMenu(self.menubar)
-        self.menu_mode.setObjectName("menu_mode")
-        self.menu_mode.setTitle("模式")
-
-        # About 菜單
+        self.menu_mode.setObjectName(u"menu_mode")
         self.menu_about = QMenu(self.menubar)
-        self.menu_about.setObjectName("menu_about")
-        self.menu_about.setTitle("关于")
+        self.menu_about.setObjectName(u"menu_about")
+        MainWindow.setMenuBar(self.menubar)
+        self.statusbar = QStatusBar(MainWindow)
+        self.statusbar.setObjectName(u"statusbar")
+        MainWindow.setStatusBar(self.statusbar)
 
-        # Actions（程式中使用到的名稱）
-        self.action_Single = QAction(MainWindow)
-        self.action_Single.setObjectName("action_Single")
-        self.action_Single.setText("单抽")
-
-        self.action_Multi = QAction(MainWindow)
-        self.action_Multi.setObjectName("action_Multi")
-        self.action_Multi.setText("多抽")
-
-        self.action_Lift = QAction(MainWindow)
-        self.action_Lift.setObjectName("action_Lift")
-        self.action_Lift.setText("减量抽")
-
-        self.action_exit = QAction(MainWindow)
-        self.action_exit.setObjectName("action_exit")
-        self.action_exit.setText("退出")
-
-        self.action_license = QAction(MainWindow)
-        self.action_license.setObjectName("action_license")
-        self.action_license.setText("许可证")
-
-        self.action_repository = QAction(MainWindow)
-        self.action_repository.setObjectName("action_repository")
-        self.action_repository.setText("开源仓库")
-
-        # 將 actions 加入菜單
+        self.menubar.addAction(self.menu_file.menuAction())
+        self.menubar.addAction(self.menu_mode.menuAction())
+        self.menubar.addAction(self.menu_about.menuAction())
         self.menu_file.addAction(self.action_exit)
         self.menu_mode.addAction(self.action_Single)
         self.menu_mode.addAction(self.action_Multi)
@@ -80,20 +76,24 @@ class Ui_MainWindow(object):
         self.menu_about.addAction(self.action_license)
         self.menu_about.addAction(self.action_repository)
 
-        # 將菜單加入 menubar
-        self.menubar.addAction(self.menu_file.menuAction())
-        self.menubar.addAction(self.menu_mode.menuAction())
-        self.menubar.addAction(self.menu_about.menuAction())
+        self.retranslateUi(MainWindow)
 
-        MainWindow.setMenuBar(self.menubar)
-
-        # statusbar
-        self.statusbar = QStatusBar(MainWindow)
-        self.statusbar.setObjectName("statusbar")
-        MainWindow.setStatusBar(self.statusbar)
-
-        # window title（與原始 .ui 保持一致）
-        MainWindow.setWindowTitle("MainWindow")
+        self.stackedWidget.setCurrentIndex(-1)
 
 
-# end of ui_main.py
+        QMetaObject.connectSlotsByName(MainWindow)
+    # setupUi
+
+    def retranslateUi(self, MainWindow):
+        MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"MainWindow", None))
+        self.action_Single.setText(QCoreApplication.translate("MainWindow", u"\u5355\u62bd", None))
+        self.action_Multi.setText(QCoreApplication.translate("MainWindow", u"\u591a\u62bd", None))
+        self.action_Lift.setText(QCoreApplication.translate("MainWindow", u"\u51cf\u91cf\u62bd", None))
+        self.action_exit.setText(QCoreApplication.translate("MainWindow", u"\u9000\u51fa", None))
+        self.action_license.setText(QCoreApplication.translate("MainWindow", u"\u8bb8\u53ef\u8bc1", None))
+        self.action_repository.setText(QCoreApplication.translate("MainWindow", u"\u5f00\u6e90\u4ed3\u5e93", None))
+        self.menu_file.setTitle(QCoreApplication.translate("MainWindow", u"\u6587\u4ef6", None))
+        self.menu_mode.setTitle(QCoreApplication.translate("MainWindow", u"\u6a21\u5f0f", None))
+        self.menu_about.setTitle(QCoreApplication.translate("MainWindow", u"\u5173\u4e8e", None))
+    # retranslateUi
+
