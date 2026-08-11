@@ -70,6 +70,7 @@ nuitka \
 --assume-yes-for-downloads \
 main.py
 ```
+
 - Windows
 ```nuitka
 nuitka `
