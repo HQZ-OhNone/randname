@@ -39,7 +39,7 @@
 </string>
      </property>
      <property name="text">
-      <string>等待输入</string>
+      <string>单抽</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignmentFlag::AlignCenter</set>
@@ -121,7 +121,7 @@
     </spacer>
    </item>
    <item row="3" column="1">
-    <widget class="QPushButton" name="pushButton">
+    <widget class="QPushButton" name="pushButton_Single">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
        <horstretch>0</horstretch>
@@ -145,7 +145,7 @@
 </string>
      </property>
      <property name="text">
-      <string>单抽</string>
+      <string>抽取</string>
      </property>
     </widget>
    </item>

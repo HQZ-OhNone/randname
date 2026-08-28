@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>randname ---HQZ-OhNone</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <property name="sizePolicy">
@@ -36,13 +36,18 @@
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>30</height>
+     <height>31</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_file">
     <property name="title">
      <string>文件</string>
     </property>
+    <addaction name="action_inputconfig"/>
+    <addaction name="action_outputconfig"/>
+    <addaction name="separator"/>
+    <addaction name="action_reinputconfig"/>
+    <addaction name="separator"/>
     <addaction name="action_exit"/>
    </widget>
    <widget class="QMenu" name="menu_mode">
@@ -52,6 +57,7 @@
     <addaction name="action_Single"/>
     <addaction name="action_Multi"/>
     <addaction name="action_Lift"/>
+    <addaction name="action_ScrollSingle"/>
    </widget>
    <widget class="QMenu" name="menu_about">
     <property name="title">
@@ -93,6 +99,26 @@
   <action name="action_repository">
    <property name="text">
     <string>开源仓库</string>
+   </property>
+  </action>
+  <action name="action_ScrollSingle">
+   <property name="text">
+    <string>滚动单抽</string>
+   </property>
+  </action>
+  <action name="action_inputconfig">
+   <property name="text">
+    <string>导入...</string>
+   </property>
+  </action>
+  <action name="action_outputconfig">
+   <property name="text">
+    <string>导出...</string>
+   </property>
+  </action>
+  <action name="action_reinputconfig">
+   <property name="text">
+    <string>重新加载配置</string>
    </property>
   </action>
  </widget>

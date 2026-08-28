@@ -133,7 +133,7 @@
 </string>
      </property>
      <property name="text">
-      <string>多抽</string>
+      <string>抽取</string>
      </property>
     </widget>
    </item>
@@ -201,7 +201,7 @@
 </string>
      </property>
      <property name="text">
-      <string>等待输入</string>
+      <string>减量抽</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignmentFlag::AlignCenter</set>
