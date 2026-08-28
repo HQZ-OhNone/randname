@@ -28,16 +28,23 @@ class ScrollController:
         self.on_result = on_result
 
         self.timer = QTimer()
-        self.timer.setInterval(80)  # 80ms 约等于每秒约12次切换
+        self.timer.setInterval(50)  # 50ms ~= 20 times/sec, matches example.html
         self.timer.timeout.connect(self._tick)
 
         self.running = False
         self.current_order = []
         self.index = 0
+        self.selected = None
 
-        # 按钮绑定
+        # 初始化按钮文本
         try:
-            self.button.clicked.connect(self.toggle)
+            if self.button is not None:
+                # set native initial label
+                try:
+                    self.button.setText("开始")
+                except Exception:
+                    pass
+                self.button.clicked.connect(self.toggle)
         except Exception:
             pass
 
@@ -73,13 +80,31 @@ class ScrollController:
 
     def stop(self):
         if not self.running:
-            return
+            # if already stopped, still may want to produce a result (random)
+            result = self.label.text() if self.label is not None else None
+            meta = {"time": self._now_str(), "mode": "scrollsingle"}
+            if self.on_result is not None:
+                try:
+                    self.on_result(result, meta)
+                except Exception:
+                    pass
+            return result
         self.timer.stop()
         self.running = False
         if self.button is not None:
-            self.button.setText("开始")
+            try:
+                self.button.setText("开始")
+            except Exception:
+                pass
         # current displayed name is the result
         result = self.label.text() if self.label is not None else None
+        # mark selection visually if possible
+        try:
+            if self.label is not None:
+                self.label.setStyleSheet('color: white; background-color: #c0392b; border-radius: 8px;')
+        except Exception:
+            pass
+        self.selected = result
         meta = {"time": self._now_str(), "mode": "scrollsingle"}
         if self.on_result is not None:
             try:
@@ -93,6 +118,16 @@ class ScrollController:
             return self.stop()
         else:
             return self.start()
+
+    def reset(self):
+        """Reset visual state to initial (no selection)."""
+        try:
+            if self.label is not None:
+                self.label.setText("等待输入")
+                self.label.setStyleSheet('')
+        except Exception:
+            pass
+        self.selected = None
 
     def update_names(self, new_names: dict):
         """更新可抽取的名字（不会重置按钮状态），保持现有running状态"""

@@ -156,6 +156,7 @@ class MainWindow(QMainWindow):
         self.action_single = getattr(self.ui_main, "action_Single", None)
         self.action_multi = getattr(self.ui_main, "action_Multi", None)
         self.action_lift = getattr(self.ui_main, "action_Lift", None)
+        self.action_scrollsingle = getattr(self.ui_main, "action_ScrollSingle", None)
         self.action_exit = getattr(self.ui_main, "action_exit", None)
         self.action_license = getattr(self.ui_main, "action_license", None)
         self.action_repository = getattr(self.ui_main, "action_repository", None)
@@ -238,6 +239,11 @@ class MainWindow(QMainWindow):
                 self.scroll_label.setText("等待输入")
             # 创建控制器，但不自动启动
             if self.scroll_button is not None and self.scroll_label is not None:
+                # ensure button initial text matches expected
+                try:
+                    self.scroll_button.setText("开始")
+                except Exception:
+                    pass
                 self.scroll_controller = ScrollSingle.ScrollController(self.scroll_label, self.scroll_button, self.names, on_result=self._on_scroll_result)
         except Exception as exc:
             logging.exception("初始化 ScrollSingle 失败: %s", exc)
