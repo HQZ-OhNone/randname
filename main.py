@@ -43,6 +43,7 @@ from lib import ui_main
 from lib import ui_widgetsingle
 from lib import ui_widgetmulti
 from lib import ui_widgetlift
+from lib import ui_widgetscrollsingle
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
@@ -196,9 +197,9 @@ class MainWindow(QMainWindow):
         self.ui_lift = ui_widgetlift.Ui_Form()
         self.ui_lift.setupUi(self.page_lift)
 
-        # ScrollSingle 頁面（重用 Single 的 UI 布局）
+        # ScrollSingle 頁面（使用專用 UI: WidgetScrollSingle.ui -> lib/ui_widgetscrollsingle.py）
         self.page_scrollsingle = QWidget()
-        self.ui_scrollsingle = ui_widgetsingle.Ui_Form()
+        self.ui_scrollsingle = ui_widgetscrollsingle.Ui_Form()
         self.ui_scrollsingle.setupUi(self.page_scrollsingle)
 
         self.stacked_widget.addWidget(self.page_single)
@@ -231,20 +232,20 @@ class MainWindow(QMainWindow):
             self.multi_button.clicked.connect(self._handle_multi)
             self.multi_label.setText("等待输入")
 
-        # ScrollSingle 綁定（重用 Single 的 UI 控件）
+        # ScrollSingle 綁定（使用 WidgetScrollSingle 的專用控件）
         try:
-            self.scroll_button = getattr(self.ui_scrollsingle, "pushButton", None)
-            self.scroll_label = getattr(self.ui_scrollsingle, "label_SingleOutput", None)
+            self.scroll_label = getattr(self.ui_scrollsingle, "label_ScrollSingleOutput", None)
+            self.scroll_start_button = getattr(self.ui_scrollsingle, "pushButton_ScrollSingleStart", None)
+            self.scroll_stop_button = getattr(self.ui_scrollsingle, "pushButton_ScrollSingleStop", None)
             if self.scroll_label is not None:
-                self.scroll_label.setText("等待输入")
-            # 创建控制器，但不自动启动
-            if self.scroll_button is not None and self.scroll_label is not None:
-                # ensure button initial text matches expected
+                # 默認顯示模式名稱
                 try:
-                    self.scroll_button.setText("开始")
+                    self.scroll_label.setText("滚动单抽")
                 except Exception:
                     pass
-                self.scroll_controller = ScrollSingle.ScrollController(self.scroll_label, self.scroll_button, self.names, on_result=self._on_scroll_result)
+            # 创建控制器，但不自动启动
+            if self.scroll_start_button is not None and self.scroll_stop_button is not None and self.scroll_label is not None:
+                self.scroll_controller = ScrollSingle.ScrollController(self.scroll_label, self.scroll_start_button, self.scroll_stop_button, self.names, on_result=self._on_scroll_result)
         except Exception as exc:
             logging.exception("初始化 ScrollSingle 失败: %s", exc)
 
