@@ -16,19 +16,22 @@ import random
 from datetime import datetime
 
 class ScrollController:
-    def __init__(self, label_widget, button_widget, names_dict, on_result=None):
+    def __init__(self, label_widget, start_button, stop_button, names_dict, on_result=None):
         """label_widget: QLabel to show name
-           button_widget: QPushButton to toggle start/stop
+           start_button: QPushButton to start rolling
+           stop_button: QPushButton to stop rolling
            names_dict: dict of key->name
            on_result: callable(result_str, meta_dict)
         """
         self.label = label_widget
-        self.button = button_widget
+        self.start_button = start_button
+        self.stop_button = stop_button
         self.names = names_dict.copy() if isinstance(names_dict, dict) else {}
         self.on_result = on_result
 
         self.timer = QTimer()
-        self.timer.setInterval(50)  # 50ms ~= 20 times/sec, matches example.html
+        # 30 times/sec ~= 33ms per tick
+        self.timer.setInterval(33)
         self.timer.timeout.connect(self._tick)
 
         self.running = False
@@ -36,15 +39,23 @@ class ScrollController:
         self.index = 0
         self.selected = None
 
-        # 初始化按钮文本
+        # 初始化按钮文本和绑定
         try:
-            if self.button is not None:
-                # set native initial label
+            if self.start_button is not None:
                 try:
-                    self.button.setText("开始")
+                    self.start_button.setText("开始")
                 except Exception:
                     pass
-                self.button.clicked.connect(self.toggle)
+                self.start_button.clicked.connect(self.start)
+        except Exception:
+            pass
+        try:
+            if self.stop_button is not None:
+                try:
+                    self.stop_button.setText("停止")
+                except Exception:
+                    pass
+                self.stop_button.clicked.connect(self.stop)
         except Exception:
             pass
 
@@ -98,12 +109,7 @@ class ScrollController:
                 pass
         # current displayed name is the result
         result = self.label.text() if self.label is not None else None
-        # mark selection visually if possible
-        try:
-            if self.label is not None:
-                self.label.setStyleSheet('color: white; background-color: #c0392b; border-radius: 8px;')
-        except Exception:
-            pass
+        # do not change visual styling (keep deep background), just record selection
         self.selected = result
         meta = {"time": self._now_str(), "mode": "scrollsingle"}
         if self.on_result is not None:
