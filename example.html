@@ -1,0 +1,418 @@
+<!--
+    豆包写了个啥！
+    完全就是一坨！
+    改都不想改！
+    请访问 https://www.github.com/HQZ-OhNone/randname 获取更优质的软件
+    
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>49班 · 点名系统</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background: linear-gradient(145deg, #f0f4fa 0%, #e6ecf5 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+            padding: 1.5rem;
+        }
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            border-radius: 3.5rem 3.5rem 2.5rem 2.5rem;
+            box-shadow: 0 25px 40px -10px rgba(0, 20, 30, 0.3),
+                        inset 0 0 0 1px rgba(255,255,255,0.6);
+            padding: 2.5rem 2rem 2rem 2rem;
+        }
+
+        /* 系统名称 */
+        .system-title {
+            text-align: center;
+            font-size: 3rem;
+            font-weight: 800;
+            letter-spacing: 2px;
+            color: #1a2e3f;
+            text-shadow: 3px 3px 0 #cddbe9, 6px 6px 0 rgba(0,40,70,0.1);
+            margin-bottom: 1.2rem;
+            word-break: keep-all;
+        }
+        .system-title span {
+            background: #162b38;
+            color: #f2ffe9;
+            padding: 0.2rem 1.2rem;
+            border-radius: 100px;
+            font-size: 1.2rem;
+            vertical-align: middle;
+            margin-left: 0.75rem;
+            box-shadow: inset 0 -2px 0 #51768b;
+        }
+
+        /* 中央抽选区域 */
+        .spotlight {
+            background: #ffffffc9;
+            backdrop-filter: blur(4px);
+            border-radius: 70px;
+            padding: 2.5rem 2rem;
+            margin: 1rem 0 2rem 0;
+            box-shadow: 0 15px 25px -8px rgba(0,20,40,0.2), inset 0 0 0 1px #ffffff;
+            border: 1px solid rgba(255,255,255,0.7);
+        }
+        .name-screen {
+            background: #13222e;
+            border-radius: 3rem;
+            padding: 1.8rem 1rem;
+            margin-bottom: 2.2rem;
+            box-shadow: inset 0 -5px 0 #354b5a, 0 15px 20px -10px #0f1e28;
+        }
+        #rollingName {
+            font-size: 4.5rem;
+            font-weight: 800;
+            text-align: center;
+            min-height: 8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #eaf2f9;
+            text-shadow: 0 2px 5px #3d6c8f;
+            letter-spacing: 2px;
+            background: #0b1a24;
+            padding: 0.5rem 0.8rem;
+            border-radius: 2.5rem;
+            word-break: break-word;
+            transition: color 0.1s ease;
+            line-height: 1.3;
+        }
+        /* 选中时的红名效果 (由js控制类) */
+        .name-screen .selected {
+            color: #ff3b3b !important;
+            text-shadow: 0 0 10px #ff8787, 0 2px 15px darkred;
+        }
+
+        /* 按钮组 */
+        .button-panel {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .action-btn {
+            border: none;
+            background: #1a3b4e;
+            color: white;
+            font-size: 2rem;
+            font-weight: 600;
+            padding: 0.8rem 2.8rem;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 8px 0 #0c202b, 0 10px 25px -5px #16303d;
+            transition: 0.08s linear;
+            letter-spacing: 1px;
+            min-width: 220px;
+            border: 1px solid #6f9fbb;
+        }
+        .action-btn:active {
+            transform: translateY(6px);
+            box-shadow: 0 2px 0 #0c202b, 0 5px 15px -3px #16303d;
+        }
+        .action-btn:disabled {
+            opacity: 0.5;
+            transform: translateY(4px);
+            box-shadow: 0 4px 0 #0c202b;
+            pointer-events: none;
+        }
+        .btn-stop {
+            background: #6d2e3f;
+            box-shadow: 0 8px 0 #401f28, 0 10px 25px -5px #562e39;
+            border-color: #e09caa;
+        }
+
+        /* 下方姓名方格网格 */
+        .grid-section {
+            margin-top: 2.8rem;
+        }
+        .grid-label {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1a3c4d;
+            background: rgba(255,255,240,0.7);
+            display: inline-block;
+            padding: 0.2rem 1.5rem;
+            border-radius: 40px;
+            backdrop-filter: blur(2px);
+            margin-bottom: 1rem;
+            border: 1px solid white;
+        }
+        .name-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.7rem 0.9rem;
+            justify-content: center;
+            background: #d9e2ed80;
+            padding: 2rem 1.5rem;
+            border-radius: 3rem;
+            backdrop-filter: blur(3px);
+            border: 2px solid #ffffffb0;
+        }
+        .name-tile {
+            background: #ffffff;
+            padding: 0.5rem 1.1rem;
+            border-radius: 20px 8px 20px 8px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #0e2b3b;
+            box-shadow: 5px 5px 0 #afc6d8, 0 5px 15px rgba(0,20,30,0.2);
+            transition: 0.1s ease;
+            border: 2px solid #eef9ff;
+            min-width: 90px;
+            text-align: center;
+            white-space: nowrap;
+        }
+        /* 高亮选中同学的小方格（可选——为了视觉呼应，但要求只强调中央红色，我们额外做一个小标记, 非必须；不过可以加点细话: 不做强制，但加分 */
+        .name-tile.highlight-tile {
+            background: #ffd0d0;
+            border: 2px solid #f00;
+            color: #a10000;
+            box-shadow: 0 0 0 2px #ffa3a3;
+            font-weight: 700;
+        }
+
+        /* 小屏幕优化 */
+        @media (max-width: 600px) {
+            .system-title { font-size: 2.2rem; }
+            #rollingName { font-size: 2.8rem; min-height: 6rem; }
+            .action-btn { font-size: 1.6rem; padding: 0.6rem 1.2rem; min-width: 170px; }
+            .name-tile { font-size: 1rem; padding: 0.3rem 0.8rem; min-width: 70px; }
+        }
+        @media (max-width: 420px) {
+            .container { padding: 1.5rem 1rem; }
+            .name-tile { white-space: normal; word-break: keep-all; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- 最上方系统名称 -->
+    <div class="system-title">
+        49班点名系统
+        <span>v1.0</span>
+    </div>
+
+    <!-- 中间核心区：名字 + 按钮 -->
+    <div class="spotlight">
+        <div class="name-screen">
+            <div id="rollingName">🎓 49班</div>
+        </div>
+        <div class="button-panel">
+            <button class="action-btn" id="startBtn" autofocus>▶ 开始点名</button>
+            <button class="action-btn btn-stop" id="stopBtn">⏹ 停止点名</button>
+        </div>
+    </div>
+
+    <!-- 最下方：所有同学名字方格 -->
+    <div class="grid-section">
+        <div class="grid-label">👥 全班同学 · 方格名单</div>
+        <div class="name-grid" id="nameGrid"></div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // ---------- 同学名单 (共59人) ----------
+        const rawNames = [
+            "白绍鹏", "曹玛诗怡", "陈凡", "段善铧", "官韵涵", "韩年喻", "何峻熙", "贺雪阳", "侯俊宇", "胡瑾瑜",
+            "胡洺涓", "黄锐洋", "黄馨怡", "贾云博", "蒋治恒", "敬一航", "李博", "李国强", "李昊珅", "李佳桐",
+            "李睿扬", "李亚宁", "李玉菲", "廖麦荀", "杨霆轩", "刘瑞霖", "刘稹涵", "龙浩杰", "罗仕杰", "罗震宇",
+            "彭茵茵", "任卓", "沈韦希", "谈华杰", "唐琪洲", "田家陈", "田之园", "宛彤", "王涵颍", "王沁喆",
+            "杨霆轩", "吴思彤", "吴易达", "杨昊霖", "杨邱", "杨霆轩", "喻俊杰", "周〇", "张宇鲲", "赵力松",
+            "赵启峰", "赵子惟", "郑睿", "郑晓桐", "周鑫杰", "周宇凡", "左耘萌", "宋依竹"
+        ];
+        // 确保总数量: 58? 数一下: 实际上面有58个名字？数一下：数到宋依竹是第59? 我们从白绍鹏到宋依竹人工数: 等等，最好用程序计数
+        // 为了精确，使用常量数组长度，可能59或58，但按原文列出，最后一个是宋依竹，前面左耘萌，一共59个? 我们不必纠结，直接使用数组。
+        // 但原文最末是"宋依竹"，而“左耘萌”之后是“宋依竹”，没问题。count一下:
+        // 1白2曹3陈4段5官6韩7何8贺9侯10胡瑾11胡洺12黄锐13黄馨14贾15蒋16敬17李博18李国19李昊20李佳21李睿22李亚23李玉24廖25刘柯26刘瑞27刘稹28龙29罗仕30罗震31彭32任33沈34谈35唐36田家37田之38宛39王涵40王沁41翁42吴思43吴易44杨昊45杨邱46杨霆47喻48张恒49张宇50赵力51赵启52赵子53郑睿54郑晓55周鑫56周宇57左耘58宋依竹 → 一共58人。跟标题49班可能不符，但以名单为准。
+        const students = [...rawNames];  // 58人
+
+        // DOM 元素
+        const rollingNameDiv = document.getElementById('rollingName');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const nameGrid = document.getElementById('nameGrid');
+
+        // 状态变量
+        let rollingInterval = null;          // setInterval 句柄
+        let isRolling = false;               // 是否正在滚动
+        let currentSelectedName = '';         // 当前选中的同学名字 (用于高亮方格)
+        let lastRollingName = '';              // 最后一次滚动的名字(用于停止时随机)
+
+        // ---------- 初始化下方名字方格 ----------
+        function renderNameGrid() {
+            nameGrid.innerHTML = '';           // 清空
+            students.forEach(name => {
+                const tile = document.createElement('div');
+                tile.className = 'name-tile';
+                tile.textContent = name;
+                tile.setAttribute('data-name', name);
+                nameGrid.appendChild(tile);
+            });
+        }
+        renderNameGrid();
+
+        // 辅助：更新所有方格的highlight类 (根据 currentSelectedName)
+        function highlightGridByName(selectedName) {
+            const tiles = document.querySelectorAll('.name-tile');
+            tiles.forEach(tile => {
+                const tileName = tile.getAttribute('data-name');
+                if (selectedName && tileName === selectedName) {
+                    tile.classList.add('highlight-tile');
+                } else {
+                    tile.classList.remove('highlight-tile');
+                }
+            });
+        }
+
+        // 清除中央的红色选中类
+        function clearCentralRed() {
+            rollingNameDiv.classList.remove('selected');
+        }
+
+        // 停止滚动动画，并清理定时器
+        function stopRollingAndClearInterval() {
+            if (rollingInterval) {
+                clearInterval(rollingInterval);
+                rollingInterval = null;
+            }
+            isRolling = false;
+        }
+
+        // 重置点名系统到初始状态：停止滚动，中间名字显示占位符且无红色，清除选中记忆，方格不高亮
+        function resetToInitial() {
+            stopRollingAndClearInterval();
+            rollingNameDiv.textContent = '🎓 49班';
+            clearCentralRed();
+            currentSelectedName = '';
+            highlightGridByName('');          // 移除所有方格高亮
+        }
+
+        // 随机选取一个名字 (使用当前students数组)
+        function getRandomStudentName() {
+            return students[Math.floor(Math.random() * students.length)];
+        }
+
+        // 滚动更新函数 (每秒20次 → 50ms一次)
+        function startRolling() {
+            // 如果已经有定时器则先清除 (保证不会叠加)
+            if (rollingInterval) {
+                clearInterval(rollingInterval);
+                rollingInterval = null;
+            }
+
+            // 清除中央红色标记
+            clearCentralRed();
+
+            // 可选：如果之前选中了某个名字，方格高亮要去掉
+            currentSelectedName = '';
+            highlightGridByName('');
+
+            // 随机滚动：每50ms更新一个随机名字
+            rollingInterval = setInterval(() => {
+                const randomName = getRandomStudentName();
+                rollingNameDiv.textContent = randomName;
+                lastRollingName = randomName;     // 记录最后一个名字，用于停止时选中
+            }, 50); // 50ms = 20次/秒
+
+            isRolling = true;
+        }
+
+        // 停止点名：随机定格在一个名字(可能基于当前显示的lastRollingName，或者新随机,但更自然用当前显示)
+        function stopAndPick() {
+            if (!isRolling) {
+                // 如果已经停止，仍然可以强制选中一个随机同学？根据用户故事：“当点击停止点名后，随机选定同学名字并结束滚动效果”
+                // 所以即使不在滚动，点击停止也应该选中一个随机名字（但动画没滚动就不存在“结束滚动”，我们设计为：若静止时点击停止，依然随机选中并高亮，且保证非滚动状态）
+                if (rollingInterval) {
+                    clearInterval(rollingInterval);  // 冗余安全
+                    rollingInterval = null;
+                }
+                isRolling = false;
+            } else {
+                // 正在滚动，立即停止定时器
+                stopRollingAndClearInterval();
+            }
+
+            // 随机选定同学 (优先使用 lastRollingName 如果存在并且合理？但规范是“随机选定”，所以我们完全随机)
+            const pickedName = getRandomStudentName();
+            // 更新中央屏幕
+            rollingNameDiv.textContent = pickedName;
+            // 加上红色标记
+            rollingNameDiv.classList.add('selected');
+            // 记录当前选中的名字
+            currentSelectedName = pickedName;
+            // 高亮下方对应方格
+            highlightGridByName(pickedName);
+        }
+
+        // ---------- 绑定按钮事件 ----------
+        // 开始点名按钮
+        startBtn.addEventListener('click', () => {
+            // 如果正在滚动，先停止并重置效果（还原）—— 根据要求：“当再次点击‘开始点名’按钮时动画效果结束重新还原。”
+            // 解释：如果当前有选中红色或任何滚动，点击开始点名就重置为滚动前状态（无红色，开始滚动）
+            // 所以直接调用 resetToInitial 再开始滚动
+            resetToInitial();            // 名字变为🎓49班，无红色，方格取消高亮，停止所有定时器
+            startRolling();              // 开启每秒20次滚动
+        });
+
+        // 停止点名按钮
+        stopBtn.addEventListener('click', () => {
+            // 如果当前正在滚动 -> 停止并随机选中
+            // 如果当前没有滚动（例如已经停止并显示了红名，或者初始状态）-> 随机选中一个同学（并高亮），且保证定时器停止
+            // 另外，根据需求“当点击停止点名后，随机选定同学名字并结束滚动效果”，隐含不管什么状态，都应该确保滚动停止并显示随机红名。
+            // 但为了完美，额外处理：如果目前处于初始🎓状态，点击停止会随机红名。
+            // 先清除任何进行中的滚动
+            if (rollingInterval) {
+                clearInterval(rollingInterval);
+                rollingInterval = null;
+                isRolling = false;
+            }
+            // 随机抽取并高亮
+            const picked = getRandomStudentName();
+            rollingNameDiv.textContent = picked;
+            rollingNameDiv.classList.add('selected');   // 红名
+            currentSelectedName = picked;
+            highlightGridByName(picked);
+            // 如果之前因为某种原因isRolling为true, 现在改为false
+            isRolling = false;
+        });
+
+        // 附加：当再次点击开始点名时，已经完全reset并滚动（包括移除红色和方格高亮），符合要求。
+        // 但是如果用户连续点击停止，每次都会重新随机选一个并红名，同时清除滚动。
+
+        // 处理一些边界情况：如果用户在停止后，再次按停止，随机变化红名（符合常理，随机选定同学，但我们尊重用户反复停止）
+        // 按开始总重置再滚动。
+
+        // 初始化样式：默认无红色
+        resetToInitial();
+
+        // 额外细节：若滚动中按下停止，会使用最后滚动的名字吗？目前stop逻辑是完全随机，但有些设计保留当前滚动的瞬间。为了更自然，可以获取当前显示的名字作为随机备选，但要求是“随机选定同学名字”，所以完全随机没毛病。但为了让体验更好，我可以在停止时用当前显示的 rollingNameDiv 的内容（如果它目前是一个同学名字）作为基准之一？但没必要，完全随机符合需求。
+        // 改进：若当前显示名字在学生列表里（因滚动只会显示列表内的），可以优先选用当前显示？但随机更符合文字，我们保留完全随机，增加惊喜。
+
+        // 但为了让停止时可能定格在目前滚动的名字（很多人性化），我稍微调整：停止时如果正在滚动，就从当前显示的那个名字和随机之间选一个? 不，必须完全随机。按照字面意思执行。没问题。
+
+        // 加一个小彩蛋：如果停止时选中的名字与之前相同，红色依然显示，方格高亮保持。
+        // 另外，如果点击开始点名时，正在滚动，已经reset了，没问题。
+
+        // 好，最后确保每个名字方格包裹，已经实现。
+    })();
+</script>
+</body>
+</html>
