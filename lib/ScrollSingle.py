@@ -86,8 +86,14 @@ class ScrollController:
         self.running = True
         self._prepare_new_order()
         self.timer.start()
-        if self.button is not None:
-            self.button.setText("停止")
+        # update button enabled states
+        try:
+            if self.start_button is not None:
+                self.start_button.setEnabled(False)
+            if self.stop_button is not None:
+                self.stop_button.setEnabled(True)
+        except Exception:
+            pass
 
     def stop(self):
         if not self.running:
@@ -102,11 +108,14 @@ class ScrollController:
             return result
         self.timer.stop()
         self.running = False
-        if self.button is not None:
-            try:
-                self.button.setText("开始")
-            except Exception:
-                pass
+        # update button enabled states
+        try:
+            if self.start_button is not None:
+                self.start_button.setEnabled(True)
+            if self.stop_button is not None:
+                self.stop_button.setEnabled(False)
+        except Exception:
+            pass
         # current displayed name is the result
         result = self.label.text() if self.label is not None else None
         # do not change visual styling (keep deep background), just record selection
