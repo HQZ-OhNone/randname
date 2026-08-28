@@ -30,7 +30,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QAction, QDesktopServices
-from PySide6.QtWidgets import QApplication, QLabel, QMainWindow, QMessageBox, QPushButton, QStackedWidget, QWidget, QMenuBar, QStatusBar
+from PySide6.QtWidgets import QApplication, QLabel, QMainWindow, QMessageBox, QPushButton, QStackedWidget, QWidget, QMenuBar, QStatusBar, QFileDialog
 
 from lib import Lift as lift_module
 from lib import Multi as multi_module
@@ -158,6 +158,9 @@ class MainWindow(QMainWindow):
         self.action_multi = getattr(self.ui_main, "action_Multi", None)
         self.action_lift = getattr(self.ui_main, "action_Lift", None)
         self.action_scrollsingle = getattr(self.ui_main, "action_ScrollSingle", None)
+        self.action_inputconfig = getattr(self.ui_main, "action_inputconfig", None)
+        self.action_outputconfig = getattr(self.ui_main, "action_outputconfig", None)
+        self.action_reinputconfig = getattr(self.ui_main, "action_reinputconfig", None)
         self.action_exit = getattr(self.ui_main, "action_exit", None)
         self.action_license = getattr(self.ui_main, "action_license", None)
         self.action_repository = getattr(self.ui_main, "action_repository", None)
@@ -170,6 +173,12 @@ class MainWindow(QMainWindow):
             self.action_lift.triggered.connect(self._show_lift_page)
         if self.action_scrollsingle:
             self.action_scrollsingle.triggered.connect(self._show_scrollsingle_page)
+        if self.action_inputconfig:
+            self.action_inputconfig.triggered.connect(self._on_import_memory)
+        if self.action_outputconfig:
+            self.action_outputconfig.triggered.connect(self._on_export_memory)
+        if self.action_reinputconfig:
+            self.action_reinputconfig.triggered.connect(self._on_reload_config)
         if self.action_exit:
             self.action_exit.triggered.connect(self._on_exit)
         if self.action_license:
@@ -283,6 +292,86 @@ class MainWindow(QMainWindow):
     def _show_scrollsingle_page(self):
         if self.stacked_widget is not None:
             self.stacked_widget.setCurrentWidget(self.page_scrollsingle)
+
+    def _on_import_memory(self):
+        # 导入记忆文件（JSON），应用并刷新软件状态（不修改 doc/config.json）
+        try:
+            fname, _ = QFileDialog.getOpenFileName(self, "Import memory file", "", "JSON Files (*.json);;All Files (*)")
+            if not fname:
+                return
+            from pathlib import Path
+            StateManager.import_memory(Path(fname), apply_callback=self._apply_memory_import)
+            QMessageBox.information(self, "导入完成", f"已导入记忆文件: {fname}")
+            StateManager.log("INFO", "import_ui_trigger", result=f"imported {fname}")
+        except Exception as exc:
+            logging.exception("导入记忆失败: %s", exc)
+            QMessageBox.warning(self, "导入失败", str(exc))
+
+    def _on_export_memory(self):
+        try:
+            fname, _ = QFileDialog.getSaveFileName(self, "Export memory file", "memory-export.json", "JSON Files (*.json);;All Files (*)")
+            if not fname:
+                return
+            from pathlib import Path
+            StateManager.export_memory(Path(fname))
+            QMessageBox.information(self, "导出完成", f"已导出记忆文件: {fname}")
+            StateManager.log("INFO", "export_ui_trigger", result=f"exported {fname}")
+        except Exception as exc:
+            logging.exception("导出记忆失败: %s", exc)
+            QMessageBox.warning(self, "导出失败", str(exc))
+
+    def _on_reload_config(self):
+        try:
+            cfg = StateManager.load_config()
+            # apply to runtime without changing files
+            if isinstance(cfg, dict) and cfg.get("names"):
+                self.names = cfg.get("names")
+                # 更新控制器们的名字源
+                try:
+                    if self.scroll_controller is not None:
+                        self.scroll_controller.update_names(self.names)
+                except Exception:
+                    pass
+                QMessageBox.information(self, "重新加载配置", "已从 doc/config.json 或默认配置重新加载配置（仅内存中应用）。")
+                StateManager.log("INFO", "reload_config", result="reloaded")
+            else:
+                QMessageBox.warning(self, "重新加载配置", "未找到可用配置文件。")
+        except Exception as exc:
+            logging.exception("重新加载配置失败: %s", exc)
+            QMessageBox.warning(self, "重新加载配置失败", str(exc))
+
+    def _apply_memory_import(self, content: dict):
+        # content 包含 loaded_config 与 last_results
+        try:
+            if not isinstance(content, dict):
+                return
+            # 如果 memory 中包含 loaded_config，则在运行时应用其 names
+            loaded_cfg = content.get("loaded_config")
+            if isinstance(loaded_cfg, dict) and loaded_cfg.get("names"):
+                self.names = loaded_cfg.get("names")
+                # update controllers
+                try:
+                    if self.scroll_controller is not None:
+                        self.scroll_controller.update_names(self.names)
+                except Exception:
+                    pass
+            # 将 last_results 应用到界面显示（若存在）
+            last = content.get("last_results", {})
+            if isinstance(last, dict):
+                if "single" in last and self.single_label is not None:
+                    v = last.get("single")
+                    self.single_label.setText(str(v.get("result") if isinstance(v, dict) else v))
+                if "multi" in last and self.multi_label is not None:
+                    v = last.get("multi")
+                    self.multi_label.setText(str(v.get("result") if isinstance(v, dict) else v))
+                if "lift" in last and self.lift_label is not None:
+                    v = last.get("lift")
+                    self.lift_label.setText(str(v.get("result") if isinstance(v, dict) else v))
+                if "scrollsingle" in last and self.scroll_label is not None:
+                    v = last.get("scrollsingle")
+                    self.scroll_label.setText(str(v.get("result") if isinstance(v, dict) else v))
+        except Exception as exc:
+            logging.exception("应用导入记忆失败: %s", exc)
 
     def _handle_single(self):
         try:
