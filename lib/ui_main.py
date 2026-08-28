@@ -31,6 +31,9 @@ class Ui_MainWindow(object):
         self.action_Multi.setObjectName(u"action_Multi")
         self.action_Lift = QAction(MainWindow)
         self.action_Lift.setObjectName(u"action_Lift")
+        # ScrollSingle action (new)
+        self.action_ScrollSingle = QAction(MainWindow)
+        self.action_ScrollSingle.setObjectName(u"action_ScrollSingle")
         self.action_exit = QAction(MainWindow)
         self.action_exit.setObjectName(u"action_exit")
         self.action_license = QAction(MainWindow)
@@ -73,6 +76,8 @@ class Ui_MainWindow(object):
         self.menu_mode.addAction(self.action_Single)
         self.menu_mode.addAction(self.action_Multi)
         self.menu_mode.addAction(self.action_Lift)
+        # add ScrollSingle to mode menu
+        self.menu_mode.addAction(self.action_ScrollSingle)
         self.menu_about.addAction(self.action_license)
         self.menu_about.addAction(self.action_repository)
 
@@ -89,6 +94,7 @@ class Ui_MainWindow(object):
         self.action_Single.setText(QCoreApplication.translate("MainWindow", u"\u5355\u62bd", None))
         self.action_Multi.setText(QCoreApplication.translate("MainWindow", u"\u591a\u62bd", None))
         self.action_Lift.setText(QCoreApplication.translate("MainWindow", u"\u51cf\u91cf\u62bd", None))
+        self.action_ScrollSingle.setText(QCoreApplication.translate("MainWindow", u"\u6eda\u52a8\u5355\u62bd", None))
         self.action_exit.setText(QCoreApplication.translate("MainWindow", u"\u9000\u51fa", None))
         self.action_license.setText(QCoreApplication.translate("MainWindow", u"\u8bb8\u53ef\u8bc1", None))
         self.action_repository.setText(QCoreApplication.translate("MainWindow", u"\u5f00\u6e90\u4ed3\u5e93", None))

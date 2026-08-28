@@ -3,3 +3,8 @@
 build
 __pycache__
 test*
+# runtime artifacts
+doc/log.json
+doc/memory.json
+# optional config directory removed; keep default config
+config/

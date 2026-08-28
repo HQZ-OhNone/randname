@@ -26,27 +26,46 @@ path_root = path_code.parent
 path_config = path_root / "config"
 path_names = path_config / "names.json"
 """
-path_config = Path(__file__).parent.parent / "config"
-path_names = path_config / "names.json"
+# 新的配置加载：优先读取 doc/config.json（只读），若不可用则回退到 config.default.json
+from pathlib import Path
+import json
+from PySide6.QtWidgets import QMessageBox
 
-# 判断所需文件是否齐全
-passon = True
-if path_config.exists():
-    print("找到: config")
-else:
-    print("config 文件夹不存在！")
-    passon = False
-if path_names.exists():
-    print("找到: names.json")
-else:
-    print("names.json 不存在！")
-    passon = False
+path_root = Path(__file__).parent.parent
+path_doc_config = path_root / "doc" / "config.json"
+path_default = path_root / "config.default.json"
 
-# 如果文件齐全，则执行：
-if passon:
-    # 读取JSON
-    names = json.loads(path_names.read_text(encoding="utf-8"))
-    print("已导入: names.json")
-    print(names)
-else:
-    print("退出")
+names = {}
+loaded_config = None
+
+# 尝试加载 doc/config.json
+if path_doc_config.exists():
+    try:
+        loaded_config = json.loads(path_doc_config.read_text(encoding="utf-8"))
+        names = loaded_config.get("names", {}) if isinstance(loaded_config, dict) else {}
+        print("已从 doc/config.json 读取配置")
+    except Exception as exc:
+        print("读取 doc/config.json 失败：", exc)
+        loaded_config = None
+
+# 若未能加载，则回退到 config.default.json 并弹窗提示（GUI 环境）
+if not names and path_default.exists():
+    try:
+        default_config = json.loads(path_default.read_text(encoding="utf-8"))
+        names = default_config.get("names", {}) if isinstance(default_config, dict) else {}
+        loaded_config = default_config
+        # 弹窗提示（如果在 QApplication 中）
+        try:
+            QMessageBox.information(None, "配置提示", "未找到有效的 doc/config.json，已加载 config.default.json（只读）。")
+        except Exception:
+            # 如果尚未创建 QApplication 或者在非 GUI 线程，忽略弹窗
+            print("提示：未找到有效的 doc/config.json，已使用默认配置。")
+        print("已加载默认配置 config.default.json")
+    except Exception as exc:
+        print("读取 config.default.json 失败：", exc)
+
+# 最终确保 names 为 dict
+if not isinstance(names, dict):
+    names = {}
+
+print("names count:", len(names))
