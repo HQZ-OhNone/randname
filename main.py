@@ -36,6 +36,8 @@ from lib import Lift as lift_module
 from lib import Multi as multi_module
 from lib import Single as single_module
 from lib import importnames
+from lib import StateManager
+from lib import ScrollSingle
 # 導入已經由 pyside6-uic 編譯並放在 lib/ 的 UI 模塊
 from lib import ui_main
 from lib import ui_widgetsingle
@@ -83,11 +85,13 @@ class MainWindow(QMainWindow):
         self.page_single = None
         self.page_multi = None
         self.page_lift = None
+        self.page_scrollsingle = None
         self.stacked_widget = None
 
         self.action_single = None
         self.action_multi = None
         self.action_lift = None
+        self.action_scrollsingle = None
         self.action_exit = None
         self.action_license = None
         self.action_repository = None
@@ -105,6 +109,11 @@ class MainWindow(QMainWindow):
         self.lift_up_button = None
         self.lift_down_button = None
         self.lift_renew_button = None
+
+        # ScrollSingle widgets & controller
+        self.scroll_button = None
+        self.scroll_label = None
+        self.scroll_controller = None
 
         self._build_ui()
 
@@ -157,6 +166,8 @@ class MainWindow(QMainWindow):
             self.action_multi.triggered.connect(self._show_multi_page)
         if self.action_lift:
             self.action_lift.triggered.connect(self._show_lift_page)
+        if self.action_scrollsingle:
+            self.action_scrollsingle.triggered.connect(self._show_scrollsingle_page)
         if self.action_exit:
             self.action_exit.triggered.connect(self._on_exit)
         if self.action_license:
@@ -184,9 +195,15 @@ class MainWindow(QMainWindow):
         self.ui_lift = ui_widgetlift.Ui_Form()
         self.ui_lift.setupUi(self.page_lift)
 
+        # ScrollSingle 頁面（重用 Single 的 UI 布局）
+        self.page_scrollsingle = QWidget()
+        self.ui_scrollsingle = ui_widgetsingle.Ui_Form()
+        self.ui_scrollsingle.setupUi(self.page_scrollsingle)
+
         self.stacked_widget.addWidget(self.page_single)
         self.stacked_widget.addWidget(self.page_multi)
         self.stacked_widget.addWidget(self.page_lift)
+        self.stacked_widget.addWidget(self.page_scrollsingle)
         self.stacked_widget.setCurrentWidget(self.page_single)
 
     def _bind_page_actions(self):
@@ -212,6 +229,18 @@ class MainWindow(QMainWindow):
         if self.multi_button and self.multi_label:
             self.multi_button.clicked.connect(self._handle_multi)
             self.multi_label.setText("等待输入")
+
+        # ScrollSingle 綁定（重用 Single 的 UI 控件）
+        try:
+            self.scroll_button = getattr(self.ui_scrollsingle, "pushButton", None)
+            self.scroll_label = getattr(self.ui_scrollsingle, "label_SingleOutput", None)
+            if self.scroll_label is not None:
+                self.scroll_label.setText("等待输入")
+            # 创建控制器，但不自动启动
+            if self.scroll_button is not None and self.scroll_label is not None:
+                self.scroll_controller = ScrollSingle.ScrollController(self.scroll_label, self.scroll_button, self.names, on_result=self._on_scroll_result)
+        except Exception as exc:
+            logging.exception("初始化 ScrollSingle 失败: %s", exc)
 
         # Lift 頁面綁定
         self.lift_button = getattr(self.ui_lift, "pushButton_Lift", None)
@@ -244,16 +273,33 @@ class MainWindow(QMainWindow):
         if self.stacked_widget is not None:
             self.stacked_widget.setCurrentWidget(self.page_lift)
 
+    def _show_scrollsingle_page(self):
+        if self.stacked_widget is not None:
+            self.stacked_widget.setCurrentWidget(self.page_scrollsingle)
+
     def _handle_single(self):
         try:
             logging.info("执行单抽")
             result = single_module.Single(self.names)
             self._set_output_text(self.single_label, self._format_single_result(result))
             self.statusBar().showMessage(f"单抽结果: {result}")
+            # 记录到内存与日志
+            try:
+                state = StateManager.load_memory()
+                state["loaded_config"] = getattr(importnames, 'loaded_config', None)
+                state.setdefault("last_results", {})["single"] = {"result": result, "time": StateManager._now_iso() if hasattr(StateManager, '_now_iso') else None}
+                StateManager.save_memory(state)
+                StateManager.log("INFO", "single", result=result)
+            except Exception:
+                logging.exception("记录 single 结果失败")
         except Exception as exc:
             logging.exception("单抽执行失败: %s", exc)
             self._set_output_text(self.single_label, "单抽失败")
             self._show_error("单抽失败", str(exc))
+            try:
+                StateManager.log("ERROR", "single", error=str(exc))
+            except Exception:
+                pass
 
     def _handle_multi(self):
         try:
@@ -261,10 +307,23 @@ class MainWindow(QMainWindow):
             result = multi_module.Multi(self.names, self.multi_quantity)
             self._set_output_text(self.multi_label, self._format_output_result(result))
             self.statusBar().showMessage(f"多抽完成，数量={self.multi_quantity}")
+            # 记录到内存与日志
+            try:
+                state = StateManager.load_memory()
+                state["loaded_config"] = getattr(importnames, 'loaded_config', None)
+                state.setdefault("last_results", {})["multi"] = {"result": result, "time": StateManager._now_iso() if hasattr(StateManager, '_now_iso') else None}
+                StateManager.save_memory(state)
+                StateManager.log("INFO", "multi", result=result)
+            except Exception:
+                logging.exception("记录 multi 结果失败")
         except Exception as exc:
             logging.exception("多抽执行失败: %s", exc)
             self._set_output_text(self.multi_label, "多抽失败")
             self._show_error("多抽失败", str(exc))
+            try:
+                StateManager.log("ERROR", "multi", error=str(exc))
+            except Exception:
+                pass
 
     def _handle_lift(self):
         try:
@@ -283,10 +342,42 @@ class MainWindow(QMainWindow):
                 self.lift_current_dict = result["Liftdict"]
             
             self.statusBar().showMessage(f"减量抽完成，数量={self.lift_quantity}")
+            # 记录到内存与日志
+            try:
+                state = StateManager.load_memory()
+                state["loaded_config"] = getattr(importnames, 'loaded_config', None)
+                state.setdefault("last_results", {})["lift"] = {"result": result, "time": StateManager._now_iso() if hasattr(StateManager, '_now_iso') else None}
+                StateManager.save_memory(state)
+                StateManager.log("INFO", "lift", result=result)
+            except Exception:
+                logging.exception("记录 lift 结果失败")
         except Exception as exc:
             logging.exception("减量抽执行失败: %s", exc)
             self._set_output_text(self.lift_label, "减量抽失败")
             self._show_error("减量抽失败", str(exc))
+            try:
+                StateManager.log("ERROR", "lift", error=str(exc))
+            except Exception:
+                pass
+
+    def _on_scroll_result(self, result, meta):
+        # Called by ScrollSingle controller when a result is produced
+        try:
+            logging.info("scrollsingle result: %s", result)
+            if self.scroll_label is not None:
+                self.scroll_label.setText(str(result))
+            # 保存到记忆与日志
+            state = StateManager.load_memory()
+            state["loaded_config"] = getattr(importnames, 'loaded_config', None)
+            state.setdefault("last_results", {})["scrollsingle"] = {"result": result, "meta": meta}
+            StateManager.save_memory(state)
+            StateManager.log("INFO", "scrollsingle", result={"name": result, "meta": meta})
+        except Exception as exc:
+            logging.exception("处理 scrollsingle 结果失败: %s", exc)
+            try:
+                StateManager.log("ERROR", "scrollsingle", error=str(exc))
+            except Exception:
+                pass
 
     def _adjust_quantity(self, mode, delta):
         max_count = max(1, len(self.names))
@@ -300,8 +391,9 @@ class MainWindow(QMainWindow):
             logging.info("更新减量抽数量=%s", self.lift_quantity)
 
     def _reset_lift_page(self):
-        self.lift_quantity = 1
+        # 刷新减量抽页面：不改变 lift_quantity，只重置当前的 Liftdict
         self.lift_current_dict = None  # 重置减量抽字典
+        # 保持数量值不变，仅更新显示
         self._set_quantity_label(self.lift_quantity_label, self.lift_quantity)
         if self.lift_label is not None:
             self.lift_label.setText("等待输入")

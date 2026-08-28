@@ -61,13 +61,13 @@ pip install nuitka
 nuitka \
 --standalone \
 --enable-plugin=pyside6 \
---include-data-dir=config=config \
 --include-data-dir=doc=doc \
 --output-dir=build \
 --output-filename=randname \
 --show-progress \
 --lto=yes \
 --assume-yes-for-downloads \
+--nofollow-import-to=PySide6.QtDesigner --nofollow-import-to=PySide6.QtUiTools \
 main.py
 ```
 
@@ -76,13 +76,13 @@ main.py
 nuitka `
 --standalone `
 --enable-plugin=pyside6 `
---include-data-dir=config=config `
 --include-data-dir=doc=doc `
 --output-dir=build `
 --output-filename=randname.exe `
 --show-progress `
 --lto=yes `
 --assume-yes-for-downloads `
+--nofollow-import-to=PySide6.QtDesigner --nofollow-import-to=PySide6.QtUiTools `
 --windows-disable-console `
 main.py
 ```

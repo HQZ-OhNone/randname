@@ -26,46 +26,40 @@ path_root = path_code.parent
 path_config = path_root / "config"
 path_names = path_config / "names.json"
 """
-# 新的配置加载：优先读取 doc/config.json（只读），若不可用则回退到 config.default.json
+# load configuration via StateManager if available
 from pathlib import Path
 import json
-from PySide6.QtWidgets import QMessageBox
 
-path_root = Path(__file__).parent.parent
-path_doc_config = path_root / "doc" / "config.json"
-path_default = path_root / "config.default.json"
-
+# Try to use StateManager.load_config to centralize config handling
 names = {}
 loaded_config = None
-
-# 尝试加载 doc/config.json
-if path_doc_config.exists():
+try:
+    from lib import StateManager
+    cfg = StateManager.load_config()
+    if isinstance(cfg, dict):
+        loaded_config = cfg
+        names = cfg.get('names', {}) if isinstance(cfg.get('names', {}), dict) else {}
+        print('Loaded configuration via StateManager')
+except Exception as exc:
+    # Fallback: try to read doc/config.json directly
+    path_root = Path(__file__).parent.parent
+    path_doc_config = path_root / 'doc' / 'config.json'
+    path_default = path_root / 'config.default.json'
     try:
-        loaded_config = json.loads(path_doc_config.read_text(encoding="utf-8"))
-        names = loaded_config.get("names", {}) if isinstance(loaded_config, dict) else {}
-        print("已从 doc/config.json 读取配置")
-    except Exception as exc:
-        print("读取 doc/config.json 失败：", exc)
-        loaded_config = None
+        if path_doc_config.exists():
+            loaded_config = json.loads(path_doc_config.read_text(encoding='utf-8'))
+            names = loaded_config.get('names', {}) if isinstance(loaded_config, dict) else {}
+            print('Loaded doc/config.json (fallback)')
+        elif path_default.exists():
+            loaded_config = json.loads(path_default.read_text(encoding='utf-8'))
+            names = loaded_config.get('names', {}) if isinstance(loaded_config, dict) else {}
+            print('Loaded config.default.json (fallback)')
+    except Exception as exc2:
+        print('Failed to load configuration:', exc2)
 
-# 若未能加载，则回退到 config.default.json 并弹窗提示（GUI 环境）
-if not names and path_default.exists():
-    try:
-        default_config = json.loads(path_default.read_text(encoding="utf-8"))
-        names = default_config.get("names", {}) if isinstance(default_config, dict) else {}
-        loaded_config = default_config
-        # 弹窗提示（如果在 QApplication 中）
-        try:
-            QMessageBox.information(None, "配置提示", "未找到有效的 doc/config.json，已加载 config.default.json（只读）。")
-        except Exception:
-            # 如果尚未创建 QApplication 或者在非 GUI 线程，忽略弹窗
-            print("提示：未找到有效的 doc/config.json，已使用默认配置。")
-        print("已加载默认配置 config.default.json")
-    except Exception as exc:
-        print("读取 config.default.json 失败：", exc)
-
-# 最终确保 names 为 dict
 if not isinstance(names, dict):
     names = {}
 
-print("names count:", len(names))
+# expose for other modules
+__all__ = ['names', 'loaded_config']
+print('names count:', len(names))

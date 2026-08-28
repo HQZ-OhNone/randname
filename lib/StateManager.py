@@ -110,3 +110,30 @@ def load_memory() -> dict:
 def save_memory(state: dict):
     MEMORY_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding='utf-8')
     log("INFO", "save_memory", result="saved")
+
+
+def load_config() -> dict:
+    """读取 doc/config.json（只读），若不存在或损坏则回退到 config.default.json 并返回内容。不会修改任何配置文件。
+
+    返回解析的配置字典（或空字典）。
+    """
+    doc_conf = ROOT / "doc" / "config.json"
+    default_conf = ROOT / "config.default.json"
+    cfg = None
+    if doc_conf.exists():
+        try:
+            cfg = json.loads(doc_conf.read_text(encoding='utf-8'))
+            log("INFO", "load_config", result=f"loaded doc/config.json")
+            return cfg
+        except Exception as exc:
+            log("ERROR", "load_config", error=f"failed to parse doc/config.json: {exc}")
+            cfg = None
+    if default_conf.exists():
+        try:
+            cfg = json.loads(default_conf.read_text(encoding='utf-8'))
+            log("WARN", "load_config", result=f"loaded config.default.json")
+            return cfg
+        except Exception as exc:
+            log("ERROR", "load_config", error=f"failed to parse config.default.json: {exc}")
+    # 最后返回空字典
+    return {}
