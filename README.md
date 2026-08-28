@@ -98,19 +98,22 @@ tar -cavf randname3_linux.tar.zst randname3
 -----
 
 ### 未來開發
-项目 TODO（已合并）:
+项目 TODO :
+[ ]待办
+[x]完成
+[w]暂时废弃
 
 - 导入：
   - [x] 学号JSON
-  - [ ] 座位分布JSON
-  - [ ] 多字典映射不同属性
+  - [w] 座位分布JSON
+  - [w] 多字典映射不同属性
 
 - GUI：
   - 主界面：
     - [x] Single: 单抽
     - [x] Multi: 多抽
     - [x] Lift: 减量抽
-    - [ ] Seats: 抽座位坐标
+    - [w] Seats: 抽座位坐标
   - 菜单栏：
     - [x] 文件：退出、保存状态
     - [x] 模式：单抽/连抽/减量抽/抽座位坐标
@@ -121,17 +124,12 @@ tar -cavf randname3_linux.tar.zst randname3
   - [x] Single: 单抽
   - [x] Multi: 连抽
   - [x] Lift: 减量抽
-  - [ ] Seats: 抽座位坐标
+  - [w] Seats: 抽座位坐标
 
-- 技术实现：
-  - python3.12.10
-  - qt6.11.1
-
-(原 doc/TODO.md 内容已并入此处，doc/TODO.md 已被移除。)
 
 ### 反饋
 歡迎提 issue 或發郵件
 
 -----
 HQZ-OhNone \<ohnone_hqz@outlook.com>  
-lastedit: 2026-08-12
+lastedit: 2026-08-28

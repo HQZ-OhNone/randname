@@ -11,7 +11,7 @@ You should have received a copy of the GNU General Public License along with thi
 import sys
 import random
 from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QLabel, QVBoxLayout
-from importnames import names
+from lib.importnames import names
 
 class RandomPicker(QWidget):
     def __init__(self):
