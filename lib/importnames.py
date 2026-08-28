@@ -26,27 +26,40 @@ path_root = path_code.parent
 path_config = path_root / "config"
 path_names = path_config / "names.json"
 """
-path_config = Path(__file__).parent.parent / "config"
-path_names = path_config / "names.json"
+# load configuration via StateManager if available
+from pathlib import Path
+import json
 
-# 判断所需文件是否齐全
-passon = True
-if path_config.exists():
-    print("找到: config")
-else:
-    print("config 文件夹不存在！")
-    passon = False
-if path_names.exists():
-    print("找到: names.json")
-else:
-    print("names.json 不存在！")
-    passon = False
+# Try to use StateManager.load_config to centralize config handling
+names = {}
+loaded_config = None
+try:
+    from lib import StateManager
+    cfg = StateManager.load_config()
+    if isinstance(cfg, dict):
+        loaded_config = cfg
+        names = cfg.get('names', {}) if isinstance(cfg.get('names', {}), dict) else {}
+        print('Loaded configuration via StateManager')
+except Exception as exc:
+    # Fallback: try to read doc/config.json directly
+    path_root = Path(__file__).parent.parent
+    path_doc_config = path_root / 'doc' / 'config.json'
+    path_default = path_root / 'config.default.json'
+    try:
+        if path_doc_config.exists():
+            loaded_config = json.loads(path_doc_config.read_text(encoding='utf-8'))
+            names = loaded_config.get('names', {}) if isinstance(loaded_config, dict) else {}
+            print('Loaded doc/config.json (fallback)')
+        elif path_default.exists():
+            loaded_config = json.loads(path_default.read_text(encoding='utf-8'))
+            names = loaded_config.get('names', {}) if isinstance(loaded_config, dict) else {}
+            print('Loaded config.default.json (fallback)')
+    except Exception as exc2:
+        print('Failed to load configuration:', exc2)
 
-# 如果文件齐全，则执行：
-if passon:
-    # 读取JSON
-    names = json.loads(path_names.read_text(encoding="utf-8"))
-    print("已导入: names.json")
-    print(names)
-else:
-    print("退出")
+if not isinstance(names, dict):
+    names = {}
+
+# expose for other modules
+__all__ = ['names', 'loaded_config']
+print('names count:', len(names))
