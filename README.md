@@ -42,6 +42,7 @@ pip install pyside6
 4. 運行 main.py
 
 #### 方案三、自行編譯二進制文件
+
 1. 在本機配置 Python 環境，可贊考 [Python官方網站](https://www.python.org/)
 2. 將倉庫克隆到本地，如：
 ```git
