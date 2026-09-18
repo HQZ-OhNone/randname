@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 # -*- coding: utf-8 -*-
-# Linux 下的自動化構建腳本：
-# 1) 使用 pyside6-uic 將 ui/*.ui 編譯爲 Python 模塊，放在 lib/ 目錄
-# 2) 使用 Nuitka 編譯整個項目（不再包含 ui/ 目錄作為數據）
+# Linux build: compile every UI, package TOML data, and exclude unused Qt modules.
 
 set -euo pipefail
 
@@ -14,15 +12,15 @@ pyside6-uic ui/WidgetMulti.ui -o lib/ui_widgetmulti.py
 pyside6-uic ui/WidgetLift.ui -o lib/ui_widgetlift.py
 pyside6-uic ui/WidgetScrollSingle.ui -o lib/ui_widgetscrollsingle.py
 
-echo "安裝或更新 Nuitka 與 PySide6(可選)..."
+echo "安裝或更新 Nuitka 與 PySide6"
 python -m pip install --upgrade pip
 pip install --upgrade nuitka PySide6 || true
 
 echo "用 Nuitka 編譯項目"
-# 注意：自 3.3.0 后不再包含 --include-data-dir=ui=ui
 nuitka \
   --standalone \
   --enable-plugin=pyside6 \
+  --include-data-file=.config.default.toml=.config.default.toml \
   --include-data-dir=doc=doc \
   --include-data-dir=theme=theme \
   --output-dir=build \
@@ -30,6 +28,12 @@ nuitka \
   --show-progress \
   --lto=yes \
   --assume-yes-for-downloads \
+  --nofollow-import-to=PySide6.QtDesigner \
+  --nofollow-import-to=PySide6.QtUiTools \
+  --nofollow-import-to=PySide6.QtNetwork \
+  --nofollow-import-to=PySide6.QtSql \
+  --nofollow-import-to=PySide6.QtTest \
+  --nofollow-import-to=PySide6.QtXml \
   main.py
 
 echo "構建完成，輸出目錄：build/"

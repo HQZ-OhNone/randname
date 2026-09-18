@@ -164,8 +164,8 @@ class Ui_Form(object):
         self.pushButton_LiftQuantityUp.setText(QCoreApplication.translate("Form", u"\u589e\u52a0", None))
         self.label_LiftQuantity.setText(QCoreApplication.translate("Form", u"1", None))
         self.pushButton_LiftQuantityDown.setText(QCoreApplication.translate("Form", u"\u51cf\u5c11", None))
-        self.pushButton_Lift.setText(QCoreApplication.translate("Form", u"\u591a\u62bd", None))
-        self.label_LiftOutput.setText(QCoreApplication.translate("Form", u"\u7b49\u5f85\u8f93\u5165", None))
+        self.pushButton_Lift.setText(QCoreApplication.translate("Form", u"\u62bd\u53d6", None))
+        self.label_LiftOutput.setText(QCoreApplication.translate("Form", u"\u51cf\u91cf\u62bd", None))
         self.pushButton_LiftRenew.setText(QCoreApplication.translate("Form", u"\u5237\u65b0", None))
     # retranslateUi
 

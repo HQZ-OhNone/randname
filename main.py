@@ -100,6 +100,9 @@ class MainWindow(QMainWindow):
         self.action_theme_dark = None
         self.action_theme_light = None
         self.action_theme_blue = None
+        self.action_theme_amber = None
+        self.action_theme_green = None
+        self.action_theme_purple = None
 
         self.single_button = None
         self.single_label = None
@@ -188,6 +191,9 @@ class MainWindow(QMainWindow):
         self.action_theme_dark = getattr(self.ui_main, "action_theme_dark", None)
         self.action_theme_light = getattr(self.ui_main, "action_theme_light", None)
         self.action_theme_blue = getattr(self.ui_main, "action_theme_blue", None)
+        self.action_theme_amber = getattr(self.ui_main, "action_theme_amber", None)
+        self.action_theme_green = getattr(self.ui_main, "action_theme_green", None)
+        self.action_theme_purple = getattr(self.ui_main, "action_theme_purple", None)
 
         if self.action_single:
             self.action_single.triggered.connect(self._show_single_page)
@@ -213,6 +219,9 @@ class MainWindow(QMainWindow):
             (self.action_theme_dark, "dark"),
             (self.action_theme_light, "light"),
             (self.action_theme_blue, "blue"),
+            (self.action_theme_amber, "amber"),
+            (self.action_theme_green, "green"),
+            (self.action_theme_purple, "purple"),
         ):
             if action is not None:
                 action.triggered.connect(lambda checked=False, theme=name: self._apply_theme(theme))

@@ -1,0 +1,15 @@
+# 绿色主题：柔和的自然色调。
+color_format = "RGB"
+
+[colors]
+background = "21,35,28"
+foreground = "235,255,241"
+panel = "30,55,40"
+display_background = "39,78,55"
+display_foreground = "235,255,241"
+display_border = "116,190,142"
+button = "43,91,62"
+button_hover = "54,115,78"
+button_pressed = "72,139,95"
+border = "116,190,142"
+accent = "80,200,120"

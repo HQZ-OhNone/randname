@@ -11,7 +11,7 @@
 ### 特點
 - **簡潔易用**，無需任何經驗、開箱即用、上手就會，學習成本極低。
 - **功能豐富**，支持 Single、Multi、Lift、ScrollSingle 四种模式，启动后默认进入 ScrollSingle。
-- **可换主题**，菜单栏“主题”提供深色、浅色和蓝色主题；主题配置位于 `theme/*.toml`。
+- **可换主题**，菜单栏“主题”提供深色、浅色、蓝色、琥珀、绿色和紫色主题；主题配置位于 `theme/*.toml`。
 - **開源免費**，本程序在 [GPL v3.0](./doc/gpl-3.0.txt) 下發佈，任何人可以使用。
 
 ### 技術實現
@@ -43,9 +43,9 @@ pip install pyside6
 4. 運行 main.py
 
 #### 配置与运行记录
-- 当前配置为 `doc/config.toml`，程序只读加载；文件缺失或损坏时使用 `config.default.toml` 并提示。
+- 当前配置为 `doc/config.toml`，程序只读加载；文件缺失或损坏时使用隐藏的 `.config.default.toml` 并提示。
 - 配置使用 TOML，包含姓名、窗口初始尺寸、默认模式、滚动速度和主题等选项，可直接编辑注释旁的值。
-- `doc/memory.json` 保存各模式最近结果，`doc/log.json` 保存精简的英文结构化日志；两者均不会提交到 Git。
+- `doc/memory.json` 保存各模式最近结果，`doc/log.log` 保存精简的英文逐行日志；两者均不会提交到 Git。
 - 菜单栏“文件 -> 导入...”和“导出...”用于记忆文件，不会覆盖 `doc/config.toml`。
 
 #### 方案三、自行編譯二進制文件
@@ -69,6 +69,7 @@ pip install nuitka
 nuitka \
 --standalone \
 --enable-plugin=pyside6 \
+--include-data-file=.config.default.toml=.config.default.toml \
 --include-data-dir=doc=doc \
 --include-data-dir=theme=theme \
 --output-dir=build \
@@ -76,7 +77,12 @@ nuitka \
 --show-progress \
 --lto=yes \
 --assume-yes-for-downloads \
---nofollow-import-to=PySide6.QtDesigner --nofollow-import-to=PySide6.QtUiTools \
+--nofollow-import-to=PySide6.QtDesigner \
+--nofollow-import-to=PySide6.QtUiTools \
+--nofollow-import-to=PySide6.QtNetwork \
+--nofollow-import-to=PySide6.QtSql \
+--nofollow-import-to=PySide6.QtTest \
+--nofollow-import-to=PySide6.QtXml \
 main.py
 ```
 
@@ -85,6 +91,7 @@ main.py
 nuitka `
 --standalone `
 --enable-plugin=pyside6 `
+--include-data-file=.config.default.toml=.config.default.toml `
 --include-data-dir=doc=doc `
 --include-data-dir=theme=theme `
 --output-dir=build `
@@ -92,7 +99,12 @@ nuitka `
 --show-progress `
 --lto=yes `
 --assume-yes-for-downloads `
---nofollow-import-to=PySide6.QtDesigner --nofollow-import-to=PySide6.QtUiTools `
+--nofollow-import-to=PySide6.QtDesigner `
+--nofollow-import-to=PySide6.QtUiTools `
+--nofollow-import-to=PySide6.QtNetwork `
+--nofollow-import-to=PySide6.QtSql `
+--nofollow-import-to=PySide6.QtTest `
+--nofollow-import-to=PySide6.QtXml `
 --windows-disable-console `
 main.py
 ```
@@ -108,10 +120,7 @@ tar -cavf randname3_linux.tar.zst randname3
 -----
 
 ### 未來開發
-项目 TODO :
-[ ]待办
-[x]完成
-[w]暂时废弃
+项目 TODO:
 
 - 导入：
   - [x] 学号JSON
@@ -129,7 +138,7 @@ tar -cavf randname3_linux.tar.zst randname3
     - [x] 文件：退出、保存状态
     - [x] 模式：单抽/连抽/减量抽/抽座位坐标
     - [x] 关于：许可证、仓库
-    - [x] 主题：深色、浅色、蓝色
+    - [x] 主题：深色、浅色、蓝色、琥珀、绿色、紫色
     - [ ] 捐赠、反馈
 
 - 抽取：
@@ -138,10 +147,14 @@ tar -cavf randname3_linux.tar.zst randname3
   - [x] Lift: 减量抽
   - [w] Seats: 抽座位坐标
 
+- 技术实现：
+  - python3.12.10
+  - qt6.11.1
+
 
 ### 反饋
 歡迎提 issue 或發郵件
 
 -----
 HQZ-OhNone \<ohnone_hqz@outlook.com>  
-lastedit: 2026-08-28
+lastedit: 2026-09-19
