@@ -50,7 +50,6 @@ pip install pyside6==6.11.1
 - 菜单栏“文件 -> 导入...”和“导出...”用于记忆文件，不会覆盖 `doc/config.toml`。
 
 #### 方案三、自行編譯二進制文件
-
 1. 在本機配置 Python 環境，可贊考 [Python官方網站](https://www.python.org/)
 2. 將倉庫克隆到本地，如：
 ```git
