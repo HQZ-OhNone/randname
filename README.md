@@ -49,6 +49,7 @@ pip install pyside6
 - 菜单栏“文件 -> 导入...”和“导出...”用于记忆文件，不会覆盖 `doc/config.toml`。
 
 #### 方案三、自行編譯二進制文件
+
 1. 在本機配置 Python 環境，可贊考 [Python官方網站](https://www.python.org/)
 2. 將倉庫克隆到本地，如：
 ```git
@@ -119,12 +120,12 @@ tar -cavf randname3_linux.tar.zst randname3
 -----
 
 ### 未來開發
-项目TODO:
+项目 TODO:
 
 - 导入：
   - [x] 学号JSON
-  - [ ] 座位分布JSON
-  - [ ] 多字典映射不同属性
+  - [w] 座位分布JSON
+  - [w] 多字典映射不同属性
 
 - GUI：
   - 主界面：
@@ -132,7 +133,7 @@ tar -cavf randname3_linux.tar.zst randname3
     - [x] Multi: 多抽
     - [x] Lift: 减量抽
     - [x] ScrollSingle: 滚动单抽（默认模式）
-    - [ ] Seats: 抽座位坐标
+    - [w] Seats: 抽座位坐标
   - 菜单栏：
     - [x] 文件：退出、保存状态
     - [x] 模式：单抽/连抽/减量抽/抽座位坐标
@@ -144,7 +145,7 @@ tar -cavf randname3_linux.tar.zst randname3
   - [x] Single: 单抽
   - [x] Multi: 连抽
   - [x] Lift: 减量抽
-  - [ ] Seats: 抽座位坐标
+  - [w] Seats: 抽座位坐标
 
 - 技术实现：
   - python3.12.10
