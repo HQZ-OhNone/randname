@@ -9,9 +9,9 @@ pyside6-uic ui\WidgetMulti.ui -o lib\ui_widgetmulti.py
 pyside6-uic ui\WidgetLift.ui -o lib\ui_widgetlift.py
 pyside6-uic ui\WidgetScrollSingle.ui -o lib\ui_widgetscrollsingle.py
 
-echo 安裝或更新 Nuitka 與 PySide6
+echo 安裝 Nuitka 與 PySide6
 python -m pip install --upgrade pip
-pip install --upgrade nuitka PySide6 || echo "pip install failed, please install dependencies manually"
+pip install nuitka==4.1.3 PySide6==6.11.1 || echo "pip install failed, please install dependencies manually"
 
 echo 用 Nuitka 編譯項目
 nuitka ^

@@ -1,4 +1,4 @@
-```
+```ascii art
                       _                            
   _ __ __ _ _ __   __| |_ __   __ _ _ __ ___   ___  
  | '__/ _` | '_ \ / _` | '_ \ / _` | '_ ` _ \ / _ \ 
@@ -38,7 +38,8 @@ git clone https://github.com/HQZ-OhNone/randname.git
 ```
 3. 安裝 ```pyside6``` 庫，推薦使用 ```pip```，如：
 ```pip
-pip install pyside6
+python -m pip install --upgrade pip
+pip install pyside6==6.11.1
 ```
 4. 運行 main.py
 
@@ -55,15 +56,12 @@ pip install pyside6
 ```git
 git clone https://github.com/HQZ-OhNone/randname.git
 ```
-3. 安裝 ```pyside6``` 庫，推薦使用 ```pip```，如：
+3. 安裝 ```nuitka``` 庫與 ```pyside6``` 庫，推薦使用 ```pip```，如：
 ```pip
-pip install pyside6
+python -m pip install --upgrade pip
+pip install nuitka==4.1.3 pyside6==6.11.1
 ```
-4. 安裝 ```nuitka``` 庫，推薦使用 ```pip```，如：
-```pip
-pip install nuitka
-```
-5. 使用 Nuitka 經行編譯，如：
+4. 使用 Nuitka 經行編譯，如：
 - Linux
 ```nuitka
 nuitka \
@@ -108,13 +106,13 @@ nuitka `
 --windows-disable-console `
 main.py
 ```
-6. 找到 ```build``` 目錄下的可執行文件，運行即可。
-7. 編譯完成後亦可打包分發
+5. 找到 ```build``` 目錄下的可執行文件，運行即可。
+6. 編譯完成後亦可打包分發
 - Linux
-```Zsh
+```zsh
 cd build
 mv main.dist randname3
-tar -cavf randname3_linux.tar.zst randname3
+tar -cavf randname3_linux.tar.xz randname3
 ```
 
 -----

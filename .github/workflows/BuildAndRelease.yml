@@ -101,11 +101,11 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install nuitka PySide6
+          pip install nuitka==4.1.3 PySide6==6.11.1
 
       - name: Compile UI files
         run: |
-          # 將 ui/*.ui 編譯為 Python 模塊，放到 lib/（確保已安裝 PySide6）
+          # 將 ui/*.ui 編譯為 Python 模塊，放到 lib/
           pyside6-uic ui/Main.ui -o lib/ui_main.py
           pyside6-uic ui/WidgetSingle.ui -o lib/ui_widgetsingle.py
           pyside6-uic ui/WidgetMulti.ui -o lib/ui_widgetmulti.py
@@ -147,7 +147,7 @@ jobs:
             exit 1
           fi
 
-      - name: Package as .tar.zst
+      - name: Package as .tar.xz
         run: |
           VERSION="${{ needs.extract-version.outputs.version }}"
           DIST_DIR="${{ steps.find_dist.outputs.DIST_DIR }}"
@@ -155,14 +155,14 @@ jobs:
           # 先重命名 dist 目录为统一名称
           cp -r "$DIST_DIR" "randname-${VERSION}"
           # 打包为 zstd 压缩的 tar
-          tar --zstd -cf "randname-${VERSION}.linux.x64.tar.zst" "randname-${VERSION}/"
-          ls -lh "randname-${VERSION}.linux.x64.tar.zst"
+          tar -caf "randname-${VERSION}.linux.x64.tar.xz" "randname-${VERSION}/"
+          ls -lh "randname-${VERSION}.linux.x64.tar.xz"
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-package
-          path: randname-${{ needs.extract-version.outputs.version }}.linux.x64.tar.zst
+          path: randname-${{ needs.extract-version.outputs.version }}.linux.x64.tar.xz
 
   # ────────────────────────────────────────────
   # Windows x64 构建
@@ -173,7 +173,7 @@ jobs:
     runs-on: windows-latest
     env:
       # 关键：避免 Windows 上 Nuitka 依赖下载交互卡死
-      NUUTKA_ASSUME_YES_FOR_DOWNLOADS: "1"
+      NUITKA_ASSUME_YES_FOR_DOWNLOADS: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -196,11 +196,18 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install nuitka PySide6
+          pip install nuitka==4.1.3 PySide6==6.11.1
+          
+      - name: Show build versions
+        shell: pwsh
+        run: |
+          python --version
+          python -m pip show PySide6
+          python -m nuitka --version
 
       - name: Compile UI files
         run: |
-          # 將 ui/*.ui 編譯為 Python 模塊，放到 lib/（確保已安裝 PySide6）
+          # 將 ui/*.ui 編譯為 Python 模塊，放到 lib/
           pyside6-uic ui/Main.ui -o lib/ui_main.py
           pyside6-uic ui/WidgetSingle.ui -o lib/ui_widgetsingle.py
           pyside6-uic ui/WidgetMulti.ui -o lib/ui_widgetmulti.py
@@ -256,6 +263,22 @@ jobs:
           Write-Host "Found executable: $exePath"
           Get-Item $exePath | Format-List FullName, Length
 
+      - name: Inspect Qt and ICU DLLs
+        shell: pwsh
+        run: |
+          $DIST_DIR = "${{ steps.find_dist.outputs.DIST_DIR }}"
+
+          Write-Host "=== Qt DLLs ==="
+          Get-ChildItem $DIST_DIR -Filter "Qt*.dll" |
+            Select-Object Name, Length
+
+          Write-Host "=== ICU DLLs ==="
+          Get-ChildItem $DIST_DIR -Filter "icu*.dll" |
+            Select-Object Name, Length
+
+          Write-Host "=== All DLLs ==="
+          (Get-ChildItem $DIST_DIR -Filter "*.dll").Count
+
       - name: Package as .7z
         shell: pwsh
         run: |
@@ -301,12 +324,12 @@ jobs:
 
       - name: Move packages to workspace root
         run: |
-          mv artifacts/*.tar.zst . 2>/dev/null || true
+          mv artifacts/*.tar.xz . 2>/dev/null || true
           mv artifacts/*.7z . 2>/dev/null || true
 
       - name: List downloaded files
         run: |
-          ls -lh *.tar.zst *.7z 2>/dev/null || true
+          ls -lh *.tar.xz *.7z 2>/dev/null || true
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -317,7 +340,7 @@ jobs:
             ## randname v${{ needs.extract-version.outputs.version }}
 
             ### 下载
-            - **linux x64**: `randname-${{ needs.extract-version.outputs.version }}.linux.x64.tar.zst`
+            - **linux x64**: `randname-${{ needs.extract-version.outputs.version }}.linux.x64.tar.xz`
             - **windows x64**: `randname-${{ needs.extract-version.outputs.version }}.windows.x64.7z`
 
             ### 使用方式
@@ -327,7 +350,7 @@ jobs:
             ---
             Built from commit: ${{ github.sha }}
           files: |
-            randname-${{ needs.extract-version.outputs.version }}.linux.x64.tar.zst
+            randname-${{ needs.extract-version.outputs.version }}.linux.x64.tar.xz
             randname-${{ needs.extract-version.outputs.version }}.windows.x64.7z
           draft: false
           prerelease: false
