@@ -1,10 +1,16 @@
 # 浅色主题：适合明亮教室。
+color_format = "RGBA"
+
 [colors]
-background = "#f5f7fa"
-panel = "#e5e7eb"
-foreground = "#202124"
-button = "#ffffff"
-button_hover = "#e8eef7"
-button_pressed = "#d1d9e6"
-border = "#9aa4b2"
-accent = "#2563eb"
+# 背景颜色（背景强制不透明）。
+background = "245,247,250,255"
+panel = "229,231,235,240"
+foreground = "32,33,36,255"
+display_background = "255,255,255,230"
+display_foreground = "32,33,36,255"
+display_border = "154,164,178,210"
+button = "255,255,255,255"
+button_hover = "232,238,247,255"
+button_pressed = "209,217,230,255"
+border = "154,164,178,255"
+accent = "37,99,235,255"

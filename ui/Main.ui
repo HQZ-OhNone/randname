@@ -73,6 +73,9 @@
     <addaction name="action_theme_dark"/>
     <addaction name="action_theme_light"/>
     <addaction name="action_theme_blue"/>
+    <addaction name="action_theme_amber"/>
+    <addaction name="action_theme_green"/>
+    <addaction name="action_theme_purple"/>
    </widget>
    <addaction name="menu_file"/>
    <addaction name="menu_mode"/>
@@ -143,6 +146,21 @@
    <action name="action_theme_blue">
     <property name="text">
      <string>蓝色</string>
+    </property>
+   </action>
+   <action name="action_theme_amber">
+    <property name="text">
+     <string>琥珀</string>
+    </property>
+   </action>
+   <action name="action_theme_green">
+    <property name="text">
+     <string>绿色</string>
+    </property>
+   </action>
+   <action name="action_theme_purple">
+    <property name="text">
+     <string>紫色</string>
     </property>
    </action>
  </widget>

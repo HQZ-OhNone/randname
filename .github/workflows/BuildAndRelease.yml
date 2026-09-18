@@ -110,19 +110,26 @@ jobs:
           pyside6-uic ui/WidgetSingle.ui -o lib/ui_widgetsingle.py
           pyside6-uic ui/WidgetMulti.ui -o lib/ui_widgetmulti.py
           pyside6-uic ui/WidgetLift.ui -o lib/ui_widgetlift.py
+          pyside6-uic ui/WidgetScrollSingle.ui -o lib/ui_widgetscrollsingle.py
 
       - name: Build with Nuitka
         run: |
           nuitka \
             --standalone \
             --enable-plugin=pyside6 \
+            --include-data-file=.config.default.toml=.config.default.toml \
             --include-data-dir=doc=doc \
             --include-data-dir=theme=theme \
             --output-dir=build \
             --output-filename=randname \
             --lto=yes \
             --assume-yes-for-downloads \
-            --nofollow-import-to=PySide6.QtDesigner --nofollow-import-to=PySide6.QtUiTools \
+            --nofollow-import-to=PySide6.QtDesigner \
+            --nofollow-import-to=PySide6.QtUiTools \
+            --nofollow-import-to=PySide6.QtNetwork \
+            --nofollow-import-to=PySide6.QtSql \
+            --nofollow-import-to=PySide6.QtTest \
+            --nofollow-import-to=PySide6.QtXml \
             main.py
 
       - name: Verify build output
@@ -198,19 +205,26 @@ jobs:
           pyside6-uic ui/WidgetSingle.ui -o lib/ui_widgetsingle.py
           pyside6-uic ui/WidgetMulti.ui -o lib/ui_widgetmulti.py
           pyside6-uic ui/WidgetLift.ui -o lib/ui_widgetlift.py
+          pyside6-uic ui/WidgetScrollSingle.ui -o lib/ui_widgetscrollsingle.py
 
       - name: Build with Nuitka
         run: |
           nuitka `
             --standalone `
             --enable-plugin=pyside6 `
+            --include-data-file=.config.default.toml=.config.default.toml `
             --include-data-dir=doc=doc `
             --include-data-dir=theme=theme `
             --output-dir=build `
             --output-filename=randname.exe `
             --lto=yes `
             --assume-yes-for-downloads `
-            --nofollow-import-to=PySide6.QtDesigner --nofollow-import-to=PySide6.QtUiTools `
+            --nofollow-import-to=PySide6.QtDesigner `
+            --nofollow-import-to=PySide6.QtUiTools `
+            --nofollow-import-to=PySide6.QtNetwork `
+            --nofollow-import-to=PySide6.QtSql `
+            --nofollow-import-to=PySide6.QtTest `
+            --nofollow-import-to=PySide6.QtXml `
             --windows-disable-console `
             main.py
 

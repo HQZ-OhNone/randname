@@ -148,7 +148,7 @@ class Ui_Form(object):
         self.pushButton_MultiQuantityUp.setText(QCoreApplication.translate("Form", u"\u589e\u52a0", None))
         self.label_MultiQuantity.setText(QCoreApplication.translate("Form", u"1", None))
         self.pushButton_MultiQuantityDown.setText(QCoreApplication.translate("Form", u"\u51cf\u5c11", None))
-        self.label_MultiOutput.setText(QCoreApplication.translate("Form", u"\u7b49\u5f85\u8f93\u5165", None))
-        self.pushButton_Multi.setText(QCoreApplication.translate("Form", u"\u591a\u62bd", None))
+        self.label_MultiOutput.setText(QCoreApplication.translate("Form", u"\u591a\u62bd", None))
+        self.pushButton_Multi.setText(QCoreApplication.translate("Form", u"\u62bd\u53d6", None))
     # retranslateUi
 

@@ -1,10 +1,15 @@
 # 蓝色主题：使用蓝色强调色，保持较高对比度。
+color_format = "Hex"
+
 [colors]
 background = "#102a43"
 panel = "#163d5c"
 foreground = "#f0f4f8"
-button = "#1f4f73"
-button_hover = "#286b99"
-button_pressed = "#3484b5"
-border = "#627d98"
-accent = "#2f80ed"
+display_background = "#1B4965"
+display_foreground = "#F0F4F8"
+display_border = "#627D98"
+button = "#1F4F73"
+button_hover = "#286B99"
+button_pressed = "#3484B5"
+border = "#627D98"
+accent = "#2F80ED"

@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DOC = ROOT / "doc"
 DOC.mkdir(exist_ok=True)
 MEMORY_PATH = DOC / "memory.json"
-LOG_PATH = DOC / "log.json"
+LOG_PATH = DOC / "log.log"
 CONFIG_SOURCE = ""
 CONFIG_FALLBACK_USED = False
 
@@ -33,21 +33,28 @@ def _default_memory() -> dict:
 
 def log(level: str, action: str, result: Optional[Any] = None,
         error: Optional[str] = None) -> None:
-    """Append only important, stable English fields to the JSON log."""
+    """Append one concise, machine-readable English text line."""
     try:
-        data = json.loads(LOG_PATH.read_text(encoding="utf-8")) if LOG_PATH.exists() else []
-        if not isinstance(data, list):
-            data = []
-        entry = {"time": _now_iso(), "level": level.upper(), "action": action}
+        fields = [
+            f"time={_now_iso()}",
+            f"level={level.upper()}",
+            f"action={action}",
+        ]
         if result is not None:
-            entry["result"] = result
+            fields.append(f"result={_log_value(result)}")
         if error is not None:
-            entry["error"] = error
-        data.append(entry)
-        LOG_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+            fields.append(f"error={_log_value(error)}")
+        with LOG_PATH.open("a", encoding="utf-8") as log_file:
+            log_file.write(" ".join(fields) + "\n")
     except Exception:
         # Logging must never prevent a classroom draw from completing.
         pass
+
+
+def _log_value(value: Any) -> str:
+    """Keep log lines single-line and free from JSON-only punctuation."""
+    text = str(value).replace("\r", " ").replace("\n", " ").replace("\t", " ")
+    return text.replace("{", "(").replace("}", ")").replace("[", "(").replace("]", ")")
 
 
 def load_memory() -> dict:
@@ -90,7 +97,7 @@ def load_config() -> dict:
     """Read TOML config, falling back to the bundled default TOML."""
     global CONFIG_SOURCE, CONFIG_FALLBACK_USED
     configured = ROOT / "doc" / "config.toml"
-    default = ROOT / "config.default.toml"
+    default = ROOT / ".config.default.toml"
     for path, level in ((configured, "INFO"), (default, "WARN")):
         try:
             with path.open("rb") as config_file:

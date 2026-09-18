@@ -1,0 +1,15 @@
+# 紫色主题：高对比度的深色主题。
+color_format = "RGBA"
+
+[colors]
+background = "35,24,51,255"
+foreground = "248,240,255,255"
+panel = "53,35,76,245"
+display_background = "70,44,99,230"
+display_foreground = "248,240,255,255"
+display_border = "181,126,220,220"
+button = "83,52,115,255"
+button_hover = "108,68,148,255"
+button_pressed = "135,83,181,255"
+border = "181,126,220,255"
+accent = "177,90,255,255"

@@ -68,18 +68,18 @@ class Ui_Form(object):
 
         self.gridLayout_2.addItem(self.horizontalSpacer_2, 1, 2, 1, 1)
 
-        self.pushButton = QPushButton(Form)
-        self.pushButton.setObjectName(u"pushButton")
+        self.pushButton_Single = QPushButton(Form)
+        self.pushButton_Single.setObjectName(u"pushButton_Single")
         sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
         sizePolicy1.setHorizontalStretch(0)
         sizePolicy1.setVerticalStretch(0)
-        sizePolicy1.setHeightForWidth(self.pushButton.sizePolicy().hasHeightForWidth())
-        self.pushButton.setSizePolicy(sizePolicy1)
+        sizePolicy1.setHeightForWidth(self.pushButton_Single.sizePolicy().hasHeightForWidth())
+        self.pushButton_Single.setSizePolicy(sizePolicy1)
         font1 = QFont()
         font1.setFamilies([u"\u6587\u6cc9\u9a7f\u7b49\u5bbd\u5fae\u7c73\u9ed1"])
         font1.setPointSize(24)
-        self.pushButton.setFont(font1)
-        self.pushButton.setStyleSheet(u"QLabel {\n"
+        self.pushButton_Single.setFont(font1)
+        self.pushButton_Single.setStyleSheet(u"QLabel {\n"
 "    background-color: rgba(100, 100, 100, 255);  /* \u8f83\u4eae\u8272\u8272\u80cc\u666f */\n"
 "    border: 2px solid #4A90E2;                /* \u84dd\u8272\u8fb9\u6846 */\n"
 "    border-radius: 15px;                      /* \u5706\u89d2\u534a\u5f84 */\n"
@@ -88,7 +88,7 @@ class Ui_Form(object):
 "}\n"
 "")
 
-        self.gridLayout_2.addWidget(self.pushButton, 3, 1, 1, 1)
+        self.gridLayout_2.addWidget(self.pushButton_Single, 3, 1, 1, 1)
 
 
         self.retranslateUi(Form)
@@ -98,7 +98,7 @@ class Ui_Form(object):
 
     def retranslateUi(self, Form):
         Form.setWindowTitle(QCoreApplication.translate("Form", u"Form", None))
-        self.label_SingleOutput.setText(QCoreApplication.translate("Form", u"\u7b49\u5f85\u8f93\u5165", None))
-        self.pushButton.setText(QCoreApplication.translate("Form", u"\u5355\u62bd", None))
+        self.label_SingleOutput.setText(QCoreApplication.translate("Form", u"\u5355\u62bd", None))
+        self.pushButton_Single.setText(QCoreApplication.translate("Form", u"\u62bd\u53d6", None))
     # retranslateUi
 

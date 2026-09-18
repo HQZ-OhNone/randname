@@ -1,4 +1,4 @@
-# randname 默认配置；doc/config.toml 缺失或损坏时只读使用。
+# 隐藏的 randname 默认配置；doc/config.toml 缺失或损坏时只读使用。
 
 [app]
 name = "randname"
@@ -11,7 +11,6 @@ width = 800
 height = 600
 
 [scroll_single]
-# 每秒刷新次数。
 rate = 30
 
 [names]

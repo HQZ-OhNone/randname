@@ -1,0 +1,15 @@
+# 琥珀主题：暖色高亮，适合明亮教室。
+color_format = "HexA"
+
+[colors]
+background = "#2B2118"
+foreground = "#FFF8E7FF"
+panel = "#3A2C1FFF"
+display_background = "#4A351FCC"
+display_foreground = "#FFF8E7FF"
+display_border = "#D99A2BFF"
+button = "#5C431FFF"
+button_hover = "#7A5928FF"
+button_pressed = "#A9742AFF"
+border = "#D99A2BFF"
+accent = "#F0A500FF"

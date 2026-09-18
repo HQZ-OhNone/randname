@@ -1,9 +1,10 @@
-需求.txt
 .venv
 build
 __pycache__
 test*
 # runtime artifacts
+doc/log.log
+# Ignore the former JSON log name as well, so an old runtime file is never committed.
 doc/log.json
 doc/memory.json
 # optional config directory removed; keep default config
