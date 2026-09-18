@@ -1,0 +1,10 @@
+# 蓝色主题：使用蓝色强调色，保持较高对比度。
+[colors]
+background = "#102a43"
+panel = "#163d5c"
+foreground = "#f0f4f8"
+button = "#1f4f73"
+button_hover = "#286b99"
+button_pressed = "#3484b5"
+border = "#627d98"
+accent = "#2f80ed"

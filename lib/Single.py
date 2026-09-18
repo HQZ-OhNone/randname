@@ -23,6 +23,8 @@ example = {"mode":"Single",
 import random
 from datetime import datetime
 
+from lib import StateManager
+
 def Single(names):
     """
     单抽
@@ -30,7 +32,6 @@ def Single(names):
     :return: str
     """
     # 初始化
-    print("=> mode: Single")
     output = {"mode": "Single",
               "quantity": {"total": len(names),
                            "selected": 1}
@@ -42,14 +43,16 @@ def Single(names):
     output["time"] = time_str
 
     # 隨機選擇
-    slected_key = random.choice(list(names.keys()))
-    slected_value = names[slected_key]
+    try:
+        slected_key = random.choice(list(names.keys()))
+        slected_value = names[slected_key]
+    except (IndexError, KeyError, TypeError) as exc:
+        StateManager.log("ERROR", "Single", error=str(exc))
+        raise ValueError("No names are available for Single mode") from exc
 
     # 生成输出字典
     output["outdict"] = {"code": slected_key, "name": slected_value}
 
     # 輸出結果
-    print(f"===> output: {output}")
-    print("===> exit: Single\n")
+    StateManager.log("INFO", "Single", result=slected_value)
     return slected_value
-

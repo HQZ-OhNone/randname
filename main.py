@@ -38,6 +38,7 @@ from lib import Single as single_module
 from lib import importnames
 from lib import StateManager
 from lib import ScrollSingle
+from lib import ThemeManager
 # 導入已經由 pyside6-uic 編譯並放在 lib/ 的 UI 模塊
 from lib import ui_main
 from lib import ui_widgetsingle
@@ -96,6 +97,9 @@ class MainWindow(QMainWindow):
         self.action_exit = None
         self.action_license = None
         self.action_repository = None
+        self.action_theme_dark = None
+        self.action_theme_light = None
+        self.action_theme_blue = None
 
         self.single_button = None
         self.single_label = None
@@ -117,6 +121,13 @@ class MainWindow(QMainWindow):
         self.scroll_controller = None
 
         self._build_ui()
+        self._apply_config_window()
+        if StateManager.CONFIG_FALLBACK_USED:
+            QMessageBox.warning(
+                self,
+                "配置文件提示",
+                "doc/config.toml 不存在或无法解析，已加载默认配置。",
+            )
 
     def _load_names(self):
         names = getattr(importnames, "names", None)
@@ -124,6 +135,16 @@ class MainWindow(QMainWindow):
             return names
         logging.warning("未能从 importnames 中读取姓名数据，使用空列表。")
         return {}
+
+    def _apply_config_window(self):
+        """应用 TOML 中的初始尺寸；后续导入记忆不会改变窗口尺寸。"""
+        config = getattr(importnames, "loaded_config", {})
+        window = config.get("window", {}) if isinstance(config, dict) else {}
+        width = window.get("width", 800)
+        height = window.get("height", 600)
+        if isinstance(width, int) and isinstance(height, int) and width > 0 and height > 0:
+            self.resize(width, height)
+        self.setMinimumSize(0, 0)
 
     def _build_ui(self):
         # 使用已編譯的 Python UI 模塊（lib/ui_*.py），避免運行時依賴 .ui 文件
@@ -164,6 +185,9 @@ class MainWindow(QMainWindow):
         self.action_exit = getattr(self.ui_main, "action_exit", None)
         self.action_license = getattr(self.ui_main, "action_license", None)
         self.action_repository = getattr(self.ui_main, "action_repository", None)
+        self.action_theme_dark = getattr(self.ui_main, "action_theme_dark", None)
+        self.action_theme_light = getattr(self.ui_main, "action_theme_light", None)
+        self.action_theme_blue = getattr(self.ui_main, "action_theme_blue", None)
 
         if self.action_single:
             self.action_single.triggered.connect(self._show_single_page)
@@ -185,6 +209,21 @@ class MainWindow(QMainWindow):
             self.action_license.triggered.connect(self._open_license)
         if self.action_repository:
             self.action_repository.triggered.connect(self._open_repository)
+        for action, name in (
+            (self.action_theme_dark, "dark"),
+            (self.action_theme_light, "light"),
+            (self.action_theme_blue, "blue"),
+        ):
+            if action is not None:
+                action.triggered.connect(lambda checked=False, theme=name: self._apply_theme(theme))
+
+    def _apply_theme(self, name):
+        try:
+            ThemeManager.apply_theme(QApplication.instance(), name)
+            StateManager.log("INFO", "theme", result=name)
+        except (OSError, ValueError, KeyError) as exc:
+            StateManager.log("ERROR", "theme", error=str(exc))
+            self._show_error("主题加载失败", str(exc))
 
     def _load_pages(self):
         if self.stacked_widget is None:
@@ -215,7 +254,17 @@ class MainWindow(QMainWindow):
         self.stacked_widget.addWidget(self.page_multi)
         self.stacked_widget.addWidget(self.page_lift)
         self.stacked_widget.addWidget(self.page_scrollsingle)
-        self.stacked_widget.setCurrentWidget(self.page_single)
+        default_mode = getattr(importnames, "loaded_config", {}).get("app", {}).get(
+            "default_mode", "ScrollSingle"
+        )
+        if default_mode == "Single":
+            self._show_single_page()
+        elif default_mode == "Multi":
+            self._show_multi_page()
+        elif default_mode == "Lift":
+            self._show_lift_page()
+        else:
+            self._show_scrollsingle_page()
 
     def _bind_page_actions(self):
         # Single 頁面綁定
@@ -254,7 +303,15 @@ class MainWindow(QMainWindow):
                     pass
             # 创建控制器，但不自动启动
             if self.scroll_start_button is not None and self.scroll_stop_button is not None and self.scroll_label is not None:
-                self.scroll_controller = ScrollSingle.ScrollController(self.scroll_label, self.scroll_start_button, self.scroll_stop_button, self.names, on_result=self._on_scroll_result)
+                rate = getattr(importnames, "loaded_config", {}).get("scroll_single", {}).get("rate", 30)
+                self.scroll_controller = ScrollSingle.ScrollController(
+                    self.scroll_label,
+                    self.scroll_start_button,
+                    self.scroll_stop_button,
+                    self.names,
+                    on_result=self._on_scroll_result,
+                    rate=rate,
+                )
         except Exception as exc:
             logging.exception("初始化 ScrollSingle 失败: %s", exc)
 
@@ -294,7 +351,7 @@ class MainWindow(QMainWindow):
             self.stacked_widget.setCurrentWidget(self.page_scrollsingle)
 
     def _on_import_memory(self):
-        # 导入记忆文件（JSON），应用并刷新软件状态（不修改 doc/config.json）
+        # 导入记忆文件（JSON），应用并刷新软件状态（不修改 doc/config.toml）
         try:
             fname, _ = QFileDialog.getOpenFileName(self, "Import memory file", "", "JSON Files (*.json);;All Files (*)")
             if not fname:
@@ -302,7 +359,6 @@ class MainWindow(QMainWindow):
             from pathlib import Path
             StateManager.import_memory(Path(fname), apply_callback=self._apply_memory_import)
             QMessageBox.information(self, "导入完成", f"已导入记忆文件: {fname}")
-            StateManager.log("INFO", "import_ui_trigger", result=f"imported {fname}")
         except Exception as exc:
             logging.exception("导入记忆失败: %s", exc)
             QMessageBox.warning(self, "导入失败", str(exc))
@@ -315,7 +371,6 @@ class MainWindow(QMainWindow):
             from pathlib import Path
             StateManager.export_memory(Path(fname))
             QMessageBox.information(self, "导出完成", f"已导出记忆文件: {fname}")
-            StateManager.log("INFO", "export_ui_trigger", result=f"exported {fname}")
         except Exception as exc:
             logging.exception("导出记忆失败: %s", exc)
             QMessageBox.warning(self, "导出失败", str(exc))
@@ -332,8 +387,7 @@ class MainWindow(QMainWindow):
                         self.scroll_controller.update_names(self.names)
                 except Exception:
                     pass
-                QMessageBox.information(self, "重新加载配置", "已从 doc/config.json 或默认配置重新加载配置（仅内存中应用）。")
-                StateManager.log("INFO", "reload_config", result="reloaded")
+                QMessageBox.information(self, "重新加载配置", "已从 doc/config.toml 或默认配置重新加载配置（仅内存中应用）。")
             else:
                 QMessageBox.warning(self, "重新加载配置", "未找到可用配置文件。")
         except Exception as exc:
@@ -345,6 +399,9 @@ class MainWindow(QMainWindow):
         try:
             if not isinstance(content, dict):
                 return
+            # 结果文本可能很长，但导入记忆不能改变用户当前窗口尺寸。
+            current_size = self.size()
+            self.setMinimumSize(0, 0)
             # 如果 memory 中包含 loaded_config，则在运行时应用其 names
             loaded_cfg = content.get("loaded_config")
             if isinstance(loaded_cfg, dict) and loaded_cfg.get("names"):
@@ -358,18 +415,20 @@ class MainWindow(QMainWindow):
             # 将 last_results 应用到界面显示（若存在）
             last = content.get("last_results", {})
             if isinstance(last, dict):
-                if "single" in last and self.single_label is not None:
-                    v = last.get("single")
+                if self.single_label is not None:
+                    v = last.get("Single", last.get("single"))
                     self.single_label.setText(str(v.get("result") if isinstance(v, dict) else v))
-                if "multi" in last and self.multi_label is not None:
-                    v = last.get("multi")
+                if self.multi_label is not None:
+                    v = last.get("Multi", last.get("multi"))
                     self.multi_label.setText(str(v.get("result") if isinstance(v, dict) else v))
-                if "lift" in last and self.lift_label is not None:
-                    v = last.get("lift")
+                if self.lift_label is not None:
+                    v = last.get("Lift", last.get("lift"))
                     self.lift_label.setText(str(v.get("result") if isinstance(v, dict) else v))
-                if "scrollsingle" in last and self.scroll_label is not None:
-                    v = last.get("scrollsingle")
+                if self.scroll_label is not None:
+                    v = last.get("ScrollSingle", last.get("scrollsingle"))
                     self.scroll_label.setText(str(v.get("result") if isinstance(v, dict) else v))
+            self.resize(current_size)
+            self.setMinimumSize(0, 0)
         except Exception as exc:
             logging.exception("应用导入记忆失败: %s", exc)
 
@@ -383,9 +442,9 @@ class MainWindow(QMainWindow):
             try:
                 state = StateManager.load_memory()
                 state["loaded_config"] = getattr(importnames, 'loaded_config', None)
-                state.setdefault("last_results", {})["single"] = {"result": result, "time": StateManager._now_iso() if hasattr(StateManager, '_now_iso') else None}
+                state.setdefault("last_results", {})["Single"] = {"result": result, "time": StateManager._now_iso()}
                 StateManager.save_memory(state)
-                StateManager.log("INFO", "single", result=result)
+                StateManager.log("INFO", "Single", result=result)
             except Exception:
                 logging.exception("记录 single 结果失败")
         except Exception as exc:
@@ -393,7 +452,7 @@ class MainWindow(QMainWindow):
             self._set_output_text(self.single_label, "单抽失败")
             self._show_error("单抽失败", str(exc))
             try:
-                StateManager.log("ERROR", "single", error=str(exc))
+                StateManager.log("ERROR", "Single", error=str(exc))
             except Exception:
                 pass
 
@@ -407,9 +466,9 @@ class MainWindow(QMainWindow):
             try:
                 state = StateManager.load_memory()
                 state["loaded_config"] = getattr(importnames, 'loaded_config', None)
-                state.setdefault("last_results", {})["multi"] = {"result": result, "time": StateManager._now_iso() if hasattr(StateManager, '_now_iso') else None}
+                state.setdefault("last_results", {})["Multi"] = {"result": result, "time": StateManager._now_iso()}
                 StateManager.save_memory(state)
-                StateManager.log("INFO", "multi", result=result)
+                StateManager.log("INFO", "Multi", result=result)
             except Exception:
                 logging.exception("记录 multi 结果失败")
         except Exception as exc:
@@ -417,7 +476,7 @@ class MainWindow(QMainWindow):
             self._set_output_text(self.multi_label, "多抽失败")
             self._show_error("多抽失败", str(exc))
             try:
-                StateManager.log("ERROR", "multi", error=str(exc))
+                StateManager.log("ERROR", "Multi", error=str(exc))
             except Exception:
                 pass
 
@@ -442,9 +501,9 @@ class MainWindow(QMainWindow):
             try:
                 state = StateManager.load_memory()
                 state["loaded_config"] = getattr(importnames, 'loaded_config', None)
-                state.setdefault("last_results", {})["lift"] = {"result": result, "time": StateManager._now_iso() if hasattr(StateManager, '_now_iso') else None}
+                state.setdefault("last_results", {})["Lift"] = {"result": result, "time": StateManager._now_iso()}
                 StateManager.save_memory(state)
-                StateManager.log("INFO", "lift", result=result)
+                StateManager.log("INFO", "Lift", result=result)
             except Exception:
                 logging.exception("记录 lift 结果失败")
         except Exception as exc:
@@ -452,7 +511,7 @@ class MainWindow(QMainWindow):
             self._set_output_text(self.lift_label, "减量抽失败")
             self._show_error("减量抽失败", str(exc))
             try:
-                StateManager.log("ERROR", "lift", error=str(exc))
+                StateManager.log("ERROR", "Lift", error=str(exc))
             except Exception:
                 pass
 
@@ -465,13 +524,13 @@ class MainWindow(QMainWindow):
             # 保存到记忆与日志
             state = StateManager.load_memory()
             state["loaded_config"] = getattr(importnames, 'loaded_config', None)
-            state.setdefault("last_results", {})["scrollsingle"] = {"result": result, "meta": meta}
+            state.setdefault("last_results", {})["ScrollSingle"] = {"result": result, "meta": meta}
             StateManager.save_memory(state)
-            StateManager.log("INFO", "scrollsingle", result={"name": result, "meta": meta})
+            StateManager.log("INFO", "ScrollSingle", result={"name": result, "meta": meta})
         except Exception as exc:
             logging.exception("处理 scrollsingle 结果失败: %s", exc)
             try:
-                StateManager.log("ERROR", "scrollsingle", error=str(exc))
+                StateManager.log("ERROR", "ScrollSingle", error=str(exc))
             except Exception:
                 pass
 
@@ -582,6 +641,12 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    config = getattr(importnames, "loaded_config", {})
+    theme_name = config.get("app", {}).get("theme", "dark") if isinstance(config, dict) else "dark"
+    try:
+        ThemeManager.apply_theme(app, theme_name)
+    except (OSError, ValueError, KeyError):
+        ThemeManager.apply_theme(app, "dark")
     window = MainWindow()
     window.show()
     sys.exit(app.exec())

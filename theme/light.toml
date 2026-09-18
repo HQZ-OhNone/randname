@@ -1,0 +1,10 @@
+# 浅色主题：适合明亮教室。
+[colors]
+background = "#f5f7fa"
+panel = "#e5e7eb"
+foreground = "#202124"
+button = "#ffffff"
+button_hover = "#e8eef7"
+button_pressed = "#d1d9e6"
+border = "#9aa4b2"
+accent = "#2563eb"

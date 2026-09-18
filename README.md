@@ -10,7 +10,8 @@
 
 ### 特點
 - **簡潔易用**，無需任何經驗、開箱即用、上手就會，學習成本極低。
-- **功能豐富**，支持單抽、減量抽等多種不同模式。
+- **功能豐富**，支持 Single、Multi、Lift、ScrollSingle 四种模式，启动后默认进入 ScrollSingle。
+- **可换主题**，菜单栏“主题”提供深色、浅色和蓝色主题；主题配置位于 `theme/*.toml`。
 - **開源免費**，本程序在 [GPL v3.0](./doc/gpl-3.0.txt) 下發佈，任何人可以使用。
 
 ### 技術實現
@@ -41,6 +42,12 @@ pip install pyside6
 ```
 4. 運行 main.py
 
+#### 配置与运行记录
+- 当前配置为 `doc/config.toml`，程序只读加载；文件缺失或损坏时使用 `config.default.toml` 并提示。
+- 配置使用 TOML，包含姓名、窗口初始尺寸、默认模式、滚动速度和主题等选项，可直接编辑注释旁的值。
+- `doc/memory.json` 保存各模式最近结果，`doc/log.json` 保存精简的英文结构化日志；两者均不会提交到 Git。
+- 菜单栏“文件 -> 导入...”和“导出...”用于记忆文件，不会覆盖 `doc/config.toml`。
+
 #### 方案三、自行編譯二進制文件
 1. 在本機配置 Python 環境，可贊考 [Python官方網站](https://www.python.org/)
 2. 將倉庫克隆到本地，如：
@@ -62,6 +69,7 @@ nuitka \
 --standalone \
 --enable-plugin=pyside6 \
 --include-data-dir=doc=doc \
+--include-data-dir=theme=theme \
 --output-dir=build \
 --output-filename=randname \
 --show-progress \
@@ -77,6 +85,7 @@ nuitka `
 --standalone `
 --enable-plugin=pyside6 `
 --include-data-dir=doc=doc `
+--include-data-dir=theme=theme `
 --output-dir=build `
 --output-filename=randname.exe `
 --show-progress `
@@ -110,11 +119,13 @@ tar -cavf randname3_linux.tar.zst randname3
     - [x] Single: 单抽
     - [x] Multi: 多抽
     - [x] Lift: 减量抽
+    - [x] ScrollSingle: 滚动单抽（默认模式）
     - [ ] Seats: 抽座位坐标
   - 菜单栏：
     - [x] 文件：退出、保存状态
     - [x] 模式：单抽/连抽/减量抽/抽座位坐标
     - [x] 关于：许可证、仓库
+    - [x] 主题：深色、浅色、蓝色
     - [ ] 捐赠、反馈
 
 - 抽取：

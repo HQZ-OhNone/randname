@@ -16,7 +16,8 @@ import random
 from datetime import datetime
 
 class ScrollController:
-    def __init__(self, label_widget, start_button, stop_button, names_dict, on_result=None):
+    def __init__(self, label_widget, start_button, stop_button, names_dict,
+                 on_result=None, rate=30):
         """label_widget: QLabel to show name
            start_button: QPushButton to start rolling
            stop_button: QPushButton to stop rolling
@@ -30,8 +31,8 @@ class ScrollController:
         self.on_result = on_result
 
         self.timer = QTimer()
-        # 30 times/sec ~= 33ms per tick
-        self.timer.setInterval(33)
+        # 30 times/sec ~= 33ms per tick; TOML may override this value.
+        self.timer.setInterval(max(1, 1000 // max(1, int(rate))))
         self.timer.timeout.connect(self._tick)
 
         self.running = False
@@ -99,7 +100,7 @@ class ScrollController:
         if not self.running:
             # if already stopped, still may want to produce a result (random)
             result = self.label.text() if self.label is not None else None
-            meta = {"time": self._now_str(), "mode": "scrollsingle"}
+            meta = {"time": self._now_str(), "mode": "ScrollSingle"}
             if self.on_result is not None:
                 try:
                     self.on_result(result, meta)
@@ -120,7 +121,7 @@ class ScrollController:
         result = self.label.text() if self.label is not None else None
         # do not change visual styling (keep deep background), just record selection
         self.selected = result
-        meta = {"time": self._now_str(), "mode": "scrollsingle"}
+        meta = {"time": self._now_str(), "mode": "ScrollSingle"}
         if self.on_result is not None:
             try:
                 self.on_result(result, meta)
@@ -150,4 +151,3 @@ class ScrollController:
         # 如果没有顺序或顺序超过名字数，重新准备
         if not self.current_order or len(self.current_order) != len(self.names):
             self._prepare_new_order()
-
