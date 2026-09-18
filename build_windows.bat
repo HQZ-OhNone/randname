@@ -9,6 +9,7 @@ pyside6-uic ui\Main.ui -o lib\ui_main.py
 pyside6-uic ui\WidgetSingle.ui -o lib\ui_widgetsingle.py
 pyside6-uic ui\WidgetMulti.ui -o lib\ui_widgetmulti.py
 pyside6-uic ui\WidgetLift.ui -o lib\ui_widgetlift.py
+pyside6-uic ui\WidgetScrollSingle.ui -o lib\ui_widgetscrollsingle.py
 
 echo 安裝或更新 Nuitka 與 PySide6(可選)...
 python -m pip install --upgrade pip
@@ -18,14 +19,13 @@ echo 用 Nuitka 編譯項目（不再需要包含 ui\ 目錄）
 nuitka ^
   --standalone ^
   --enable-plugin=pyside6 ^
-  --include-data-dir=config=config ^
   --include-data-dir=doc=doc ^
   --output-dir=build ^
   --output-filename=randname.exe ^
   --lto=yes ^
   --assume-yes-for-downloads ^
   --windows-disable-console ^
-  main.py
+  main.py --include-data-dir=theme=theme
 
 echo 構建完成，輸出目錄：build\
 pause

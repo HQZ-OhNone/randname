@@ -117,6 +117,7 @@ jobs:
             --standalone \
             --enable-plugin=pyside6 \
             --include-data-dir=doc=doc \
+            --include-data-dir=theme=theme \
             --output-dir=build \
             --output-filename=randname \
             --lto=yes \
@@ -204,6 +205,7 @@ jobs:
             --standalone `
             --enable-plugin=pyside6 `
             --include-data-dir=doc=doc `
+            --include-data-dir=theme=theme `
             --output-dir=build `
             --output-filename=randname.exe `
             --lto=yes `

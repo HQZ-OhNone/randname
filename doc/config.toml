@@ -1,0 +1,25 @@
+# randname 当前配置。程序运行时只读，不会自动写回。
+
+[app]
+name = "randname"
+version = "1.0.0"
+default_mode = "ScrollSingle"
+theme = "dark"
+
+[window]
+width = 800
+height = 600
+
+[scroll_single]
+rate = 30
+
+[names]
+"0" = "周〇"
+"1" = "张三"
+"2" = "李四"
+"3" = "王五"
+"4" = "赵六"
+"5" = "孙七"
+"6" = "周八"
+"7" = "吴九"
+"8" = "郑睿"

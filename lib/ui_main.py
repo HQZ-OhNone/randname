@@ -45,6 +45,12 @@ class Ui_MainWindow(object):
         self.action_outputconfig.setObjectName(u"action_outputconfig")
         self.action_reinputconfig = QAction(MainWindow)
         self.action_reinputconfig.setObjectName(u"action_reinputconfig")
+        self.action_theme_dark = QAction(MainWindow)
+        self.action_theme_dark.setObjectName(u"action_theme_dark")
+        self.action_theme_light = QAction(MainWindow)
+        self.action_theme_light.setObjectName(u"action_theme_light")
+        self.action_theme_blue = QAction(MainWindow)
+        self.action_theme_blue.setObjectName(u"action_theme_blue")
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
@@ -69,6 +75,8 @@ class Ui_MainWindow(object):
         self.menu_mode.setObjectName(u"menu_mode")
         self.menu_about = QMenu(self.menubar)
         self.menu_about.setObjectName(u"menu_about")
+        self.menu_theme = QMenu(self.menubar)
+        self.menu_theme.setObjectName(u"menu_theme")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QStatusBar(MainWindow)
         self.statusbar.setObjectName(u"statusbar")
@@ -76,6 +84,7 @@ class Ui_MainWindow(object):
 
         self.menubar.addAction(self.menu_file.menuAction())
         self.menubar.addAction(self.menu_mode.menuAction())
+        self.menubar.addAction(self.menu_theme.menuAction())
         self.menubar.addAction(self.menu_about.menuAction())
         self.menu_file.addAction(self.action_inputconfig)
         self.menu_file.addAction(self.action_outputconfig)
@@ -89,6 +98,9 @@ class Ui_MainWindow(object):
         self.menu_mode.addAction(self.action_ScrollSingle)
         self.menu_about.addAction(self.action_license)
         self.menu_about.addAction(self.action_repository)
+        self.menu_theme.addAction(self.action_theme_dark)
+        self.menu_theme.addAction(self.action_theme_light)
+        self.menu_theme.addAction(self.action_theme_blue)
 
         self.retranslateUi(MainWindow)
 
@@ -110,8 +122,12 @@ class Ui_MainWindow(object):
         self.action_inputconfig.setText(QCoreApplication.translate("MainWindow", u"\u5bfc\u5165...", None))
         self.action_outputconfig.setText(QCoreApplication.translate("MainWindow", u"\u5bfc\u51fa...", None))
         self.action_reinputconfig.setText(QCoreApplication.translate("MainWindow", u"\u91cd\u65b0\u52a0\u8f7d\u914d\u7f6e", None))
+        self.action_theme_dark.setText(QCoreApplication.translate("MainWindow", u"\u6df1\u8272", None))
+        self.action_theme_light.setText(QCoreApplication.translate("MainWindow", u"\u6d45\u8272", None))
+        self.action_theme_blue.setText(QCoreApplication.translate("MainWindow", u"\u84dd\u8272", None))
         self.menu_file.setTitle(QCoreApplication.translate("MainWindow", u"\u6587\u4ef6", None))
         self.menu_mode.setTitle(QCoreApplication.translate("MainWindow", u"\u6a21\u5f0f", None))
         self.menu_about.setTitle(QCoreApplication.translate("MainWindow", u"\u5173\u4e8e", None))
+        self.menu_theme.setTitle(QCoreApplication.translate("MainWindow", u"\u4e3b\u9898", None))
     # retranslateUi
 
