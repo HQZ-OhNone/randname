@@ -1,5 +1,6 @@
-"""Load and apply TOML color themes to every Qt page and common widget."""
+"""Discover and apply TOML color themes."""
 
+import logging
 from pathlib import Path
 import tomllib
 
@@ -8,20 +9,36 @@ from PySide6.QtWidgets import QApplication
 
 ROOT = Path(__file__).resolve().parent.parent
 THEME_DIR = ROOT / "theme"
+LOGGER = logging.getLogger(__name__)
+
+
+def discover_themes() -> dict[str, dict]:
+    """Load every valid theme file, including user-added files."""
+    themes = {}
+    if not THEME_DIR.is_dir():
+        return themes
+    for path in sorted(THEME_DIR.glob("*.toml")):
+        try:
+            with path.open("rb") as theme_file:
+                theme = tomllib.load(theme_file)
+            if not isinstance(theme.get("colors"), dict):
+                raise ValueError("missing [colors] table")
+            themes[path.stem] = theme
+        except (OSError, tomllib.TOMLDecodeError, ValueError) as exc:
+            LOGGER.warning("Ignoring invalid theme %s: %s", path.name, exc)
+    return themes
 
 
 def available_themes() -> list[str]:
-    return sorted(path.stem for path in THEME_DIR.glob("*.toml"))
+    return sorted(discover_themes())
 
 
 def load_theme(name: str) -> dict:
-    path = THEME_DIR / f"{name}.toml"
-    with path.open("rb") as theme_file:
+    with (THEME_DIR / f"{name}.toml").open("rb") as theme_file:
         return tomllib.load(theme_file)
 
 
 def _color(value: str, color_format: str, allow_alpha: bool = True) -> str:
-    """Convert configured RGB/RGBA/Hex/HexA values to a Qt stylesheet color."""
     if color_format in {"RGB", "RGBA"}:
         channels = [int(channel.strip()) for channel in value.split(",")]
         if color_format == "RGB":
@@ -33,7 +50,6 @@ def _color(value: str, color_format: str, allow_alpha: bool = True) -> str:
         return f"rgba({channels[0]}, {channels[1]}, {channels[2]}, {channels[3] / 255:.3f})"
     if color_format in {"Hex", "HexA"}:
         if color_format == "HexA" and value.startswith("#") and len(value) == 9:
-            # TOML themes use the familiar #RRGGBBAA order.
             color = QColor(
                 int(value[1:3], 16),
                 int(value[3:5], 16),
@@ -50,27 +66,26 @@ def _color(value: str, color_format: str, allow_alpha: bool = True) -> str:
     raise ValueError(f"Unsupported color format: {color_format}")
 
 
-def apply_theme(app: QApplication, name: str) -> None:
-    theme = load_theme(name)
+def _stylesheet(theme: dict) -> str:
     colors = theme.get("colors", {})
     color_format = theme.get("color_format", "Hex")
-    background = _color(colors.get("background", "#202124"), color_format, False)
     foreground = _color(colors.get("foreground", "#f5f5f5"), color_format)
-    display_background = _color(colors.get("display_background", "#292a2d"), color_format)
-    display_foreground = _color(colors.get("display_foreground", "#f5f5f5"), color_format)
-    display_border = _color(colors.get("display_border", "#5f6368"), color_format)
+    background = _color(colors.get("background", "#202124"), color_format, False)
     panel = _color(colors.get("panel", "#292a2d"), color_format)
     button = _color(colors.get("button", "#303134"), color_format)
     button_hover = _color(colors.get("button_hover", "#45474d"), color_format)
     button_pressed = _color(colors.get("button_pressed", "#5f6368"), color_format)
     border = _color(colors.get("border", "#5f6368"), color_format)
     accent = _color(colors.get("accent", "#3f51b5"), color_format)
-    style = f"""
+    display_background = _color(colors.get("display_background", "#292a2d"), color_format)
+    display_foreground = _color(colors.get("display_foreground", "#f5f5f5"), color_format)
+    display_border = _color(colors.get("display_border", "#5f6368"), color_format)
+    return f"""
     QMainWindow, QWidget, QStackedWidget, QFrame {{
         background-color: {background};
         color: {foreground};
     }}
-    QLabel, QStatusBar, QMenuBar, QMenu, QAction {{
+    QLabel, QStatusBar, QMenuBar, QMenu {{
         color: {foreground};
     }}
     QLabel#label_SingleOutput, QLabel#label_MultiOutput,
@@ -93,4 +108,13 @@ def apply_theme(app: QApplication, name: str) -> None:
     }}
     QStatusBar {{ background-color: {panel}; }}
     """
-    app.setStyleSheet(style)
+
+
+def apply_theme(app: QApplication, name: str, themes: dict[str, dict] | None = None) -> str:
+    """Apply a named discovered theme, falling back to the first valid theme."""
+    loaded = themes if themes is not None else discover_themes()
+    if not loaded:
+        return ""
+    selected = name if name in loaded else next(iter(loaded))
+    app.setStyleSheet(_stylesheet(loaded[selected]))
+    return selected
