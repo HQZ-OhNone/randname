@@ -1,0 +1,15 @@
+# 用户主题示例。
+# 将本文件复制为 theme/custom.toml 并修改颜色，即可在程序启动时自动加载。
+# background 为页面背景；其他颜色可使用 Qt 支持的 Hex、RGBA 或 RGB 写法。
+
+[colors]
+background = "#202124"
+panel = "#292a2d"
+foreground = "#f5f5f5"
+button = "#303134"
+button_hover = "#45474d"
+border = "#5f6368"
+accent = "#3f51b5"
+display_background = "#292a2d"
+display_foreground = "#f5f5f5"
+display_border = "#5f6368"

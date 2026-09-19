@@ -37,7 +37,7 @@ git clone https://github.com/HQZ-OhNone/randname.git
 ```
 3. 安裝 ```pyside6``` 庫，推薦使用 ```pip```，如：
 ```pip
-pip install pyside6
+pip install PySide6==6.11.1
 ```
 4. 運行 main.py
 
@@ -49,25 +49,35 @@ git clone https://github.com/HQZ-OhNone/randname.git
 ```
 3. 安裝 ```pyside6``` 庫，推薦使用 ```pip```，如：
 ```pip
-pip install pyside6
+pip install PySide6==6.11.1
 ```
 4. 安裝 ```nuitka``` 庫，推薦使用 ```pip```，如：
 ```pip
-pip install nuitka
+pip install nuitka==4.1.3
 ```
 5. 使用 Nuitka 經行編譯，如：
+
+推荐直接运行仓库中的 [`build_linux.sh`](./build_linux.sh) 或 [`build_windows.bat`](./build_windows.bat)，它们会先编译 UI 文件，再使用下面的统一参数打包。四处构建入口均固定使用 Nuitka 4.1.3、PySide6 6.11.1，并排除程序未使用的 Qt Designer、QtUiTools、QtNetwork、QtSql、QtTest 和 QtXml 模块。
+
 - Linux
 ```nuitka
 nuitka \
 --standalone \
 --enable-plugin=pyside6 \
+--include-data-file=config.default.json=config.default.json \
 --include-data-dir=doc=doc \
+--include-data-dir=theme=theme \
 --output-dir=build \
 --output-filename=randname \
 --show-progress \
 --lto=yes \
 --assume-yes-for-downloads \
---nofollow-import-to=PySide6.QtDesigner --nofollow-import-to=PySide6.QtUiTools \
+--nofollow-import-to=PySide6.QtDesigner \
+--nofollow-import-to=PySide6.QtUiTools \
+--nofollow-import-to=PySide6.QtNetwork \
+--nofollow-import-to=PySide6.QtSql \
+--nofollow-import-to=PySide6.QtTest \
+--nofollow-import-to=PySide6.QtXml \
 main.py
 ```
 
@@ -76,13 +86,20 @@ main.py
 nuitka `
 --standalone `
 --enable-plugin=pyside6 `
+--include-data-file=config.default.json=config.default.json `
 --include-data-dir=doc=doc `
+--include-data-dir=theme=theme `
 --output-dir=build `
 --output-filename=randname.exe `
 --show-progress `
 --lto=yes `
 --assume-yes-for-downloads `
---nofollow-import-to=PySide6.QtDesigner --nofollow-import-to=PySide6.QtUiTools `
+--nofollow-import-to=PySide6.QtDesigner `
+--nofollow-import-to=PySide6.QtUiTools `
+--nofollow-import-to=PySide6.QtNetwork `
+--nofollow-import-to=PySide6.QtSql `
+--nofollow-import-to=PySide6.QtTest `
+--nofollow-import-to=PySide6.QtXml `
 --windows-disable-console `
 main.py
 ```

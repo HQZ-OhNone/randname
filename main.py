@@ -38,6 +38,7 @@ from lib import Single as single_module
 from lib import importnames
 from lib import StateManager
 from lib import ScrollSingle
+from lib import ThemeManager
 # 導入已經由 pyside6-uic 編譯並放在 lib/ 的 UI 模塊
 from lib import ui_main
 from lib import ui_widgetsingle
@@ -486,6 +487,13 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    config = getattr(importnames, "loaded_config", {})
+    requested_theme = (
+        config.get("app", {}).get("theme", "")
+        if isinstance(config, dict)
+        else ""
+    )
+    ThemeManager.apply_theme(app, requested_theme)
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
