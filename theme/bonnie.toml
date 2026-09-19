@@ -1,0 +1,22 @@
+# 深色主题：适合电子白板和低亮度环境。
+# color_format 可选 RGB、RGBA、Hex、HexA，决定下面颜色值的解释方式。
+color_format = "HexA"
+
+[colors]
+# 主窗口和页面背景（背景强制不透明）。
+background = "#e3e5e8"
+# 普通文字颜色。
+foreground = "#3a3737"
+# 状态栏和面板颜色。
+panel = "#292A2DFF"
+# 四个模式的结果显示框背景、文字和边框。
+display_background = "#0040ff"
+display_foreground = "#dfdfeb"
+display_border = "#5F6368CC"
+# 按钮默认、悬停、按下和边框颜色。
+button = "#303134FF"
+button_hover = "#45474DFF"
+button_pressed = "#5F6368FF"
+border = "#5F6368FF"
+# 菜单选中项强调色。
+accent = "#586cdb"

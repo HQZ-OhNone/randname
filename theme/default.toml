@@ -1,6 +1,7 @@
 # 用户主题示例。
 # 将本文件复制为 theme/custom.toml 并修改颜色，即可在程序启动时自动加载。
 # background 为页面背景；其他颜色可使用 Qt 支持的 Hex、RGBA 或 RGB 写法。
+color_format = "Hex"
 
 [colors]
 background = "#202124"
