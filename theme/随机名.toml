@@ -1,0 +1,14 @@
+color_format = "RGBA"
+
+[colors]
+background = "220, 220, 220, 240"
+panel = "220, 220, 220, 215"
+foreground = "150, 150, 150, 255"
+button = "220, 136, 192, 184"
+button_hover = "220, 136, 192, 255"
+button_pressed = "150, 150, 150, 255"
+border = "150, 150, 150, 174"
+accent = "220, 136, 192, 255"
+display_background = "255, 255, 255, 148"
+display_foreground = "150, 150, 150, 255"
+display_border = "220, 136, 192, 194"

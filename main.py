@@ -29,22 +29,8 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import QUrl
-from PySide6.QtGui import QAction, QDesktopServices
-from PySide6.QtWidgets import QApplication, QLabel, QMainWindow, QMessageBox, QPushButton, QStackedWidget, QWidget, QMenuBar, QStatusBar, QFileDialog
-
-from lib import Lift as lift_module
-from lib import Multi as multi_module
-from lib import Single as single_module
-from lib import importnames
-from lib import StateManager
-from lib import ScrollSingle
-from lib import ThemeManager
-# 導入已經由 pyside6-uic 編譯並放在 lib/ 的 UI 模塊
-from lib import ui_main
-from lib import ui_widgetsingle
-from lib import ui_widgetmulti
-from lib import ui_widgetlift
-from lib import ui_widgetscrollsingle
+from PySide6.QtGui import QAction, QActionGroup, QDesktopServices, QPixmap
+from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox, QMenu, QWidget, QSplashScreen
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
@@ -76,8 +62,10 @@ MainWindow 负责：
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, themes=None, selected_theme=""):
         super().__init__()
+        self.themes = themes if themes is not None else ThemeManager.discover_themes()
+        self.selected_theme = selected_theme
         self.names = self._load_names()
         self.multi_quantity = 1
         self.lift_quantity = 1
@@ -97,12 +85,7 @@ class MainWindow(QMainWindow):
         self.action_exit = None
         self.action_license = None
         self.action_repository = None
-        self.action_theme_dark = None
-        self.action_theme_light = None
-        self.action_theme_blue = None
-        self.action_theme_amber = None
-        self.action_theme_green = None
-        self.action_theme_purple = None
+        self.theme_actions = None
 
         self.single_button = None
         self.single_label = None
@@ -132,7 +115,7 @@ class MainWindow(QMainWindow):
                 "doc/config.toml 不存在或无法解析，已加载默认配置。",
             )
 
-    def _load_names(self):
+    def _load_names(self) -> dict:
         names = getattr(importnames, "names", None)
         if isinstance(names, dict) and names:
             return names
@@ -170,6 +153,7 @@ class MainWindow(QMainWindow):
 
         try:
             self._bind_menu_actions()
+            self._build_theme_menu()
             self._load_pages()
             self._bind_page_actions()
         except Exception as exc:  # pragma: no cover - defensive path for runtime errors
@@ -188,12 +172,6 @@ class MainWindow(QMainWindow):
         self.action_exit = getattr(self.ui_main, "action_exit", None)
         self.action_license = getattr(self.ui_main, "action_license", None)
         self.action_repository = getattr(self.ui_main, "action_repository", None)
-        self.action_theme_dark = getattr(self.ui_main, "action_theme_dark", None)
-        self.action_theme_light = getattr(self.ui_main, "action_theme_light", None)
-        self.action_theme_blue = getattr(self.ui_main, "action_theme_blue", None)
-        self.action_theme_amber = getattr(self.ui_main, "action_theme_amber", None)
-        self.action_theme_green = getattr(self.ui_main, "action_theme_green", None)
-        self.action_theme_purple = getattr(self.ui_main, "action_theme_purple", None)
 
         if self.action_single:
             self.action_single.triggered.connect(self._show_single_page)
@@ -215,21 +193,37 @@ class MainWindow(QMainWindow):
             self.action_license.triggered.connect(self._open_license)
         if self.action_repository:
             self.action_repository.triggered.connect(self._open_repository)
-        for action, name in (
-            (self.action_theme_dark, "dark"),
-            (self.action_theme_light, "light"),
-            (self.action_theme_blue, "blue"),
-            (self.action_theme_amber, "amber"),
-            (self.action_theme_green, "green"),
-            (self.action_theme_purple, "purple"),
-        ):
-            if action is not None:
-                action.triggered.connect(lambda checked=False, theme=name: self._apply_theme(theme))
 
-    def _apply_theme(self, name):
+    def _build_theme_menu(self):
+        theme_menu = getattr(self.ui_main, "menu_theme", None)
+        if theme_menu is None:
+            theme_menu = next(
+                (menu for menu in self.menuBar().findChildren(QMenu) if menu.title() == "主题"),
+                None,
+            )
+        if theme_menu is None:
+            theme_menu = self.menuBar().addMenu("主题")
+        else:
+            theme_menu.clear()
+        self.theme_actions = QActionGroup(theme_menu)
+        self.theme_actions.setExclusive(True)
+        for name in self.themes:
+            action = QAction(name, self)
+            action.setCheckable(True)
+            action.setChecked(name == self.selected_theme)
+            action.triggered.connect(
+                lambda _checked=False, theme_name=name: self._select_theme(theme_name)
+            )
+            self.theme_actions.addAction(action)
+            theme_menu.addAction(action)
+
+    def _select_theme(self, name):
+        app = QApplication.instance()
+        if not isinstance(app, QApplication):
+            return
         try:
-            ThemeManager.apply_theme(QApplication.instance(), name)
-            StateManager.log("INFO", "theme", result=name)
+            self.selected_theme = ThemeManager.apply_theme(app, name, self.themes)
+            StateManager.log("INFO", "theme", result=self.selected_theme)
         except (OSError, ValueError, KeyError) as exc:
             StateManager.log("ERROR", "theme", error=str(exc))
             self._show_error("主题加载失败", str(exc))
@@ -388,8 +382,9 @@ class MainWindow(QMainWindow):
         try:
             cfg = StateManager.load_config()
             # apply to runtime without changing files
-            if isinstance(cfg, dict) and cfg.get("names"):
-                self.names = cfg.get("names")
+            names = cfg.get("names") if isinstance(cfg, dict) else None
+            if isinstance(names, dict) and names:
+                self.names = names
                 # 更新控制器们的名字源
                 try:
                     if self.scroll_controller is not None:
@@ -413,8 +408,9 @@ class MainWindow(QMainWindow):
             self.setMinimumSize(0, 0)
             # 如果 memory 中包含 loaded_config，则在运行时应用其 names
             loaded_cfg = content.get("loaded_config")
-            if isinstance(loaded_cfg, dict) and loaded_cfg.get("names"):
-                self.names = loaded_cfg.get("names")
+            names = loaded_cfg.get("names") if isinstance(loaded_cfg, dict) else None
+            if isinstance(names, dict) and names:
+                self.names = names
                 # update controllers
                 try:
                     if self.scroll_controller is not None:
@@ -623,7 +619,9 @@ class MainWindow(QMainWindow):
 
     def _on_exit(self):
         logging.info("用户请求退出程序")
-        QApplication.instance().quit()
+        app = QApplication.instance()
+        if app is not None:
+            app.quit()
 
     def _open_license(self):
         try:
@@ -648,14 +646,53 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(self, title, message)
 
 
-if __name__ == "__main__":
+def main():
+    global lift_module, multi_module, single_module, ScrollSingle
+    global StateManager, ThemeManager, importnames
+    global ui_main, ui_widgetlift, ui_widgetmulti, ui_widgetsingle, ui_widgetscrollsingle
+
     app = QApplication(sys.argv)
+
+    splash = None
+    splash_pixmap = QPixmap(str(UI_DIR / "randname-start_v3.5.png"))
+    if not splash_pixmap.isNull():
+        splash = QSplashScreen(splash_pixmap)
+        splash.show()
+        app.processEvents()
+
+    # Load application modules only after the splash screen is visible.
+    from lib import Lift as lift_module
+    from lib import Multi as multi_module
+    from lib import Single as single_module
+    from lib import importnames
+    from lib import StateManager
+    from lib import ScrollSingle
+    from lib import ThemeManager
+    from lib import ui_main
+    from lib import ui_widgetsingle
+    from lib import ui_widgetmulti
+    from lib import ui_widgetlift
+    from lib import ui_widgetscrollsingle
+
+    themes = ThemeManager.discover_themes()
     config = getattr(importnames, "loaded_config", {})
-    theme_name = config.get("app", {}).get("theme", "dark") if isinstance(config, dict) else "dark"
-    try:
-        ThemeManager.apply_theme(app, theme_name)
-    except (OSError, ValueError, KeyError):
-        ThemeManager.apply_theme(app, "dark")
-    window = MainWindow()
+    requested_theme = (
+        config.get("app", {}).get("theme", "")
+        if isinstance(config, dict)
+        else ""
+    )
+    selected_theme = (
+        requested_theme if requested_theme in themes
+        else "随机名" if "随机名" in themes
+        else next(iter(themes), "")
+    )
+    window = MainWindow(themes, selected_theme)
+    ThemeManager.apply_theme(app, selected_theme, themes)
     window.show()
-    sys.exit(app.exec())
+    if splash is not None:
+        splash.finish(window)
+    return app.exec()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -61,12 +61,17 @@ python -m pip install --upgrade pip
 pip install nuitka==4.1.3 pyside6==6.11.1
 ```
 4. 使用 Nuitka 經行編譯，如：
+
+推荐直接运行仓库中的 [`build_linux.sh`](./build_linux.sh) 或 [`build_windows.bat`](./build_windows.bat)，它们会先编译 UI 文件，再使用下面同步的参数打包。构建脚本与文档示例均固定使用 Nuitka 4.1.3、PySide6 6.11.1，并排除程序未使用的 Qt Designer、QtUiTools、QtNetwork、QtSql、QtTest 和 QtXml 模块。
+
 - Linux
 ```nuitka
 nuitka \
 --standalone \
 --enable-plugin=pyside6 \
 --include-data-file=.config.default.toml=.config.default.toml \
+--include-data-file=ui/randname1.png=ui/randname1.png \
+--include-data-file=ui/randname-start_v3.5.png=ui/randname-start_v3.5.png \
 --include-data-dir=doc=doc \
 --include-data-dir=theme=theme \
 --output-dir=build \
@@ -89,10 +94,12 @@ nuitka `
 --standalone `
 --enable-plugin=pyside6 `
 --include-data-file=.config.default.toml=.config.default.toml `
+--include-data-file=ui\randname-start_v3.5.png=ui\randname-start_v3.5.png `
 --include-data-dir=doc=doc `
 --include-data-dir=theme=theme `
 --output-dir=build `
 --output-filename=randname.exe `
+--windows-icon-from-ico=ui\randname.ico `
 --show-progress `
 --lto=yes `
 --assume-yes-for-downloads `

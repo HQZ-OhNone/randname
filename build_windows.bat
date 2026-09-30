@@ -18,10 +18,13 @@ nuitka ^
   --standalone ^
   --enable-plugin=pyside6 ^
   --include-data-file=.config.default.toml=.config.default.toml ^
+  --include-data-file=ui\randname-start_v3.5.png=ui\randname-start_v3.5.png ^
   --include-data-dir=doc=doc ^
   --include-data-dir=theme=theme ^
   --output-dir=build ^
   --output-filename=randname.exe ^
+  --show-progress ^
+  --windows-icon-from-ico=ui\randname.ico ^
   --lto=yes ^
   --assume-yes-for-downloads ^
   --windows-disable-console ^
