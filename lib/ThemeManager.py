@@ -68,6 +68,6 @@ def apply_theme(app: QApplication, name: str, themes: dict[str, dict] | None = N
     loaded = themes if themes is not None else discover_themes()
     if not loaded:
         return ""
-    selected = name if name in loaded else next(iter(loaded))
+    selected = name if name in loaded else "随机名" if "随机名" in loaded else next(iter(loaded))
     app.setStyleSheet(_stylesheet(loaded[selected]))
     return selected

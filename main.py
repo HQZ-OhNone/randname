@@ -29,21 +29,8 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import QUrl
-from PySide6.QtGui import QAction, QDesktopServices
-from PySide6.QtWidgets import QApplication, QLabel, QMainWindow, QMessageBox, QPushButton, QStackedWidget, QWidget, QMenuBar, QStatusBar
-
-from lib import Lift as lift_module
-from lib import Multi as multi_module
-from lib import Single as single_module
-from lib import importnames
-from lib import StateManager
-from lib import ScrollSingle
-from lib import ThemeManager
-# 導入已經由 pyside6-uic 編譯並放在 lib/ 的 UI 模塊
-from lib import ui_main
-from lib import ui_widgetsingle
-from lib import ui_widgetmulti
-from lib import ui_widgetlift
+from PySide6.QtGui import QAction, QActionGroup, QDesktopServices, QPixmap
+from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QMenu, QWidget, QSplashScreen
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
@@ -75,8 +62,10 @@ MainWindow 负责：
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, themes=None, selected_theme=""):
         super().__init__()
+        self.themes = themes if themes is not None else ThemeManager.discover_themes()
+        self.selected_theme = selected_theme
         self.names = self._load_names()
         self.multi_quantity = 1
         self.lift_quantity = 1
@@ -96,6 +85,7 @@ class MainWindow(QMainWindow):
         self.action_exit = None
         self.action_license = None
         self.action_repository = None
+        self.theme_actions = None
 
         self.single_button = None
         self.single_label = None
@@ -146,6 +136,7 @@ class MainWindow(QMainWindow):
 
         try:
             self._bind_menu_actions()
+            self._build_theme_menu()
             self._load_pages()
             self._bind_page_actions()
         except Exception as exc:  # pragma: no cover - defensive path for runtime errors
@@ -175,6 +166,34 @@ class MainWindow(QMainWindow):
             self.action_license.triggered.connect(self._open_license)
         if self.action_repository:
             self.action_repository.triggered.connect(self._open_repository)
+
+    def _build_theme_menu(self):
+        theme_menu = getattr(self.ui_main, "menu_theme", None)
+        if theme_menu is None:
+            theme_menu = next(
+                (menu for menu in self.menuBar().findChildren(QMenu) if menu.title() == "主题"),
+                None,
+            )
+        if theme_menu is None:
+            theme_menu = self.menuBar().addMenu("主题")
+        else:
+            theme_menu.clear()
+        self.theme_actions = QActionGroup(theme_menu)
+        self.theme_actions.setExclusive(True)
+        for name in self.themes:
+            action = QAction(name, self)
+            action.setCheckable(True)
+            action.setChecked(name == self.selected_theme)
+            action.triggered.connect(
+                lambda _checked=False, theme_name=name: self._select_theme(theme_name)
+            )
+            self.theme_actions.addAction(action)
+            theme_menu.addAction(action)
+
+    def _select_theme(self, name):
+        app = QApplication.instance()
+        if isinstance(app, QApplication):
+            self.selected_theme = ThemeManager.apply_theme(app, name, self.themes)
 
     def _load_pages(self):
         if self.stacked_widget is None:
@@ -460,7 +479,9 @@ class MainWindow(QMainWindow):
 
     def _on_exit(self):
         logging.info("用户请求退出程序")
-        QApplication.instance().quit()
+        app = QApplication.instance()
+        if app is not None:
+            app.quit()
 
     def _open_license(self):
         try:
@@ -485,15 +506,52 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(self, title, message)
 
 
-if __name__ == "__main__":
+def main():
+    global lift_module, multi_module, single_module, ScrollSingle
+    global StateManager, ThemeManager, importnames
+    global ui_main, ui_widgetlift, ui_widgetmulti, ui_widgetsingle
+
     app = QApplication(sys.argv)
+
+    splash = None
+    splash_pixmap = QPixmap(str(UI_DIR / "randname-start_v3.5.png"))
+    if not splash_pixmap.isNull():
+        splash = QSplashScreen(splash_pixmap)
+        splash.show()
+        app.processEvents()
+
+    # Load application modules only after the splash screen is visible.
+    from lib import Lift as lift_module
+    from lib import Multi as multi_module
+    from lib import Single as single_module
+    from lib import importnames
+    from lib import StateManager
+    from lib import ScrollSingle
+    from lib import ThemeManager
+    from lib import ui_main
+    from lib import ui_widgetsingle
+    from lib import ui_widgetmulti
+    from lib import ui_widgetlift
+
+    themes = ThemeManager.discover_themes()
     config = getattr(importnames, "loaded_config", {})
     requested_theme = (
         config.get("app", {}).get("theme", "")
         if isinstance(config, dict)
         else ""
     )
-    ThemeManager.apply_theme(app, requested_theme)
-    window = MainWindow()
+    selected_theme = (
+        requested_theme if requested_theme in themes
+        else "随机名" if "随机名" in themes
+        else next(iter(themes), "")
+    )
+    window = MainWindow(themes, selected_theme)
+    ThemeManager.apply_theme(app, selected_theme, themes)
     window.show()
-    sys.exit(app.exec())
+    if splash is not None:
+        splash.finish(window)
+    return app.exec()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

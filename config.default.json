@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "randname",
-    "version": "0.0.0"
+    "version": "0.0.0",
+    "theme": "随机名"
   },
   "names": {
     "0": "周〇",
