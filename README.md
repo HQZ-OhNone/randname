@@ -99,7 +99,7 @@ nuitka `
 --include-data-dir=theme=theme `
 --output-dir=build `
 --output-filename=randname.exe `
---windows-icon-from-ico=ui\randname.ico `
+--windows-icon-from-ico=ui\randname1.ico `
 --show-progress `
 --lto=yes `
 --assume-yes-for-downloads `

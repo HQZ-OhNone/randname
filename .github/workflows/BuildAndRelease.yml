@@ -223,7 +223,7 @@ jobs:
             --enable-plugin=pyside6 `
             --include-data-file=.config.default.toml=.config.default.toml `
             --include-data-file=ui\randname-start_v3.5.png=ui\randname-start_v3.5.png `
-            --windows-icon-from-ico=ui\randname.ico `
+            --windows-icon-from-ico=ui\randname1.ico `
             --include-data-dir=doc=doc `
             --include-data-dir=theme=theme `
             --output-dir=build `

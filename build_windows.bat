@@ -24,7 +24,7 @@ nuitka ^
   --output-dir=build ^
   --output-filename=randname.exe ^
   --show-progress ^
-  --windows-icon-from-ico=ui\randname.ico ^
+  --windows-icon-from-ico=ui\randname1.ico ^
   --lto=yes ^
   --assume-yes-for-downloads ^
   --windows-disable-console ^
