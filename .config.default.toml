@@ -2,9 +2,11 @@
 
 [app]
 name = "randname"
-version = "1.0.0"
 default_mode = "ScrollSingle"
-theme = "随机名"
+theme = "randname"
+
+[splash]
+duration_ms = 1000
 
 [window]
 width = 800

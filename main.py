@@ -28,7 +28,7 @@ import logging
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QUrl
+from PySide6.QtCore import QElapsedTimer, QTimer, QUrl
 from PySide6.QtGui import QAction, QActionGroup, QDesktopServices, QPixmap
 from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox, QMenu, QWidget, QSplashScreen
 
@@ -205,6 +205,8 @@ class MainWindow(QMainWindow):
             theme_menu = self.menuBar().addMenu("主题")
         else:
             theme_menu.clear()
+        if self.theme_actions is not None:
+            self.theme_actions.deleteLater()
         self.theme_actions = QActionGroup(theme_menu)
         self.theme_actions.setExclusive(True)
         for name in self.themes:
@@ -271,7 +273,7 @@ class MainWindow(QMainWindow):
 
     def _bind_page_actions(self):
         # Single 頁面綁定
-        self.single_button = getattr(self.ui_single, "pushButton", None)
+        self.single_button = getattr(self.ui_single, "pushButton_Single", None)
         self.single_label = getattr(self.ui_single, "label_SingleOutput", None)
         if self.single_button and self.single_label:
             self.single_button.clicked.connect(self._handle_single)
@@ -381,7 +383,21 @@ class MainWindow(QMainWindow):
     def _on_reload_config(self):
         try:
             cfg = StateManager.load_config()
-            # apply to runtime without changing files
+            self.themes = ThemeManager.discover_themes()
+            app_config = cfg.get("app", {}) if isinstance(cfg, dict) else {}
+            requested_theme = app_config.get("theme") if isinstance(app_config, dict) else None
+            if requested_theme not in self.themes:
+                requested_theme = (
+                    self.selected_theme if self.selected_theme in self.themes
+                    else "randname" if "randname" in self.themes
+                    else next(iter(self.themes), "")
+                )
+            self.selected_theme = requested_theme
+            self._build_theme_menu()
+            if self.themes:
+                self._select_theme(self.selected_theme)
+
+            # Apply the roster and themes at runtime without changing files.
             names = cfg.get("names") if isinstance(cfg, dict) else None
             if isinstance(names, dict) and names:
                 self.names = names
@@ -391,9 +407,9 @@ class MainWindow(QMainWindow):
                         self.scroll_controller.update_names(self.names)
                 except Exception:
                     pass
-                QMessageBox.information(self, "重新加载配置", "已从 doc/config.toml 或默认配置重新加载配置（仅内存中应用）。")
+                QMessageBox.information(self, "重新加载配置", "已重新载入名单并同步主题清单（仅当前运行中生效）。")
             else:
-                QMessageBox.warning(self, "重新加载配置", "未找到可用配置文件。")
+                QMessageBox.warning(self, "重新加载配置", "已同步主题清单，但未找到可用名單。")
         except Exception as exc:
             logging.exception("重新加载配置失败: %s", exc)
             QMessageBox.warning(self, "重新加载配置失败", str(exc))
@@ -654,11 +670,15 @@ def main():
     app = QApplication(sys.argv)
 
     splash = None
-    splash_pixmap = QPixmap(str(UI_DIR / "randname-start_v3.5.png"))
+    splash_timer = QElapsedTimer()
+    splash_duration_ms = 1000
+    splash_pixmap = QPixmap(str(UI_DIR / "randname-start_v3.6.png"))
     if not splash_pixmap.isNull():
         splash = QSplashScreen(splash_pixmap)
         splash.show()
         app.processEvents()
+        splash_timer = QElapsedTimer()
+        splash_timer.start()
 
     # Load application modules only after the splash screen is visible.
     from lib import Lift as lift_module
@@ -676,6 +696,13 @@ def main():
 
     themes = ThemeManager.discover_themes()
     config = getattr(importnames, "loaded_config", {})
+    splash_config = config.get("splash", {}) if isinstance(config, dict) else {}
+    if isinstance(splash_config, dict):
+        configured_duration = splash_config.get("duration_ms", 1000)
+        if isinstance(configured_duration, int) and not isinstance(configured_duration, bool) and configured_duration >= 0:
+            splash_duration_ms = configured_duration
+        else:
+            logging.warning("启动画面时长配置无效，使用默认值 1000 毫秒")
     requested_theme = (
         config.get("app", {}).get("theme", "")
         if isinstance(config, dict)
@@ -683,14 +710,23 @@ def main():
     )
     selected_theme = (
         requested_theme if requested_theme in themes
-        else "随机名" if "随机名" in themes
+        else "randname" if "randname" in themes
         else next(iter(themes), "")
     )
     window = MainWindow(themes, selected_theme)
     ThemeManager.apply_theme(app, selected_theme, themes)
-    window.show()
     if splash is not None:
-        splash.finish(window)
+        remaining_ms = max(0, splash_duration_ms - splash_timer.elapsed())
+        def finish_startup():
+            splash.close()
+            window.show()
+
+        if remaining_ms:
+            QTimer.singleShot(remaining_ms, finish_startup)
+        else:
+            finish_startup()
+    else:
+        window.show()
     return app.exec()
 
 

@@ -2,9 +2,11 @@
 
 [app]
 name = "randname"
-version = "1.0.0"
 default_mode = "ScrollSingle"
-theme = "dark"
+theme = "randname"
+
+[splash]
+duration_ms = 100
 
 [window]
 width = 800

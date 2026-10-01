@@ -5,6 +5,7 @@ color_format = "HexA"
 [colors]
 # 主窗口和页面背景（背景强制不透明）。
 background = "#e3e5e8"
+#background = "#0b0b0c"
 # 普通文字颜色。
 foreground = "#3a3737"
 # 状态栏和面板颜色。

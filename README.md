@@ -25,6 +25,8 @@
 
 ### 使用
 
+使用指南： [简体中文](./doc/使用指南_简体中文.md) | [繁體中文](./doc/使用指南.md) | [English (US)](./doc/User_Guide_en-US.md)
+
 #### 方案一、使用預編譯程序
 1. 請從 [releases](https://github.com/HQZ-OhNone/randname/releases) 下載預編譯程序
 2. 將壓縮包解壓到合適的目錄
@@ -44,8 +46,8 @@ pip install pyside6==6.11.1
 4. 運行 main.py
 
 #### 配置与运行记录
-- 当前配置为 `doc/config.toml`，程序只读加载；文件缺失或损坏时使用隐藏的 `.config.default.toml` 并提示。
-- 配置使用 TOML，包含姓名、窗口初始尺寸、默认模式、滚动速度和主题等选项，可直接编辑注释旁的值。
+- 当前配置为 `doc/config.toml`，程序只读加载；文件缺失或损坏时使用 `.config.default.toml`。
+- 配置使用 TOML，包含姓名、窗口初始尺寸、默认模式、主题和启动画面时长（`[splash].duration_ms`，毫秒）等选项，可直接编辑对应的值。
 - `doc/memory.json` 保存各模式最近结果，`doc/log.log` 保存精简的英文逐行日志；两者均不会提交到 Git。
 - 菜单栏“文件 -> 导入...”和“导出...”用于记忆文件，不会覆盖 `doc/config.toml`。
 
@@ -62,56 +64,8 @@ pip install nuitka==4.1.3 pyside6==6.11.1
 ```
 4. 使用 Nuitka 經行編譯，如：
 
-推荐直接运行仓库中的 [`build_linux.sh`](./build_linux.sh) 或 [`build_windows.bat`](./build_windows.bat)，它们会先编译 UI 文件，再使用下面同步的参数打包。构建脚本与文档示例均固定使用 Nuitka 4.1.3、PySide6 6.11.1，并排除程序未使用的 Qt Designer、QtUiTools、QtNetwork、QtSql、QtTest 和 QtXml 模块。
+直接运行仓库中的 [`build_linux.sh`](./build_linux.sh) 或 [`build_windows.bat`](./build_windows.bat)。
 
-- Linux
-```nuitka
-nuitka \
---standalone \
---enable-plugin=pyside6 \
---include-data-file=.config.default.toml=.config.default.toml \
---include-data-file=ui/randname1.png=ui/randname1.png \
---include-data-file=ui/randname-start_v3.5.png=ui/randname-start_v3.5.png \
---include-data-dir=doc=doc \
---include-data-dir=theme=theme \
---output-dir=build \
---output-filename=randname \
---show-progress \
---lto=yes \
---assume-yes-for-downloads \
---nofollow-import-to=PySide6.QtDesigner \
---nofollow-import-to=PySide6.QtUiTools \
---nofollow-import-to=PySide6.QtNetwork \
---nofollow-import-to=PySide6.QtSql \
---nofollow-import-to=PySide6.QtTest \
---nofollow-import-to=PySide6.QtXml \
-main.py
-```
-
-- Windows
-```nuitka
-nuitka `
---standalone `
---enable-plugin=pyside6 `
---include-data-file=.config.default.toml=.config.default.toml `
---include-data-file=ui\randname-start_v3.5.png=ui\randname-start_v3.5.png `
---include-data-dir=doc=doc `
---include-data-dir=theme=theme `
---output-dir=build `
---output-filename=randname.exe `
---windows-icon-from-ico=ui\randname1.ico `
---show-progress `
---lto=yes `
---assume-yes-for-downloads `
---nofollow-import-to=PySide6.QtDesigner `
---nofollow-import-to=PySide6.QtUiTools `
---nofollow-import-to=PySide6.QtNetwork `
---nofollow-import-to=PySide6.QtSql `
---nofollow-import-to=PySide6.QtTest `
---nofollow-import-to=PySide6.QtXml `
---windows-disable-console `
-main.py
-```
 5. 找到 ```build``` 目錄下的可執行文件，運行即可。
 6. 編譯完成後亦可打包分發
 - Linux
