@@ -57,6 +57,7 @@
     <addaction name="action_Multi"/>
     <addaction name="action_Lift"/>
     <addaction name="action_ScrollSingle"/>
+    <addaction name="action_ScrollMulti"/>
    </widget>
    <widget class="QMenu" name="menu_about">
     <property name="title">
@@ -135,6 +136,11 @@
   <action name="action_ScrollSingle">
    <property name="text">
     <string>滚动抽取</string>
+   </property>
+  </action>
+  <action name="action_ScrollMulti">
+   <property name="text">
+    <string>滚动多抽</string>
    </property>
   </action>
   <action name="action_inputconfig">

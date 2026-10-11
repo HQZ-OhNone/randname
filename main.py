@@ -91,15 +91,15 @@ def _configured_size(section: dict, screen_width: int, screen_height: int, *, sp
     return max(1, int(width)), max(1, int(width / aspect))
 
 
-def _scroll_rate(config: dict | None) -> int:
-    """Read ``[scroll_single].rate`` defensively from a possibly broken config."""
-    section = config.get("scroll_single", {}) if isinstance(config, dict) else {}
-    rate = section.get("rate", 30) if isinstance(section, dict) else 30
+def _rate_from_config(config: dict | None, section: str, default: int = 30) -> int:
+    """Read a positive ticks-per-second ``rate`` from a config section."""
+    values = config.get(section, {}) if isinstance(config, dict) else {}
+    rate = values.get("rate", default) if isinstance(values, dict) else default
     try:
         value = int(rate)
     except (TypeError, ValueError):
-        return 30
-    return value if value > 0 else 30
+        return default
+    return value if value > 0 else default
 
 
 def _startup_file_check(config: dict | None = None) -> tuple[list[str], list[str]]:
@@ -166,6 +166,7 @@ class MainWindow(QMainWindow):
         self.names = self._load_names()
         self.multi_quantity = 1
         self.lift_quantity = 1
+        self.scroll_multi_quantity = 1
         self.lift_current_dict = None  # 保存当前减量抽的字典
         self.multi_result = None
         self.lift_result = None
@@ -174,11 +175,13 @@ class MainWindow(QMainWindow):
         self.page_multi = None
         self.page_lift = None
         self.page_scrollsingle = None
+        self.page_scrollmulti = None
         self.stacked_widget = None
 
         self.action_multi = None
         self.action_lift = None
         self.action_scrollsingle = None
+        self.action_scrollmulti = None
         self.action_exit = None
         self.action_license = None
         self.action_repository = None
@@ -209,6 +212,14 @@ class MainWindow(QMainWindow):
         # memory import). Used by _retranslate so switching language never
         # clobbers a produced name with the placeholder.
         self.scroll_has_result = False
+
+        # ScrollMulti widgets & controller
+        self.scroll_multi_button = None
+        self.scroll_multi_label = None
+        self.scroll_multi_quantity_label = None
+        self.scroll_multi_up_button = None
+        self.scroll_multi_down_button = None
+        self.scroll_multi_controller = None
 
         self._build_ui()
         self._apply_config_window()
@@ -279,6 +290,7 @@ class MainWindow(QMainWindow):
         self.action_multi = getattr(self.ui_main, "action_Multi", None)
         self.action_lift = getattr(self.ui_main, "action_Lift", None)
         self.action_scrollsingle = getattr(self.ui_main, "action_ScrollSingle", None)
+        self.action_scrollmulti = getattr(self.ui_main, "action_ScrollMulti", None)
         self.action_inputconfig = getattr(self.ui_main, "action_inputconfig", None)
         self.action_outputconfig = getattr(self.ui_main, "action_outputconfig", None)
         self.action_reinputconfig = getattr(self.ui_main, "action_reinputconfig", None)
@@ -294,6 +306,8 @@ class MainWindow(QMainWindow):
             self.action_lift.triggered.connect(self._show_lift_page)
         if self.action_scrollsingle:
             self.action_scrollsingle.triggered.connect(self._show_scrollsingle_page)
+        if self.action_scrollmulti:
+            self.action_scrollmulti.triggered.connect(self._show_scrollmulti_page)
         if self.action_inputconfig:
             self.action_inputconfig.triggered.connect(self._on_import_memory)
         if self.action_outputconfig:
@@ -424,12 +438,17 @@ class MainWindow(QMainWindow):
         self.lift_result = None
         self.multi_quantity = min(max(1, self.multi_quantity), max(1, len(self.names)))
         self.lift_quantity = min(max(1, self.lift_quantity), max(1, len(self.names)))
+        self.scroll_multi_quantity = min(max(1, self.scroll_multi_quantity), max(1, len(self.names)))
         self._set_quantity_label(self.multi_quantity_label, self.multi_quantity)
         self._set_quantity_label(self.lift_quantity_label, self.lift_quantity)
+        self._set_quantity_label(self.scroll_multi_quantity_label, self.scroll_multi_quantity)
         if self.lift_label is not None:
             self.lift_label.setText(self._t("state.waiting"))
         if self.scroll_controller is not None:
             self.scroll_controller.update_names(self.names)
+        if self.scroll_multi_controller is not None:
+            self.scroll_multi_controller.set_quantity(self.scroll_multi_quantity)
+            self.scroll_multi_controller.update_names(self.names)
         self._build_roster_menu()
         roster = self.rosters.get(key, {})
         display_name = LanguageManager.localized_name(
@@ -449,6 +468,7 @@ class MainWindow(QMainWindow):
             (self.action_multi, "mode.multi"),
             (self.action_lift, "mode.lift"),
             (self.action_scrollsingle, "mode.scroll"),
+            (self.action_scrollmulti, "mode.scrollmulti"),
             (self.action_inputconfig, "action.import"),
             (self.action_outputconfig, "action.export"),
             (self.action_reinputconfig, "action.reload"),
@@ -482,6 +502,15 @@ class MainWindow(QMainWindow):
                 )
             if self.scroll_label is not None and not self.scroll_has_result:
                 self.scroll_label.setText(self._t("state.waiting"))
+        if hasattr(self, "ui_scrollmulti"):
+            self.ui_scrollmulti.pushButton_ScrollMulti.setText(self._t("button.draw"))
+            self.ui_scrollmulti.pushButton_ScrollMultiQuantityUp.setText(self._t("button.increase"))
+            self.ui_scrollmulti.pushButton_ScrollMultiQuantityDown.setText(self._t("button.decrease"))
+            if self.scroll_multi_controller is not None:
+                self.scroll_multi_controller.set_button_texts(
+                    self._t("button.draw"), self._t("button.stop_scrollmulti"),
+                    self._t("state.waiting"),
+                )
 
     def _select_theme(self, name):
         app = QApplication.instance()
@@ -519,9 +548,15 @@ class MainWindow(QMainWindow):
         self.ui_scrollsingle = ui_widgetscrollsingle.Ui_Form()
         self.ui_scrollsingle.setupUi(self.page_scrollsingle)
 
+        # ScrollMulti page reuses the Multi style with a dynamic reel board.
+        self.page_scrollmulti = QWidget()
+        self.ui_scrollmulti = ui_widgetscrollmulti.Ui_Form()
+        self.ui_scrollmulti.setupUi(self.page_scrollmulti)
+
         self.stacked_widget.addWidget(self.page_multi)
         self.stacked_widget.addWidget(self.page_lift)
         self.stacked_widget.addWidget(self.page_scrollsingle)
+        self.stacked_widget.addWidget(self.page_scrollmulti)
         config = getattr(importnames, "loaded_config", {})
         app_config = config.get("app", {}) if isinstance(config, dict) else {}
         default_mode = app_config.get("default_mode", "Multi") if isinstance(app_config, dict) else "Multi"
@@ -529,6 +564,8 @@ class MainWindow(QMainWindow):
             self._show_multi_page()
         elif default_mode == "Lift":
             self._show_lift_page()
+        elif default_mode == "ScrollMulti":
+            self._show_scrollmulti_page()
         else:
             self._show_scrollsingle_page()
 
@@ -562,7 +599,7 @@ class MainWindow(QMainWindow):
                     pass
             # 创建控制器，但不自动启动
             if self.scroll_start_button is not None and self.scroll_stop_button is not None and self.scroll_label is not None:
-                rate = _scroll_rate(importnames.loaded_config)
+                rate = _rate_from_config(importnames.loaded_config, "scroll_single")
                 self.scroll_controller = ScrollSingle.ScrollController(
                     self.scroll_label,
                     self.scroll_start_button,
@@ -576,6 +613,35 @@ class MainWindow(QMainWindow):
                 )
         except Exception as exc:
             logging.exception("初始化 ScrollSingle 失败: %s", exc)
+
+        # ScrollMulti 綁定（沿用 Multi 樣式，單一輸出框）
+        try:
+            self.scroll_multi_button = getattr(self.ui_scrollmulti, "pushButton_ScrollMulti", None)
+            self.scroll_multi_quantity_label = getattr(self.ui_scrollmulti, "label_ScrollMultiQuantity", None)
+            self.scroll_multi_label = getattr(self.ui_scrollmulti, "label_ScrollMultiOutput", None)
+            self.scroll_multi_up_button = getattr(self.ui_scrollmulti, "pushButton_ScrollMultiQuantityUp", None)
+            self.scroll_multi_down_button = getattr(self.ui_scrollmulti, "pushButton_ScrollMultiQuantityDown", None)
+            if self.scroll_multi_quantity_label is not None:
+                self._set_quantity_label(self.scroll_multi_quantity_label, self.scroll_multi_quantity)
+            if self.scroll_multi_up_button is not None:
+                self.scroll_multi_up_button.clicked.connect(lambda: self._adjust_quantity("scrollmulti", 1))
+            if self.scroll_multi_down_button is not None:
+                self.scroll_multi_down_button.clicked.connect(lambda: self._adjust_quantity("scrollmulti", -1))
+            if self.scroll_multi_button is not None and self.scroll_multi_label is not None:
+                self.scroll_multi_controller = ScrollMulti.ScrollMultiController(
+                    self.scroll_multi_label,
+                    self.scroll_multi_button,
+                    self.names,
+                    on_result=self._on_scrollmulti_result,
+                    rate=_rate_from_config(getattr(importnames, "loaded_config", {}), "scroll_multi"),
+                    draw_text=self._t("button.draw"),
+                    stop_format=self._t("button.stop_scrollmulti"),
+                    reset_text=self._t("state.waiting"),
+                    on_warning=self._on_scrollmulti_warning,
+                )
+                self.scroll_multi_controller.set_quantity(self.scroll_multi_quantity)
+        except Exception as exc:
+            logging.exception("初始化 ScrollMulti 失败: %s", exc)
 
         # Lift 頁面綁定
         self.lift_button = getattr(self.ui_lift, "pushButton_Lift", None)
@@ -607,6 +673,10 @@ class MainWindow(QMainWindow):
     def _show_scrollsingle_page(self):
         if self.stacked_widget is not None:
             self.stacked_widget.setCurrentWidget(self.page_scrollsingle)
+
+    def _show_scrollmulti_page(self):
+        if self.stacked_widget is not None:
+            self.stacked_widget.setCurrentWidget(self.page_scrollmulti)
 
     def _on_import_memory(self):
         # Import JSON memory without changing files under config/.
@@ -666,8 +736,10 @@ class MainWindow(QMainWindow):
                 self.lift_current_dict = None
             self.multi_quantity = min(max(1, self.multi_quantity), max(1, len(self.names)))
             self.lift_quantity = min(max(1, self.lift_quantity), max(1, len(self.names)))
+            self.scroll_multi_quantity = min(max(1, self.scroll_multi_quantity), max(1, len(self.names)))
             self._set_quantity_label(self.multi_quantity_label, self.multi_quantity)
             self._set_quantity_label(self.lift_quantity_label, self.lift_quantity)
+            self._set_quantity_label(self.scroll_multi_quantity_label, self.scroll_multi_quantity)
             self.themes = ThemeManager.discover_themes()
             self.languages, preferred_language, language_warning = LanguageManager.load_languages()
             app_config = cfg.get("app", {}) if isinstance(cfg, dict) else {}
@@ -695,9 +767,16 @@ class MainWindow(QMainWindow):
                 if isinstance(app, QApplication):
                     ThemeManager.apply_theme(app, self.selected_theme, self.themes)
             if self.scroll_controller is not None:
-                self.scroll_controller.update_rate(_scroll_rate(cfg))
+                self.scroll_controller.update_rate(_rate_from_config(cfg, "scroll_single"))
                 if roster_changed:
                     self.scroll_controller.update_names(self.names)
+            if self.scroll_multi_controller is not None:
+                self.scroll_multi_controller.update_rate(
+                    _rate_from_config(cfg, "scroll_multi")
+                )
+                self.scroll_multi_controller.set_quantity(self.scroll_multi_quantity)
+                if roster_changed:
+                    self.scroll_multi_controller.update_names(self.names)
             warnings = list(StateManager.CONFIG_WARNINGS)
             if importnames.ROSTER_FALLBACK_USED:
                 warnings.append("config/name.toml")
@@ -758,6 +837,11 @@ class MainWindow(QMainWindow):
                     if text is not None:
                         self.scroll_label.setText(text)
                         self.scroll_has_result = True
+                if self.scroll_multi_controller is not None:
+                    v = last.get("ScrollMulti", last.get("scrollmulti"))
+                    payload = v.get("result") if isinstance(v, dict) and "result" in v else v
+                    if payload is not None:
+                        self.scroll_multi_controller.show_result(payload)
             self.resize(current_size)
             self.setMinimumSize(0, 0)
         except Exception as exc:
@@ -850,6 +934,38 @@ class MainWindow(QMainWindow):
             except Exception:
                 pass
 
+    def _on_scrollmulti_result(self, result, meta):
+        # Called by ScrollMulti controller when a round completes
+        try:
+            logging.info("scrollmulti result: %s", result)
+            selected = 0
+            if isinstance(result, dict):
+                quantity = result.get("quantity", {})
+                if isinstance(quantity, dict):
+                    selected = quantity.get("selected", 0)
+            self.statusBar().showMessage(
+                self._t("state.scrollmulti_result", count=selected)
+            )
+            state = StateManager.load_memory()
+            state["loaded_config"] = getattr(importnames, 'loaded_config', None)
+            state.setdefault("last_results", {})["ScrollMulti"] = {"result": result, "meta": meta}
+            StateManager.save_memory(state)
+            StateManager.log("INFO", "ScrollMulti", result=result)
+        except Exception as exc:
+            logging.exception("处理 scrollmulti 结果失败: %s", exc)
+            try:
+                StateManager.log("ERROR", "ScrollMulti", error=str(exc))
+            except Exception:
+                pass
+
+    def _on_scrollmulti_warning(self, count):
+        # Called by ScrollMulti when the requested count exceeds the roster.
+        try:
+            self.statusBar().showMessage(self._t("state.scrollmulti_invalid", count=count))
+            StateManager.log("WARN", "ScrollMulti", error=f"requested more than {count}")
+        except Exception:
+            pass
+
     def _adjust_quantity(self, mode, delta):
         max_count = max(1, len(self.names))
         if mode == "multi":
@@ -860,6 +976,12 @@ class MainWindow(QMainWindow):
             self.lift_quantity = max(1, min(max_count, self.lift_quantity + delta))
             self._set_quantity_label(self.lift_quantity_label, self.lift_quantity)
             logging.info("更新减量抽数量=%s", self.lift_quantity)
+        elif mode == "scrollmulti":
+            self.scroll_multi_quantity = max(1, min(max_count, self.scroll_multi_quantity + delta))
+            self._set_quantity_label(self.scroll_multi_quantity_label, self.scroll_multi_quantity)
+            if self.scroll_multi_controller is not None:
+                self.scroll_multi_controller.set_quantity(self.scroll_multi_quantity)
+            logging.info("更新滚动多抽数量=%s", self.scroll_multi_quantity)
 
     def _reset_lift_page(self):
         # 刷新减量抽页面：不改变 lift_quantity，只重置当前的 Liftdict
@@ -1033,10 +1155,10 @@ class MainWindow(QMainWindow):
 
 
 def main():
-    global lift_module, multi_module, ScrollSingle
+    global lift_module, multi_module, ScrollSingle, ScrollMulti
     global StateManager, ThemeManager, importnames
     global LanguageManager
-    global ui_main, ui_widgetlift, ui_widgetmulti, ui_widgetscrollsingle
+    global ui_main, ui_widgetlift, ui_widgetmulti, ui_widgetscrollsingle, ui_widgetscrollmulti
 
     app = QApplication(sys.argv)
     bootstrap_config, bootstrap_warnings = _bootstrap_config()
@@ -1106,12 +1228,14 @@ def main():
         from lib import importnames
         from lib import StateManager
         from lib import ScrollSingle
+        from lib import ScrollMulti
         from lib import ThemeManager
         from lib import LanguageManager
         from lib import ui_main
         from lib import ui_widgetmulti
         from lib import ui_widgetlift
         from lib import ui_widgetscrollsingle
+        from lib import ui_widgetscrollmulti
     except Exception as exc:
         if splash is not None:
             splash.close()

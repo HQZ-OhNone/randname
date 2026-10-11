@@ -1,12 +1,13 @@
 # randname Help
 
-randname is a desktop app for classroom roll calls. The Mode menu contains Draw names, Elimination draw, and Rolling draw. Draw names accepts a quantity of one, so a separate single-draw mode is not needed.
+randname is a desktop app for classroom roll calls. The Mode menu contains Multi draw, Elimination draw, Rolling single draw, and Scroll multi draw. Multi draw accepts a quantity of one, so a separate single-draw mode is not needed.
 
 ## Drawing
 
-- **Draw names:** Set the quantity with the increase/decrease buttons, then select Draw. A draw contains no duplicate names; later draws start from the full roster again. Set the quantity to `1` to draw one person.
+- **Multi draw:** Set the quantity with the increase/decrease buttons, then select Draw. A draw contains no duplicate names; later draws start from the full roster again. Set the quantity to `1` to draw one person.
 - **Elimination draw:** Each draw removes selected people from the remaining pool for the current run. Reset restores the active roster. Changing rosters or refreshing changed roster data also resets the remaining pool.
-- **Rolling draw:** Select Start to cycle through the active roster and Stop to choose the visible name. The cycle rate is controlled by `scroll_single.rate`.
+- **Rolling single draw:** Select Start to cycle through the active roster and Stop to choose the visible name. The cycle rate is controlled by `scroll_single.rate`.
+- **Scroll multi draw:** Set the quantity, then select Draw to show that many reels cycling at once. The button becomes "Stop (x/n)"; each press stops the frontmost reel and fixes its name. Names fixed this round never appear again in the same round. The cycle rate is controlled by `scroll_multi.rate`.
 
 ## Rosters
 

@@ -1,5 +1,5 @@
 [app]
-# 启动后打开的页面；可填 Multi、Lift 或 ScrollSingle。
+# 启动后打开的页面；可填 Multi、Lift、ScrollSingle 或 ScrollMulti。
 default_mode = "Multi"
 # 启动主题后备项：config/theme.toml 的 default 优先；仅在 theme.toml 未指定（或无效）default 时使用此项。
 # 主题键名必须存在于 config/theme.toml 的 [themes.*] 中。
@@ -51,6 +51,10 @@ aspect_ratio = 1.5
 
 [scroll_single]
 # 每秒轮播更新次数，必须为正整数。
+rate = 30
+
+[scroll_multi]
+# 滚动多抽每秒轮播更新次数，必须为正整数。
 rate = 30
 
 [logging]

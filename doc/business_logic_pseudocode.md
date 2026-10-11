@@ -1,11 +1,11 @@
 # randname 业务逻辑伪代码说明书
 
 > 本文档以**中文伪代码**完整描述 `randname` 课堂点名工具的全部业务逻辑。
-> 覆盖范围：`main.py`（入口 + 主窗口）、`lib/` 下全部模块（状态管理、名单、主题、语言、三种抽取模式）、
+> 覆盖范围：`main.py`（入口 + 主窗口）、`lib/` 下全部模块（状态管理、名单、主题、语言、四种抽取模式）、
 > `config/` 与 `.config.default.toml` / `.name.default.toml` 全部配置字段、`ui/` 界面结构、
 > `doc/` 运行时产物、构建脚本与 CI 发布流程。
 >
-> 文档以实际源码为准（核对版本：Python 3.12.10 / PySide6 6.11.1 / 项目 lastedit 2026-09-19）。
+> 文档以实际源码为准（核对版本：Python 3.12.10 / PySide6 6.11.1 / 项目 lastedit 2026-10-12）。
 > 凡源码中的硬编码常量、中文兜底文案、边界回退分支，均在正文中**原样标注**，
 > 并在第 16 章「实现细节与已知特癖」中集中汇总，便于后续维护核对。
 
@@ -24,7 +24,7 @@
 | [7](#7-主题管理层-thememanager) | `ThemeManager`：主题发现、颜色转换、样式表 |
 | [8](#8-语言管理层-languagemanager) | `LanguageManager`：语言包、翻译、本地化名称 |
 | [9](#9-主窗口-mainwindow) | `MainWindow`：全部成员、菜单、页面、槽函数 |
-| [10](#10-三种抽取模式算法) | Multi / Lift / ScrollSingle 核心算法 |
+| [10](#10-四种抽取模式算法) | Multi / Lift / ScrollSingle / ScrollMulti 核心算法 |
 | [11](#11-界面结构-ui) | UI 布局与控件对象名全表 |
 | [12](#12-国际化键位全表) | 国际化文案键全表 |
 | [13](#13-日志与等级过滤) | 日志系统、等级过滤、会话日志 |
@@ -56,9 +56,10 @@
 | 术语 | 含义 |
 | --- | --- |
 | 名单 / roster | 一组可被抽取的人员集合，键为稳定人员编号，值为显示姓名 |
-| 抽取 / Multi | 一次性抽取 N 人，本次结果互不重复，**不消耗名单** |
+| 多抽 / Multi | 一次性抽取 N 人，本次结果互不重复，**不消耗名单** |
 | 减量抽 / Lift | 抽取 N 人，抽中者**从剩余名单中移除**，可连续多轮 |
-| 滚动抽取 / ScrollSingle | 名单高速轮播，点「停止」时当前显示者为结果 |
+| 滚动单抽 / ScrollSingle | 名单高速轮播，点「停止」时当前显示者为结果 |
+| 滚动多抽 / ScrollMulti | 显示 N 个转盘同时轮播，逐个点「停止」定人，本轮不重复、**不消耗名单** |
 | 记忆 / memory | `doc/memory.json`，保存各模式最近一次结果 |
 | 会话日志 | 本进程启动以来收集到的日志文本，用于「关于 > 程序日志」 |
 | 持久日志 | `doc/log.log`，追加写入的英文单行结构化日志 |
@@ -82,7 +83,7 @@ DOC_DIR  = ROOT_DIR / "doc"
 ### 2.1 定位与特性
 
 - **课堂点名桌面程序**，Python 3.12.10 + Qt 6.11.1（PySide6），GPL v3.0 开源。
-- **三种抽取模式**：多抽（Multi）、减量抽（Lift）、滚动抽取（ScrollSingle，默认模式）。
+- **四种抽取模式**：多抽（Multi）、减量抽（Lift）、滚动单抽（ScrollSingle，默认模式）、滚动多抽（ScrollMulti）。
 - **三语言**：简体中文 `zh_CN`、正體中文 `zh_TW`、English `en_US`（内建兜底）。
 - **十三套主题**：琥珀、蓝色、深色（经典）、绿色、中性（浅/深）、紫色 各深浅两色 + Randname 粉色调色。
 - **全配置化**：启动模式、名单、主题、语言、启动画面、窗口尺寸、滚动速度、日志等级均来自 TOML。
@@ -98,7 +99,7 @@ randname/
 ├── .config.default.toml          配置备份（config.toml 缺失/损坏时回退）
 ├── .name.default.toml            名单备份（name.toml 缺失/无可用名单时回退）
 ├── config/                       只读用户配置
-│   ├── config.toml               主配置：app/assets/paths/splash/window/scroll_single/logging
+│   ├── config.toml               主配置：app/assets/paths/splash/window/scroll_single/scroll_multi/logging
 │   ├── name.toml                 名单目录：[rosters.<键>.name] 与 [rosters.<键>.names]
 │   ├── theme.toml                主题目录：default + [themes.<键>]（color_format/name/colors）
 │   └── language.toml             语言包：preferred + [languages.<locale>]（display_name/text）
@@ -109,13 +110,15 @@ randname/
 │   ├── LanguageManager.py        语言包加载、翻译、本地化名称、系统语言匹配
 │   ├── Multi.py                  多抽算法（纯函数）
 │   ├── Lift.py                   减量抽算法（纯函数）
-│   ├── ScrollSingle.py           滚动抽控制器 ScrollController（QTimer 驱动）
+│   ├── ScrollSingle.py           滚动单抽控制器 ScrollController（QTimer 驱动）
+│   ├── ScrollMulti.py            滚动多抽控制器 ScrollMultiController（QTimer 驱动）
 │   ├── ui_main.py                Main.ui 的编译产物 Ui_MainWindow
 │   ├── ui_widgetmulti.py         WidgetMulti.ui 的编译产物 Ui_Form
 │   ├── ui_widgetlift.py          WidgetLift.ui 的编译产物 Ui_Form
-│   └── ui_widgetscrollsingle.py  WidgetScrollSingle.ui 的编译产物 Ui_Form
+│   ├── ui_widgetscrollsingle.py  WidgetScrollSingle.ui 的编译产物 Ui_Form
+│   └── ui_widgetscrollmulti.py   WidgetScrollMulti.ui 的编译产物 Ui_Form
 ├── ui/                           Qt Designer 源文件 + 图片资源
-│   ├── Main.ui  WidgetMulti.ui  WidgetLift.ui  WidgetScrollSingle.ui
+│   ├── Main.ui  WidgetMulti.ui  WidgetLift.ui  WidgetScrollSingle.ui  WidgetScrollMulti.ui
 │   ├── randname1.png / randname1.ico
 │   └── randname-start_v3.6.png / randname-start_v3.7.png
 ├── doc/
@@ -169,7 +172,7 @@ randname/
 
 ```
 [app]
-default_mode     : 字符串，启动后打开的页面。"Multi" | "Lift" | 其他（视为 ScrollSingle）
+default_mode     : 字符串，启动后打开的页面。"Multi" | "Lift" | "ScrollMulti" | 其他（视为 ScrollSingle）
 theme            : 字符串，启动主题「后备项」（仅 theme.toml 未指定/无效 default 时使用）
 language         : 字符串，启动语言「后备项」（仅 language.toml 未指定/无效 preferred 时使用）
 roster           : 字符串，启动名单键名，必须存在于 name.toml 的 [rosters.*]
@@ -200,6 +203,9 @@ aspect_ratio     : 比例模式的 宽/高，必须 > 0 的数值；非数值或
 
 [scroll_single]
 rate             : 正整数，每秒轮播刷新次数；默认 30 → 定时器间隔 1000 // 30 = 33 ms
+
+[scroll_multi]
+rate             : 正整数，滚动多抽每秒轮播刷新次数；默认 30（回退逻辑同 scroll_single）
 
 [logging]
 level            : "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL"（"WARN" 归一为 "WARNING"）
@@ -283,6 +289,7 @@ splash    = { enabled: true, mode: 0, duration_ms: 1000,
               size_mode: "screen_ratio", width: 480, height: 270 }
 window    = { size_mode: "screen_ratio", width: 800, height: 600, aspect_ratio: 1.5 }
 scroll_single = { rate: 30 }
+scroll_multi  = { rate: 30 }
 logging   = { level: "INFO" }
 ```
 
@@ -301,7 +308,7 @@ border #B86AA8FF  accent #D44EADFF
 
 #### 3.5.3 `LanguageManager.ENGLISH`（语言文件不可用时的唯一可用语言）
 
-包含第 12 章全部 50 个文案键的英文译文；任何语言包都以此为基底合并。
+包含第 12 章全部 61 个文案键的英文译文；任何语言包都以此为基底合并。
 
 #### 3.5.4 内建名单（name.toml 与备份都不可用时）
 
@@ -320,7 +327,8 @@ border #B86AA8FF  accent #D44EADFF
   "last_results": {
     "Multi":       { "result": { /* Multi 结果结构 */ }, "time": "2026-10-11 13:18:44" },
     "Lift":        null,
-    "ScrollSingle":{ "result": "吴九", "meta": { "time": "...", "mode": "ScrollSingle" } }
+    "ScrollSingle":{ "result": "吴九", "meta": { "time": "...", "mode": "ScrollSingle" } },
+    "ScrollMulti": { "result": { /* ScrollMulti 结果结构，同构 Multi */ }, "meta": { "mode": "ScrollMulti" } }
   }
 }
 ```
@@ -329,7 +337,7 @@ border #B86AA8FF  accent #D44EADFF
 
 ```
 { "loaded_config": null,
-  "last_results": { "Multi": null, "Lift": null, "ScrollSingle": null } }
+  "last_results": { "Multi": null, "Lift": null, "ScrollSingle": null, "ScrollMulti": null } }
 ```
 
 写入格式：`json.dumps(state, ensure_ascii=False, indent=2)`，编码 UTF-8。
@@ -344,7 +352,7 @@ time=2026-10-11 13:18:44 level=INFO action=Multi result=('mode': 'Multi', ...)
 `_log_value()` 会把 `\r \n \t` 替换为空格，并把 `{ } [ ]` 替换成 `( )`，
 保证**每条日志严格单行且不含 JSON 风格括号**。
 
-### 3.8 三种模式的结果结构
+### 3.8 四种模式的结果结构
 
 #### Multi 结果
 
@@ -389,6 +397,25 @@ time=2026-10-11 13:18:44 level=INFO action=Multi result=('mode': 'Multi', ...)
 meta   = { "time": "2026-10-11 13:20:05", "mode": "ScrollSingle" }   // 注意分隔符是 " " 和 ":"
 result = <停止瞬间 label 上的文本>
 ```
+
+#### ScrollMulti 结果
+
+```jsonc
+// 回调签名：on_result(result: dict, meta: dict)
+// 结构对齐 Multi，便于 _format_output_result 复用。
+{
+  "mode": "ScrollMulti",
+  "time": "2026-10-11-13:18:44",                 // 与 Multi 相同：分隔符 "-"
+  "quantity": { "total": <名单总数>, "selected": <本次抽取数 n> },
+  "outdict": {                                   // 逐个停下的转盘，按停止顺序 "0","1",...
+    "0": { "code": "<原人员编号>", "name": "<姓名>" },
+    "1": { "code": "7",        "name": "吴九" }
+  }
+}
+meta = { "time": "2026-10-11-13:20:05", "mode": "ScrollMulti" }
+```
+
+同一轮内已停下的编号会从本轮池中移除，因此 `outdict` 各 `code` 互不重复。
 
 ---
 
@@ -718,7 +745,7 @@ BUILTIN_CONFIG  = { ... }       ← 见 3.5.1
     CONFIG_SOURCE = "built-in"
     CONFIG_FALLBACK_USED = True
     CONFIG_WARNINGS += "using built-in configuration"
-    RETURN BUILTIN_CONFIG.copy()        ← 注意：浅拷贝（见第 16 章）
+    RETURN copy.deepcopy(BUILTIN_CONFIG)   ← 深拷贝：调用方可能改写嵌套表（见第 16 章）
 ```
 
 ### 5.5 `load_rosters() → (rosters, 回退标记)`
@@ -823,7 +850,7 @@ BUILTIN_CONFIG  = { ... }       ← 见 3.5.1
 
 ```
 函数 _default_memory() → { "loaded_config": null,
-                           "last_results": {"Multi":null,"Lift":null,"ScrollSingle":null} }
+                           "last_results": {"Multi":null,"Lift":null,"ScrollSingle":null,"ScrollMulti":null} }
 
 函数 load_memory() → dict:
     IF MEMORY_PATH 不存在:
@@ -1463,9 +1490,19 @@ self._retranslate()              ← 全量刷新菜单标题 + 动作文案 + �
         pushButton_ScrollSingleStop.setText (t("button.stop"))
         IF self.scroll_controller != None:
             self.scroll_controller.set_button_texts(t("button.start"), t("button.stop"))
-        IF self.scroll_label != None AND self.scroll_label.text() IN {"滚动抽取","等待输入","Ready"}:
+        IF self.scroll_label != None AND NOT self.scroll_has_result:
             self.scroll_label.setText(t("state.waiting"))
-            ← 仅当标签仍处于「占位/待命」文本时才重写，滚动中的姓名一律保留
+            ← 用布尔量判定是否已有结果（不再依赖字面量集）
+
+    # 6) ScrollMulti 页
+    IF hasattr(self, "ui_scrollmulti"):
+        pushButton_ScrollMulti.setText(t("button.draw"))
+        pushButton_ScrollMultiQuantityUp.setText(t("button.increase"))
+        pushButton_ScrollMultiQuantityDown.setText(t("button.decrease"))
+        IF self.scroll_multi_controller != None:
+            self.scroll_multi_controller.set_button_texts(
+                t("button.draw"), t("button.stop_scrollmulti"), t("state.waiting"))
+            ← reset 文案仅在空闲且无结果时刷新输出框，不覆盖已显示结果
 ```
 
 > `hasattr(self, "ui_multi")` 是「该页面是否已成功构建」的探针
@@ -1493,28 +1530,32 @@ self._retranslate()              ← 全量刷新菜单标题 + 动作文案 + �
 ```
 IF self.stacked_widget == None:  RAISE RuntimeError("stackedWidget 未初始化")
 
-# 三个页面均为独立 QWidget + 对应 Ui_Form
+# 四个页面均为独立 QWidget + 对应 Ui_Form
 self.page_multi = QWidget(); ui_widgetmulti.Ui_Form().setupUi(self.page_multi)
 self.page_lift  = QWidget(); ui_widgetlift.Ui_Form().setupUi(self.page_lift)
 self.page_scrollsingle = QWidget(); ui_widgetscrollsingle.Ui_Form().setupUi(self.page_scrollsingle)
+self.page_scrollmulti  = QWidget(); ui_widgetscrollmulti.Ui_Form().setupUi(self.page_scrollmulti)
 
 self.stacked_widget.addWidget(page_multi)          # 索引 0
 self.stacked_widget.addWidget(page_lift)           # 索引 1
 self.stacked_widget.addWidget(page_scrollsingle)   # 索引 2
+self.stacked_widget.addWidget(page_scrollmulti)    # 索引 3
 
 应用配置 = importnames.loaded_config["app"]（非字典 → {}）
 默认模式 = 应用配置.default_mode 缺省 "Multi"
-IF 默认模式 == "Multi":  _show_multi_page()
-ELIF 默认模式 == "Lift": _show_lift_page()
-ELSE:                    _show_scrollsingle_page()   ← 含 "ScrollSingle" 及任何非法值
+IF 默认模式 == "Multi":       _show_multi_page()
+ELIF 默认模式 == "Lift":      _show_lift_page()
+ELIF 默认模式 == "ScrollMulti": _show_scrollmulti_page()
+ELSE:                        _show_scrollsingle_page()   ← 含 "ScrollSingle" 及任何非法值
 ```
 
-**页面切换**（三个方法，均为空操作保护）：
+**页面切换**（四个方法，均为空操作保护）：
 
 ```
 _show_multi_page()        → stacked_widget.setCurrentWidget(page_multi)
 _show_lift_page()         → stacked_widget.setCurrentWidget(page_lift)
 _show_scrollsingle_page() → stacked_widget.setCurrentWidget(page_scrollsingle)
+_show_scrollmulti_page()  → stacked_widget.setCurrentWidget(page_scrollmulti)
 ```
 
 > 「模式」菜单的三个动作绑定到这三个方法，**页面状态与记忆无关，切换不影响任何结果**。
@@ -1544,17 +1585,42 @@ _show_scrollsingle_page() → stacked_widget.setCurrentWidget(page_scrollsingle)
         scroll_stop_button = ui_scrollsingle.pushButton_ScrollSingleStop
         scroll_label.setText(t("state.waiting"))
         IF 三个控件都存在:
-            速率 = importnames.loaded_config["scroll_single"].rate 缺省 30
+            速率 = _rate_from_config(importnames.loaded_config, "scroll_single")   ← 正数，缺省 30
             self.scroll_controller = ScrollSingle.ScrollController(
                 scroll_label, scroll_start_button, scroll_stop_button,
                 self.names,
                 on_result = self._on_scroll_result,
                 rate      = 速率,
                 start_text= t("button.start"),
-                stop_text = t("button.stop"))
+                stop_text = t("button.stop"),
+                reset_text= t("state.waiting"))
             ← 构造后**不自动启动**
     EXCEPT Exception AS e:
         logging.exception("初始化 ScrollSingle 失败: %s", e)
+
+    # ── ScrollMulti 页（独立 try/except，沿用 Multi 样式的单一输出框）──
+    TRY:
+        scroll_multi_button    = ui_scrollmulti.pushButton_ScrollMulti
+        scroll_multi_label     = ui_scrollmulti.label_ScrollMultiOutput
+        scroll_multi_quantity_label = ui_scrollmulti.label_ScrollMultiQuantity
+        scroll_multi_up_button = ui_scrollmulti.pushButton_ScrollMultiQuantityUp
+        scroll_multi_down_button = ui_scrollmulti.pushButton_ScrollMultiQuantityDown
+        _set_quantity_label(scroll_multi_quantity_label, self.scroll_multi_quantity)
+        scroll_multi_up_button.clicked   → lambda: _adjust_quantity("scrollmulti", +1)
+        scroll_multi_down_button.clicked → lambda: _adjust_quantity("scrollmulti", -1)
+        IF scroll_multi_button AND scroll_multi_label:
+            self.scroll_multi_controller = ScrollMulti.ScrollMultiController(
+                scroll_multi_label, scroll_multi_button, self.names,
+                on_result  = self._on_scrollmulti_result,
+                rate       = _rate_from_config(loaded_config, "scroll_multi"),
+                draw_text  = t("button.draw"),
+                stop_format= t("button.stop_scrollmulti"),
+                reset_text = t("state.waiting"),
+                on_warning = self._on_scrollmulti_warning)
+            self.scroll_multi_controller.set_quantity(self.scroll_multi_quantity)
+            ← 构造后显示占位 reset_text，**不自动启动**
+    EXCEPT Exception AS e:
+        logging.exception("初始化 ScrollMulti 失败: %s", e)
 
     # ── Lift 页 ──
     lift_button         = ui_lift.pushButton_Lift
@@ -1586,6 +1652,12 @@ _show_scrollsingle_page() → stacked_widget.setCurrentWidget(page_scrollsingle)
         self.lift_quantity = max(1, min(上限, self.lift_quantity + 增量))
         _set_quantity_label(self.lift_quantity_label, self.lift_quantity)
         logging.info("更新减量抽数量=%s", self.lift_quantity)
+    ELIF 模式 == "scrollmulti":
+        self.scroll_multi_quantity = max(1, min(上限, self.scroll_multi_quantity + 增量))
+        _set_quantity_label(self.scroll_multi_quantity_label, self.scroll_multi_quantity)
+        IF self.scroll_multi_controller != None:
+            self.scroll_multi_controller.set_quantity(self.scroll_multi_quantity)
+        logging.info("更新滚动多抽数量=%s", self.scroll_multi_quantity)
 ```
 
 > **Lift 的数量上限是「名单总数」而非「剩余名单长度」**。
@@ -1741,6 +1813,34 @@ _show_scrollsingle_page() → stacked_widget.setCurrentWidget(page_scrollsingle)
         TRY:  StateManager.log("ERROR", "ScrollSingle", error=str(e))
         EXCEPT:  pass
 ```
+
+### 9.21.1 `_on_scrollmulti_result(result, meta)` / `_on_scrollmulti_warning(count)`
+
+```
+函数 滚动多抽结果(结果, 元信息):
+    TRY:
+        logging.info("scrollmulti result: %s", 结果)
+        数量 = 结果.quantity.selected（非字典 → 0）
+        状态栏.showMessage(t("state.scrollmulti_result", count=数量))
+        状态 = StateManager.load_memory()
+        状态["loaded_config"] = importnames.loaded_config
+        状态.setdefault("last_results", {})["ScrollMulti"] = { "result": 结果, "meta": 元信息 }
+        StateManager.save_memory(状态)
+        StateManager.log("INFO", "ScrollMulti", result=结果)
+    EXCEPT Exception AS e:
+        logging.exception("处理 scrollmulti 结果失败: %s", e)
+        TRY:  StateManager.log("ERROR", "ScrollMulti", error=str(e))
+        EXCEPT:  pass
+
+函数 滚动多抽警告(数量):
+    TRY:
+        状态栏.showMessage(t("state.scrollmulti_invalid", count=数量))
+        StateManager.log("WARN", "ScrollMulti", error="requested more than {数量}")
+    EXCEPT:  pass
+```
+
+> `ScrollMulti` 的记忆条目 `{ "result": <多抽同构字典>, "meta": {...} }` 与 `ScrollSingle` 风格一致；
+> 导入记忆时 `_apply_memory_import` 取出 `result` 交给 `ScrollMultiController.show_result()` 一次性显示。
 
 ### 9.22 文件菜单
 
@@ -1991,7 +2091,7 @@ RETURN app.exec()          ← 在 main() 中返回退出码
 
 ---
 
-## 10. 三种抽取模式算法
+## 10. 四种抽取模式算法
 
 ### 10.1 多抽 `Multi.Multi(alllist, quantity) → output`
 
@@ -2084,7 +2184,7 @@ RETURN app.exec()          ← 在 main() 中返回退出码
 **「抽空后」的行为**：当剩余为 0 再次抽取 → `outdict = {}`、`Liftdict = {}`，
 界面显示「暂无结果」（`_format_output_result` 的兜底）。
 
-### 10.3 滚动抽 `ScrollSingle.ScrollController`
+### 10.3 滚动单抽 `ScrollSingle.ScrollController`
 
 文件：`lib/ScrollSingle.py`。UI 接线在 `main.py`，**所有逻辑在本类内**。
 
@@ -2194,6 +2294,99 @@ RETURN app.exec()          ← 在 main() 中返回退出码
 - 姓名池在**整个滚动会话中不变**（滚动抽不消耗名单）。
 - `update_names` 在名单切换/刷新时热替换姓名池且**不打断正在进行的滚动**。
 
+### 10.4 滚动多抽 `ScrollMulti.ScrollMultiController`
+
+文件：`lib/ScrollMulti.py`。UI 接线在 `main.py`，逻辑全部在本类内。**沿用 Multi 页面样式**：
+单一输出框 `label_ScrollMultiOutput` + 数量增减 + 一个大按钮（初始文案「抽取」）。多个「转盘」不各自建控件，
+而是把 n 个当前名字**拼接成一个字符串**写入同一个输出框（排列规则同 Multi 结果）。
+
+#### 10.4.1 构造
+
+```
+类 ScrollMultiController:
+    函数 __init__(输出标签, 按钮, 姓名字典, 结果回调=None, 速率=30,
+                  抽取文本="抽取", 停止格式="停止（{remaining}/{total}）",
+                  等待文本="等待输入", 警告回调=None, 状态回调=None):
+        self.label = 输出标签
+        self.button = 按钮
+        self.names = 姓名字典.copy() IF 是字典 ELSE {}
+        self.draw_text / self.stop_format / self.reset_text = 对应参数
+        self.quantity = 1
+        self.running  = False
+        self.pool     = {}        ← 本轮尚未停下的 编号→姓名
+        self.total    = 0         ← 本轮转盘数量 n
+        self.reels    = []        ← 逻辑转盘：[{active, order, index, key, name}, ...]
+        self.timer = QTimer(); 间隔 = max(1, 1000 // max(1, int(速率))); timeout.connect(self._tick)
+        TRY: 按钮.clicked.connect(self.handle_click)  EXCEPT: pass
+        self._set_button_text()
+        self._show_placeholder()          ← 空闲时输出框显示 reset_text
+```
+
+#### 10.4.2 状态机与按钮
+
+```
+handle_click():
+    RETURN self.stop_next() IF self.running ELSE self.start()
+
+start():
+    IF self.running: RETURN
+    IF names 为空: 警告回调(len(names)); RETURN
+    n = self.quantity ; self.total = min(n, len(names))
+    IF n > len(names): 警告回调(len(names))           ← 数量夹取并提示
+    self.pool = dict(self.names)
+    self.reels = [ {active=True, order=洗牌(pool.keys()), index=0, key=None, name=""} × self.total ]
+    self.running = True
+    self._tick()                                      ← 立即出一批名字
+    self.timer.start()
+    self._set_button_text()                           ← 按钮="停止（n/n）"
+
+stop_next() → 本轮停下的名字:
+    IF NOT self.running: RETURN
+    取第一个 active 转盘 reel；若无 → _finish()
+    reel.active = False
+    固定键 = reel.key
+    IF 固定键 NOT IN self.pool:                       ← 连续快速点击的兜底
+        固定键 = random.choice(list(self.pool)) IF pool ELSE None
+    reel.key / reel.name = 固定键 / pool[固定键] ; pool.pop(固定键)
+    对其余 active 转盘重新洗牌其 order          ← 保证不会落到已停名字
+    _update_label()
+    IF 剩余转盘数 == 0: _finish() ELSE self._set_button_text()   ← 按钮="停止（x/n）"
+    RETURN reel.name
+```
+
+#### 10.4.3 tick 与结果
+
+```
+_tick():                                             ← 每个定时器周期
+    IF pool 为空: RETURN
+    FOR reel IN self.reels:
+        IF reel.active:
+            若 order 用尽：reel.order = 洗牌(pool.keys()) ; index=0
+            key = reel.order[index++] ; 越界或失效则重排
+            reel.key, reel.name = key, pool[key]
+    _update_label()                                  ← 把 n 个名字拼进同一个框
+
+_finish():
+    timer.stop() ; running=False
+    result = { "mode":"ScrollMulti", "time":<"-"分隔>, 
+               "quantity":{"total":len(names),"selected":self.total},
+               "outdict": { "0": {code,name}, ... } }              ← 结构同 Multi
+    按钮恢复 draw_text ；结果回调(result, meta={time,mode:"ScrollMulti"})
+```
+
+#### 10.4.4 输出文本排列 `_format_names`
+
+与 `main._format_output_result` 的多抽展示规则**完全一致**：≤4 个名字单行、两空格分隔；
+多于 4 个则每行 4 个、行间 `\n`、行内两空格分隔。
+
+**性质**：
+- 同一轮内已停下的编号会从 `pool` 移除，故**本轮不重复**；开始新一轮时重新使用完整名单。
+- 停止顺序 = 转盘建立顺序（下标 0…n-1）。
+- `show_result(result)`：把记忆中的 `outdict` 名字一次性显示在同一个框内（导入记忆用）。
+- `set_button_texts(draw, stop, reset=None)`：`reset` 仅在**空闲且无结果**时刷新输出框，
+  避免切换语言时覆盖已经显示的结果。
+- `reset()`：停止计时器、清空转盘、输出框回到 `reset_text`。
+
 ---
 
 ## 11. 界面结构（UI）
@@ -2274,13 +2467,33 @@ gridLayout_2 (QGridLayout, 734×539)
 └── (4,1) verticalSpacer_2          底部弹簧
 ```
 
-### 11.5 控件对象名总表（代码引用索引）
+### 11.5 ScrollMulti 页 `ui/WidgetScrollMulti.ui` → `Ui_Form`
+
+> 由 `WidgetMulti.ui` **最小修改**而来：整体网格、字体、边框、配色与 Multi 完全一致；
+> 仅把结果框、数量控件与动作按钮更名为 ScrollMulti 前缀。多个「转盘」共用同一个结果框，
+> 不新增子控件。
+
+```
+gridLayout (QGridLayout, 732×542)
+├── (0,1) verticalSpacer_2              垂直弹簧
+├── (1,0) horizontalSpacer              左侧弹簧
+├── (1,1) label_ScrollMultiOutput       【结果框】36pt 居中，样式同 Multi
+│                                         尺寸策略 Expanding/Expanding, horstretch 160
+├── (1,2) verticalLayout_ScrollMultiQuantity
+│     ├── pushButton_ScrollMultiQuantityUp    "增加" 18pt
+│     ├── label_ScrollMultiQuantity           数量值 20pt 居中，NoContextMenu
+│     └── pushButton_ScrollMultiQuantityDown  "减少" 18pt
+├── (1,3) horizontalSpacer_2            右侧弹簧
+└── (2,1) pushButton_ScrollMulti        "抽取" 24pt
+```
+
+### 11.6 控件对象名总表（代码引用索引）
 
 | 对象名 | 类型 | 页面 | 引用位置 |
 | --- | --- | --- | --- |
 | `stackedWidget` | QStackedWidget | 主 | `_build_ui` / `_show_*_page` |
 | `menu_file/mode/theme/language/roster/about/log_level` | QMenu | 主 | `_retranslate` / 各菜单构建 |
-| `action_Multi / Lift / ScrollSingle` | QAction | 主 | `_bind_menu_actions` |
+| `action_Multi / Lift / ScrollSingle / ScrollMulti` | QAction | 主 | `_bind_menu_actions` |
 | `action_inputconfig / outputconfig / reinputconfig / exit` | QAction | 主 | `_bind_menu_actions` |
 | `action_license / repository / help / program_log` | QAction | 主 | `_bind_menu_actions` |
 | `label_MultiOutput` | QLabel | Multi | `_handle_multi` / `_retranslate` |
@@ -2294,9 +2507,13 @@ gridLayout_2 (QGridLayout, 734×539)
 | `pushButton_LiftRenew` | QPushButton | Lift | `_reset_lift_page` |
 | `label_ScrollSingleOutput` | QLabel | Scroll | `ScrollController` |
 | `pushButton_ScrollSingleStart / Stop` | QPushButton | Scroll | `ScrollController` |
+| `label_ScrollMultiOutput` | QLabel | ScrollMulti | `ScrollMultiController` / `_retranslate` |
+| `label_ScrollMultiQuantity` | QLabel | ScrollMulti | `_set_quantity_label` |
+| `pushButton_ScrollMulti` | QPushButton | ScrollMulti | `ScrollMultiController` |
+| `pushButton_ScrollMultiQuantityUp / Down` | QPushButton | ScrollMulti | `_adjust_quantity("scrollmulti")` |
 | `label_SingleOutput` | — | — | **已废弃**，仅存在于 `ThemeManager` 样式表选择器 |
 
-### 11.6 样式表优先级实测结论
+### 11.7 样式表优先级实测结论
 
 `.ui` 中为结果框与按钮**内联**了硬编码样式（`setStyleSheet` 作用在控件自身），
 而 `ThemeManager` 生成的是 `QApplication` 级样式表。
@@ -2318,7 +2535,7 @@ gridLayout_2 (QGridLayout, 734×539)
 
 ## 12. 国际化键位全表
 
-`ENGLISH` 常量共 **50 键**；`language.toml` 的三个语言包均覆盖全部键。
+`ENGLISH` 常量共 **61 键**；`language.toml` 的三个语言包均覆盖全部键。
 文案中的 `{...}` 为 Python `str.format` 占位符，翻译时**必须保留**。
 
 | 键名 | 英文 (en_US) | 简体中文 (zh_CN) | 正體中文 (zh_TW) |
@@ -2339,23 +2556,28 @@ gridLayout_2 (QGridLayout, 734×539)
 | `action.help` | Help | 帮助 | 說明文件 |
 | `action.program_log` | Program log | 程序日志 | 程式日誌 |
 | `action.close` | Close | 关闭 | 關閉 |
-| `mode.multi` | Draw names | 抽取 | 抽取 |
+| `mode.multi` | Multi draw | 多抽 | 多抽 |
 | `mode.lift` | Elimination draw | 减量抽 | 減量抽 |
-| `mode.scroll` | Rolling draw | 滚动抽取 | 滾動抽取 |
+| `mode.scroll` | Rolling single draw | 滚动单抽 | 滾動單抽 |
+| `mode.scrollmulti` | Scroll multi draw | 滚动多抽 | 滾動多抽 |
 | `button.draw` | Draw | 抽取 | 抽取 |
 | `button.increase` | Increase | 增加 | 增加 |
 | `button.decrease` | Decrease | 减少 | 減少 |
 | `button.reset` | Reset | 重置 | 重設 |
 | `button.start` | Start | 开始 | 開始 |
 | `button.stop` | Stop | 停止 | 停止 |
+| `button.stop_scrollmulti` | Stop (`{remaining}`/`{total}`) | 停止（`{remaining}`/`{total}`） | 停止（`{remaining}`/`{total}`） |
 | `state.waiting` | Ready | 等待输入 | 等待輸入 |
 | `state.multi_result` | Draw complete: `{count}` | 抽取完成：`{count}` 人 | 抽取完成：`{count}` 人 |
 | `state.lift_result` | Elimination draw complete: `{count}` | 减量抽完成：`{count}` 人 | 減量抽完成：`{count}` 人 |
+| `state.scrollmulti_result` | Scroll multi draw complete: `{count}` | 滚动多抽完成：`{count}` 人 | 滾動多抽完成：`{count}` 人 |
+| `state.no_result` | No result | 暂无结果 | 暫無結果 |
 | `state.roster_changed` | Roster: `{name}` | 名单：`{name}` | 名單：`{name}` |
 | `state.theme_changed` | Theme: `{name}` | 主题：`{name}` | 主題：`{name}` |
 | `state.language_changed` | Language: `{name}` | 语言：`{name}` | 語言：`{name}` |
 | `state.startup_warning` | Startup used fallback data: `{files}` | 已使用备用数据启动：`{files}` | 已使用備援資料啟動：`{files}` |
 | `state.startup_error` | Required application files are missing: `{files}` | 缺少必要程序文件：`{files}` | 缺少必要程式檔案：`{files}` |
+| `state.scrollmulti_invalid` | Draw count exceeds roster size; drawing `{count}` instead | 抽取人数超过总人数，已按 `{count}` 人抽取 | 抽取人數超過總人數，已按 `{count}` 人抽取 |
 | `dialog.import_title` | Import memory | 导入记忆 | 匯入記憶 |
 | `dialog.export_title` | Export memory | 导出记忆 | 匯出記憶 |
 | `dialog.json_filter` | JSON Files (`*.json`);;All Files (`*`) | JSON 文件 (`*.json`);;所有文件 (`*`) | JSON 檔案 (`*.json`);;所有檔案 (`*`) |
@@ -2378,13 +2600,18 @@ gridLayout_2 (QGridLayout, 734×539)
 | `error.controls_init` | Could not initialize the interface: `{error}` | 无法初始化界面：`{error}` | 無法初始化介面：`{error}` |
 | `error.open_help` | Could not open the help file: `{path}` | 无法打开帮助文档：`{path}` | 無法開啟說明文件：`{path}` |
 | `error.help_missing` | The help file is missing: `{path}` | 帮助文档不存在：`{path}` | 說明文件不存在：`{path}` |
+| `error.theme_failed` | Could not apply the theme: `{error}` | 无法应用主题：`{error}` | 無法套用主題：`{error}` |
 
 **未被使用的键**（已定义但当前代码未引用）：
 `state.startup_error`、`dialog.import_done`、`dialog.export_done`、`error.open_help`。
 
 **未被国际化的硬编码文案**（见第 16 章）：
-`"主题加载失败"`、`"暂无结果"`、`"等待输入"`（`_reset_lift_page` 与 `ScrollController.reset`）、
-`"滚动抽取"/"等待输入"/"Ready"`（`_retranslate` 的判定字面量集）。
+- 启动阶段致命错误的弹窗标题与正文（`main()` 中 `"Startup check failed"`、`"Startup failed"` 等英文串）。
+- 数据校验失败等处的 `logging`/`StateManager.log` 说明文字。
+- 已国际化的旧硬编码已消除：主题加载失败改用 `error.theme_failed`，无结果改用 `state.no_result`，
+  `_reset_lift_page`/`ScrollController.reset` 改用 `state.waiting`，`_retranslate` 改用 `scroll_has_result` 布尔量
+  （不再依赖 `"滚动抽取"/"等待输入"/"Ready"` 字面量集）。
+- `ScrollMultiController` 的所有按钮/占位文案均由 `main.py` 以 `_t(...)` 注入，无硬编码。
 
 ---
 
@@ -2437,7 +2664,7 @@ gridLayout_2 (QGridLayout, 734×539)
 
 | 数据 | 首选 | 二级回退 | 三级回退 | 是否阻断启动 |
 | --- | --- | --- | --- | --- |
-| 主配置 | `config/config.toml` | `.config.default.toml` | `BUILTIN_CONFIG`（浅拷贝） | 否，仅警告 |
+| 主配置 | `config/config.toml` | `.config.default.toml` | `BUILTIN_CONFIG`（深拷贝） | 否，仅警告 |
 | 名单 | `config/name.toml` 中有效组 | `.name.default.toml` 中有效组 | 内建 1 人名单 | 否，仅警告 |
 | 主题 | `config/theme.toml` 中 `[themes.*]` | `BUILTIN_THEME`（`randname-dark`） | — | 否，仅警告 |
 | 语言 | `config/language.toml` 中 `[languages.*]` | 内建 `ENGLISH`（`en_US`） | — | 否，仅警告 |
@@ -2470,13 +2697,14 @@ gridLayout_2 (QGridLayout, 734×539)
 
 ### 15.1 构建前置：`.ui` → Python
 
-四个界面在**构建期**由 `pyside6-uic` 编译，运行时不再读取 `.ui`（避免 `QtUiTools` 依赖）：
+五个界面在**构建期**由 `pyside6-uic` 编译，运行时不再读取 `.ui`（避免 `QtUiTools` 依赖）：
 
 ```
 pyside6-uic ui/Main.ui            → lib/ui_main.py
 pyside6-uic ui/WidgetMulti.ui     → lib/ui_widgetmulti.py
 pyside6-uic ui/WidgetLift.ui      → lib/ui_widgetlift.py
 pyside6-uic ui/WidgetScrollSingle.ui → lib/ui_widgetscrollsingle.py
+pyside6-uic ui/WidgetScrollMulti.ui  → lib/ui_widgetscrollmulti.py
 ```
 
 ### 15.2 `build_linux.sh`
@@ -2484,7 +2712,7 @@ pyside6-uic ui/WidgetScrollSingle.ui → lib/ui_widgetscrollsingle.py
 ```
 ① 安装依赖：pip install --upgrade pip ; pip install nuitka==4.1.3 PySide6==6.11.1
 ② mkdir -p lib
-③ pyside6-uic 编译四个界面（见上）
+③ pyside6-uic 编译五个界面（见上）
 ④ nuitka --standalone --enable-plugin=pyside6 \
        --include-data-file=ui/randname1.png=ui/randname1.png \
        --include-data-file=ui/randname-start_v3.6.png=ui/randname-start_v3.6.png \
@@ -2570,11 +2798,12 @@ Job 4  release (needs [extract-version, build-linux, build-windows])
 
 | 位置 | 文案 | 说明 |
 | --- | --- | --- |
-| `_select_theme` 异常分支 | `"主题加载失败"` | 弹窗标题，任何语言下均为简体中文 |
-| `_format_output_result` 末尾 | `"暂无结果"` | Lift 抽空后显示，英文界面亦显示中文 |
-| `_reset_lift_page` | `"等待输入"` | 应为 `t("state.waiting")` |
-| `ScrollController.reset()` | `"等待输入"` | 同上；且 `reset()` 在 `main.py` 中**未被调用** |
-| `_retranslate` 滚动标签判定集 | `{"滚动抽取", "等待输入", "Ready"}` | 判定字面量集，若 `state.waiting` 译文被用户改写则该分支失效 |
+| `main()` 启动致命错误 | `"Startup check failed"` / `"Startup failed"` 等 | 启动阶段弹窗，未国际化；其余运行期文案均已 `_t(...)` |
+| `_select_theme` 异常分支 | `_t("error.theme_failed")` | 已国际化（原硬编码 `"主题加载失败"` 已移除） |
+| `_format_output_result` 末尾 | `_t("state.no_result")` | 已国际化（原硬编码 `"暂无结果"` 已移除） |
+| `_reset_lift_page` | `_t("state.waiting")` | 已国际化（原硬编码 `"等待输入"` 已移除） |
+| `ScrollController.reset()` | `self.reset_text` 参数（默认「等待输入」） | 由 `main.py` 注入 `state.waiting`；`reset()` 在 `main.py` 中**未被调用** |
+| `_retranslate` 滚动标签 | `self.scroll_has_result` 布尔量 | 不再依赖 `{"滚动抽取","等待输入","Ready"}` 字面量集（该判定易随译文失效） |
 
 ### 16.2 不可达 / 未使用的代码
 
@@ -2588,6 +2817,7 @@ Job 4  release (needs [extract-version, build-linux, build-windows])
 | `ScrollSingle` 模块的 `on_result` 双写 | `ScrollController.stop()` 已设一次，`MainWindow._on_scroll_result` 再设一次 |
 | 国际化键 `state.startup_error` / `dialog.import_done` / `dialog.export_done` / `error.open_help` | 已定义但**无引用** |
 | `ThemeManager` 样式表选择器 `QLabel#label_SingleOutput` | 单抽模式已废弃，该对象不存在 |
+| `ThemeManager` 样式表选择器 `QLabel#label_ScrollMultiOutput` | 对应 `ScrollMultiController` 的输出框，**在用** |
 | `lib/__pycache__/Single.*.pyc`、`ui_widgetsingle.*.pyc` | 已删除源文件的编译缓存残留 |
 
 ### 16.3 语义与命名
@@ -2596,25 +2826,25 @@ Job 4  release (needs [extract-version, build-linux, build-windows])
 | --- | --- |
 | `Lift` 结果的 `quantity.Lift` | 值为 `len(剩余) - 抽取数`，即**本轮之后剩余人数**，而非「已提升数量」，命名易误解 |
 | `Lift` 结果的 `alllist` | 直接引用传入的完整名单字典（未拷贝），随结果一起被 JSON 序列化写入记忆 |
-| `Multi` / `Lift` 时间格式 | `"%Y-%m-%d-%H:%M:%S"`（**短横线**分隔） |
+| `Multi` / `Lift` / `ScrollMulti` 时间格式 | `"%Y-%m-%d-%H:%M:%S"`（**短横线**分隔） |
 | `ScrollSingle` `meta.time` 格式 | `"%Y-%m-%d %H:%M:%S"`（**空格+冒号**） |
 | `_now_iso()` 格式 | `"%Y-%m-%d %H:%M:%S"`（空格分隔，秒精度） |
-| 三种模式时间格式不统一 | 记忆文件中三类结果的 `time` 字段解析方式不同 |
+| 各模式时间格式不统一 | 记忆文件中各结果的 `time` 字段解析方式不同 |
 
 ### 16.4 行为边界
 
 | 项 | 说明 |
 | --- | --- |
 | Lift 数量上限 | `_adjust_quantity` 以**完整名单长度**为上限，而非剩余长度；剩余变少后点「抽取」会走「数量超出」分支显示「暂无结果」（`outdict={}`），需手动调小数量或点「重置」 |
-| `_apply_memory_import` | `last_results` 中某模式为 `null` 时，会把标签设为字符串 `"None"`（`str(None)`） |
-| `BUILTIN_CONFIG.copy()` | 浅拷贝，嵌套字典为共享引用；当前代码未修改该返回值，暂无实际影响 |
-| `importnames.reload_data()` vs 模块顶层 | `reload_data` 的 `names` 用 `.get("names", 默认)`，若键存在但为空字典则**不**二次兜底（顶层会兜底） |
+| `_apply_memory_import` | `last_results` 中某模式为 `null` 时**跳过**该模式（`_remembered_text` 返回 `None`），不再显示字符串 `"None"` |
+| `BUILTIN_CONFIG` 拷贝 | `load_config` 回退内建时用 `copy.deepcopy`，避免调用方改写嵌套表污染模块常量 |
+| `importnames.reload_data()` vs 模块顶层 | 两者共用 `_names_for` 兜底：`names` 键存在但为空/非法时均回退到 `{"0": "Student 1"}` |
 | `Memory` 导入 | 不恢复 `lift_current_dict`，因此减量抽的剩余状态**无法**通过导入记忆恢复 |
-| `ScrollSingle` 速度 | `rate` 在**构造时**读取一次，「刷新程序状态」后控制器**不会**更新间隔，需重启进程生效 |
+| `ScrollSingle` / `ScrollMulti` 速度 | `rate` 在构造时读取，「刷新程序状态」后 `update_rate()` 会重新应用新间隔，无需重启 |
 | `ScrollSingle.update_names` | 名单未变化时不做任何事（含不重排顺序） |
-| `ScrollController.stop()` 重复调用 | 未运行状态下再次点「停止」仍会触发一次 `on_result` 回调（写入记忆与日志） |
-| 主题样式覆盖范围 | 控件内联 QSS 优先于应用级 QSS，结果框/按钮不受主题 `display_*`/`button*` 控制（见 11.6 实测） |
-| 「模式」菜单 | 三个 `action` **未**归入 `QActionGroup`，可出现多选勾选态 |
+| `ScrollController.stop()` 重复调用 | 未运行状态下再次点「停止」**静默返回**，不触发 `on_result`（避免写入伪造结果） |
+| 主题样式覆盖范围 | 结果框/按钮的主题色由 `ThemeManager` 的 `QLabel#label_*` ID 选择器决定（ID 选择器优先级高于控件内联的 `QLabel` 元素选择器，见 11.7 实测） |
+| 「模式」菜单 | 四个 `action` **未**归入 `QActionGroup`，可出现多选勾选态 |
 | `Multi` / `Lift` 的 stdout | 每次抽取向控制台打印剩余键列表（教学/调试用途），Windows 版 `--windows-disable-console` 下不可见 |
 | 导入/导出对话框 | 过滤器为 `dialog.json_filter`；导出默认文件名 `memory-export.json` |
 | `state.startup_warning` 状态栏 | 使用 `showMessage(文本, 0)` → **永久显示**，直到下一次 `showMessage` 覆盖 |

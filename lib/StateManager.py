@@ -44,6 +44,7 @@ BUILTIN_CONFIG = {
     },
     "window": {"size_mode": "screen_ratio", "width": 800, "height": 600, "aspect_ratio": 1.5},
     "scroll_single": {"rate": 30},
+    "scroll_multi": {"rate": 30},
     "logging": {"level": "INFO"},
 }
 
@@ -117,6 +118,7 @@ def _default_memory() -> dict:
             "Multi": None,
             "Lift": None,
             "ScrollSingle": None,
+            "ScrollMulti": None,
         },
     }
 

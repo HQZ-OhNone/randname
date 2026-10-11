@@ -14,6 +14,7 @@ pyside6-uic ui/Main.ui -o lib/ui_main.py
 pyside6-uic ui/WidgetMulti.ui -o lib/ui_widgetmulti.py
 pyside6-uic ui/WidgetLift.ui -o lib/ui_widgetlift.py
 pyside6-uic ui/WidgetScrollSingle.ui -o lib/ui_widgetscrollsingle.py
+pyside6-uic ui/WidgetScrollMulti.ui -o lib/ui_widgetscrollmulti.py
 
 echo "用 Nuitka 編譯項目"
 nuitka \
