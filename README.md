@@ -48,6 +48,7 @@ pip install pyside6==6.11.1
 #### 配置与运行记录
 - 程序配置位于 `config/config.toml`，名单位于 `config/name.toml`，语言包位于 `config/language.toml`，均使用 TOML。
 - `config/theme.toml` 集中保存主题颜色、多语言名称和默认主题；配置或名单缺失时分别回退到 `.config.default.toml` 和 `.name.default.toml`。
+- 当 `config/config.toml` 与独立配置档的同类设置不同时，优先使用独立配置档：主题以 `theme.toml` 的 `default`、语言以 `language.toml` 的 `preferred` 为准，`config.toml` 的同名项仅作后备。
 - 启动画面与主窗口均可选择固定尺寸或屏幕比例尺寸；`[splash]` 支持关闭、就绪后关闭或固定显示时间。
 - `doc/memory.json` 保存各模式最近结果，`doc/log.log` 保存精简的英文逐行日志；两者均不会提交到 Git。
 - 菜单栏“文件 -> 导入...”和“导出...”用于记忆文件，不会覆盖 `config/` 下的配置。

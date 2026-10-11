@@ -657,21 +657,18 @@ class MainWindow(QMainWindow):
             app_config = cfg.get("app", {}) if isinstance(cfg, dict) else {}
             if not isinstance(app_config, dict):
                 app_config = {}
-            requested_theme = previous_theme if previous_theme in self.themes else app_config.get(
-                "theme", ThemeManager.DEFAULT_THEME
-            )
-            self.selected_theme = (
-                requested_theme
-                if requested_theme in self.themes
-                else ThemeManager.DEFAULT_THEME if ThemeManager.DEFAULT_THEME in self.themes
-                else next(iter(self.themes), "")
-            )
-            self.current_language = LanguageManager.resolve_language(
-                previous_language
-                if previous_language in self.languages
-                else app_config.get("language") or preferred_language,
-                self.languages,
-            )
+            if previous_theme in self.themes:
+                self.selected_theme = previous_theme
+            else:
+                self.selected_theme = ThemeManager.resolve_startup_theme(
+                    self.themes, app_config.get("theme", "")
+                )
+            if previous_language in self.languages:
+                self.current_language = previous_language
+            else:
+                self.current_language = LanguageManager.resolve_startup_language(
+                    self.languages, preferred_language, app_config.get("language", "")
+                )
             self._build_theme_menu()
             self._build_language_menu()
             self._build_roster_menu()
@@ -1103,12 +1100,8 @@ def main():
     app_config = config.get("app", {}) if isinstance(config, dict) else {}
     if not isinstance(app_config, dict):
         app_config = {}
-    requested_theme = app_config.get("theme", ThemeManager.DEFAULT_THEME)
-    selected_theme = (
-        requested_theme if requested_theme in themes
-        else ThemeManager.DEFAULT_THEME if ThemeManager.DEFAULT_THEME in themes
-        else next(iter(themes), "")
-    )
+    requested_theme = app_config.get("theme", "")
+    selected_theme = ThemeManager.resolve_startup_theme(themes, requested_theme)
     selected_roster = importnames.active_roster
     startup_warnings = list(dict.fromkeys(bootstrap_warnings + StateManager.CONFIG_WARNINGS))
     if importnames.ROSTER_FALLBACK_USED:
@@ -1122,8 +1115,8 @@ def main():
     startup_warnings = list(dict.fromkeys(startup_warnings))
     for warning in startup_warnings:
         StateManager.log("WARN", "startup_fallback", error=warning)
-    selected_language = LanguageManager.resolve_language(
-        app_config.get("language") or preferred_language, languages
+    selected_language = LanguageManager.resolve_startup_language(
+        languages, preferred_language, app_config.get("language", "")
     )
     window = MainWindow(
         themes,

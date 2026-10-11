@@ -70,8 +70,10 @@ ENGLISH = {
 
 
 def load_languages(path: Path = LANGUAGE_PATH) -> tuple[dict, str, str | None]:
+    # ``preferred`` stays empty when the dedicated language file does not
+    # specify one, so callers can fall back to config.toml's [app].language.
     languages = {"en_US": {"display_name": "English (United States)", "text": ENGLISH}}
-    preferred = "en_US"
+    preferred = ""
     warning = None
     try:
         with path.open("rb") as language_file:
@@ -87,7 +89,7 @@ def load_languages(path: Path = LANGUAGE_PATH) -> tuple[dict, str, str | None]:
                 "display_name": str(pack.get("display_name", code)),
                 "text": {**ENGLISH, **pack.get("text", {})},
             }
-        configured_preferred = data.get("preferred", "en_US")
+        configured_preferred = data.get("preferred", "")
         if isinstance(configured_preferred, str):
             preferred = configured_preferred
     except (OSError, tomllib.TOMLDecodeError, ValueError) as exc:
@@ -110,6 +112,21 @@ def system_language(languages: dict) -> str:
 def resolve_language(requested: str, languages: dict) -> str:
     if requested in languages:
         return requested
+    return system_language(languages)
+
+
+def resolve_startup_language(languages: dict, preferred: str = "", configured: str = "") -> str:
+    """Pick the startup language, preferring the dedicated language file.
+
+    ``config/language.toml`` exposes ``preferred``; ``config/config.toml`` may
+    also carry ``[app].language``. When both differ, the dedicated file wins.
+    The ``configured`` value is only consulted when the dedicated file omits
+    ``preferred`` (or names an unavailable language). The system language is the
+    final fallback.
+    """
+    for candidate in (preferred, configured):
+        if isinstance(candidate, str) and candidate in languages:
+            return candidate
     return system_language(languages)
 
 

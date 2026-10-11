@@ -27,13 +27,13 @@ Use a unique key for every person. Roster display names use the current interfac
 
 ## Language and Themes
 
-Select a language from Language. Available language packs are listed in `config/language.toml`; English is built in and remains available if that file is missing. The `preferred` value selects the startup language. Switching language applies immediately and does not discard the current draw result.
+Select a language from Language. Available language packs are listed in `config/language.toml`; English is built in and remains available if that file is missing. The `preferred` value selects the startup language. When it differs from `app.language` in `config/config.toml`, `language.toml`'s `preferred` wins (the `config.toml` value is used only when `preferred` is unset or invalid). Switching language applies immediately and does not discard the current draw result.
 
-Themes are stored in `config/theme.toml`. Its `default` key selects the fallback theme. Amber, Blue, Dark, Green, Light, and Purple each have `-dark` and `-light` variants, alongside Randname pink variants. Theme names use the same current-language, system-language, English, key fallback order as roster names.
+Themes are stored in `config/theme.toml`. Its `default` key selects the fallback theme. When it differs from `app.theme` in `config/config.toml`, `theme.toml`'s `default` wins (the `config.toml` value is used only when `default` is unset or invalid). Amber, Blue, Dark, Green, Light, and Purple each have `-dark` and `-light` variants, alongside Randname pink variants. Theme names use the same current-language, system-language, English, key fallback order as roster names.
 
 ## Settings
 
-Edit `config/config.toml` to set the startup mode, theme, roster, splash screen, window size, rolling rate, and log level. Proportional dimensions use `screen_ratio`; explicit dimensions use `fixed`.
+Edit `config/config.toml` to set the startup mode, roster, splash screen, window size, rolling rate, and log level; the theme and language come from their dedicated `theme.toml` and `language.toml` files. Proportional dimensions use `screen_ratio`; explicit dimensions use `fixed`.
 
 ```toml
 [splash]

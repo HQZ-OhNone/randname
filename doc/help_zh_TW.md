@@ -27,13 +27,13 @@ zh_TW = "一班"
 
 ## 語言與主題
 
-在「語言」選單選擇介面語言。語言包位於 `config/language.toml`，其中 `preferred` 指定啟動時的首選語言。英語為內建語言，語言檔缺失時仍可使用。切換語言會立即生效，不會清除目前抽取結果。
+在「語言」選單選擇介面語言。語言包位於 `config/language.toml`，其中 `preferred` 指定啟動時的首選語言；當它與 `config/config.toml` 的 `app.language` 不同時，以 `language.toml` 的 `preferred` 為準（僅在未指定或無效時才使用後者）。英語為內建語言，語言檔缺失時仍可使用。切換語言會立即生效，不會清除目前抽取結果。
 
-主題集中保存在 `config/theme.toml`，其中 `default` 設定預設回退主題。琥珀、藍色、深色、綠色、淺色與紫色主題各有 `-dark`、`-light` 版本，另有 Randname 粉紅主題。主題名稱與名單名稱使用相同的多語言回退順序。
+主題集中保存在 `config/theme.toml`，其中 `default` 設定預設回退主題；當它與 `config/config.toml` 的 `app.theme` 不同時，以 `theme.toml` 的 `default` 為準（僅在未指定或無效時才使用後者）。琥珀、藍色、深色、綠色、淺色與紫色主題各有 `-dark`、`-light` 版本，另有 Randname 粉紅主題。主題名稱與名單名稱使用相同的多語言回退順序。
 
 ## 設定
 
-在 `config/config.toml` 設定啟動模式、主題、名單、啟動畫面、視窗尺寸、滾動速度與日誌等級。尺寸模式 `screen_ratio` 依螢幕比例計算，`fixed` 則使用指定寬高。
+在 `config/config.toml` 設定啟動模式、名單、啟動畫面、視窗尺寸、滾動速度與日誌等級；主題與語言分別以 `theme.toml`、`language.toml` 獨立設定檔為準。尺寸模式 `screen_ratio` 依螢幕比例計算，`fixed` 則使用指定寬高。
 
 ```toml
 [splash]

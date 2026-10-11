@@ -12,6 +12,8 @@ THEME_PATH = ROOT / "config" / "theme.toml"
 LOGGER = logging.getLogger(__name__)
 THEME_LOAD_WARNING: str | None = None
 DEFAULT_THEME = "randname-dark"
+# Explicit ``default`` from config/theme.toml, or None when unset/invalid.
+CONFIGURED_DEFAULT: str | None = None
 
 
 BUILTIN_THEME = {
@@ -35,8 +37,9 @@ BUILTIN_THEME = {
 
 def discover_themes(path: Path = THEME_PATH) -> dict[str, dict]:
     """Load the consolidated theme catalog or a built-in fallback theme."""
-    global THEME_LOAD_WARNING, DEFAULT_THEME
+    global THEME_LOAD_WARNING, DEFAULT_THEME, CONFIGURED_DEFAULT
     THEME_LOAD_WARNING = None
+    CONFIGURED_DEFAULT = None
     try:
         with path.open("rb") as theme_file:
             data = tomllib.load(theme_file)
@@ -52,6 +55,11 @@ def discover_themes(path: Path = THEME_PATH) -> dict[str, dict]:
         }
         if loaded:
             requested_default = data.get("default", "randname-dark")
+            CONFIGURED_DEFAULT = (
+                requested_default
+                if isinstance(requested_default, str) and requested_default in loaded
+                else None
+            )
             DEFAULT_THEME = (
                 requested_default
                 if isinstance(requested_default, str) and requested_default in loaded
@@ -64,12 +72,32 @@ def discover_themes(path: Path = THEME_PATH) -> dict[str, dict]:
     except (OSError, tomllib.TOMLDecodeError, ValueError) as exc:
         THEME_LOAD_WARNING = f"{path}: {exc}"
         DEFAULT_THEME = "randname-dark"
+        CONFIGURED_DEFAULT = None
         LOGGER.warning("Using built-in theme: %s", exc)
         return {"randname-dark": BUILTIN_THEME}
 
 
 def available_themes() -> list[str]:
     return sorted(discover_themes())
+
+
+def resolve_startup_theme(themes: dict[str, dict], configured: str = "") -> str:
+    """Pick the startup theme, preferring the dedicated theme file.
+
+    ``config/theme.toml`` exposes ``default``; ``config/config.toml`` may also
+    carry ``[app].theme``. When both differ, the dedicated file wins. The
+    ``configured`` value is only consulted when the dedicated file omits
+    ``default`` (or names an unavailable theme). The catalog's resolved default
+    and then the first available theme are the fallbacks.
+    """
+    if not themes:
+        return ""
+    for candidate in (CONFIGURED_DEFAULT, configured):
+        if isinstance(candidate, str) and candidate in themes:
+            return candidate
+    if DEFAULT_THEME in themes:
+        return DEFAULT_THEME
+    return next(iter(themes))
 
 
 def load_theme(name: str) -> dict:

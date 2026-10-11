@@ -1,9 +1,10 @@
 [app]
 # 启动后打开的页面；可填 Multi、Lift 或 ScrollSingle。
 default_mode = "Multi"
+# 启动主题后备项：config/theme.toml 的 default 优先；仅在 theme.toml 未指定（或无效）default 时使用此项。
 # 主题键名必须存在于 config/theme.toml 的 [themes.*] 中。
 theme = "randname-dark"
-# 启动语言覆盖项：留空时使用 config/language.toml 的 preferred。
+# 启动语言后备项：config/language.toml 的 preferred 优先；仅在 language.toml 未指定（或无效）preferred 时使用此项。
 # 可填 en_US、zh_CN 或 zh_TW。
 language = "zh_CN"
 # 默认名单键名必须存在于 config/name.toml 的 [rosters.*] 中。
