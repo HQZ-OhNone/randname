@@ -52,7 +52,7 @@
 </string>
      </property>
      <property name="text">
-      <string>滚动单抽</string>
+    <string>滚动抽取</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignmentFlag::AlignCenter</set>

@@ -1,0 +1,275 @@
+# 主题目录：修改 default 可更改启动默认与无效主题的回退项；值必须匹配下方主题键。
+default = "randname-dark"
+
+# 每个主题包含 color_format、name 和 colors。color_format 可选 HexA、Hex、RGBA、RGB。
+# name 下以 en_US/zh_CN/zh_TW 修改菜单显示名称；缺失时按系统语言、英语、主题键回退。
+# colors 字段含 background 页面底色、foreground 文字、panel 状态栏、display_* 结果框、
+# button/button_hover/button_pressed 按钮状态、border 边框、accent 菜单选中强调色。
+# HexA 使用 #RRGGBBAA；Hex 使用 #RRGGBB；RGBA/RGB 使用逗号分隔的 0-255 通道。
+[themes.amber-dark]
+color_format = "HexA"
+[themes.amber-dark.name]
+en_US = "Amber Dark"
+zh_CN = "琥珀深色"
+zh_TW = "琥珀深色"
+[themes.amber-dark.colors]
+background = "#21180FFF"
+foreground = "#FFF8E7FF"
+panel = "#302314FF"
+display_background = "#3A2918EE"
+display_foreground = "#FFF8E7FF"
+display_border = "#D99A2BFF"
+button = "#49331AFF"
+button_hover = "#68471FFF"
+button_pressed = "#895C25FF"
+border = "#A9752FFF"
+accent = "#F0A500FF"
+
+[themes.amber-light]
+color_format = "HexA"
+[themes.amber-light.name]
+en_US = "Amber Light"
+zh_CN = "琥珀浅色"
+zh_TW = "琥珀淺色"
+[themes.amber-light.colors]
+background = "#FFF9EDFF"
+foreground = "#332719FF"
+panel = "#F4E8D2FF"
+display_background = "#FFFFFFFF"
+display_foreground = "#332719FF"
+display_border = "#D7B77BFF"
+button = "#FFFDF8FF"
+button_hover = "#F7E5BEFF"
+button_pressed = "#EED397FF"
+border = "#D0AD67FF"
+accent = "#A86D00FF"
+
+[themes.blue-dark]
+color_format = "HexA"
+[themes.blue-dark.name]
+en_US = "Blue Dark"
+zh_CN = "蓝色深色"
+zh_TW = "藍色深色"
+[themes.blue-dark.colors]
+background = "#101E2AFF"
+foreground = "#EDF5FCFF"
+panel = "#192B3AFF"
+display_background = "#1D3447EE"
+display_foreground = "#EDF5FCFF"
+display_border = "#527C9BFF"
+button = "#203B50FF"
+button_hover = "#2B526FFF"
+button_pressed = "#38708FFF"
+border = "#527C9BFF"
+accent = "#55A9E8FF"
+
+[themes.blue-light]
+color_format = "HexA"
+[themes.blue-light.name]
+en_US = "Blue Light"
+zh_CN = "蓝色浅色"
+zh_TW = "藍色淺色"
+[themes.blue-light.colors]
+background = "#F1F7FCFF"
+foreground = "#172B3AFF"
+panel = "#DFECF5FF"
+display_background = "#FFFFFFFF"
+display_foreground = "#172B3AFF"
+display_border = "#9AB6CBFF"
+button = "#FFFFFFFF"
+button_hover = "#DDECF8FF"
+button_pressed = "#C5DDEDFF"
+border = "#9AB6CBFF"
+accent = "#176FAEFF"
+
+[themes.dark-dark]
+color_format = "HexA"
+[themes.dark-dark.name]
+en_US = "Dark Dark"
+zh_CN = "经典深色"
+zh_TW = "經典深色"
+[themes.dark-dark.colors]
+background = "#17191DFF"
+foreground = "#F2F3F5FF"
+panel = "#22262CFF"
+display_background = "#272C33EE"
+display_foreground = "#F2F3F5FF"
+display_border = "#69727FFF"
+button = "#30363FFF"
+button_hover = "#414A56FF"
+button_pressed = "#535F6DFF"
+border = "#69727FFF"
+accent = "#AAB8CCFF"
+
+[themes.dark-light]
+color_format = "HexA"
+[themes.dark-light.name]
+en_US = "Dark Light"
+zh_CN = "经典浅色"
+zh_TW = "經典淺色"
+[themes.dark-light.colors]
+background = "#F4F5F6FF"
+foreground = "#24282EFF"
+panel = "#E5E8EBFF"
+display_background = "#FFFFFFFF"
+display_foreground = "#24282EFF"
+display_border = "#AEB5BDFF"
+button = "#FFFFFFFF"
+button_hover = "#E5E9EEFF"
+button_pressed = "#D2D8DFFF"
+border = "#AEB5BDFF"
+accent = "#596778FF"
+
+[themes.green-dark]
+color_format = "HexA"
+[themes.green-dark.name]
+en_US = "Green Dark"
+zh_CN = "绿色深色"
+zh_TW = "綠色深色"
+[themes.green-dark.colors]
+background = "#14231AFF"
+foreground = "#EFF9F2FF"
+panel = "#1E3326FF"
+display_background = "#24402EEE"
+display_foreground = "#EFF9F2FF"
+display_border = "#6EAB83FF"
+button = "#2B4935FF"
+button_hover = "#396347FF"
+button_pressed = "#4A7D5BFF"
+border = "#6EAB83FF"
+accent = "#53C783FF"
+
+[themes.green-light]
+color_format = "HexA"
+[themes.green-light.name]
+en_US = "Green Light"
+zh_CN = "绿色浅色"
+zh_TW = "綠色淺色"
+[themes.green-light.colors]
+background = "#F0F8F2FF"
+foreground = "#1D3425FF"
+panel = "#DFEEE3FF"
+display_background = "#FFFFFFFF"
+display_foreground = "#1D3425FF"
+display_border = "#9CC3A7FF"
+button = "#FFFFFFFF"
+button_hover = "#DBEEDFff"
+button_pressed = "#C4E2CAFF"
+border = "#9CC3A7FF"
+accent = "#26834BFF"
+
+[themes.light-dark]
+color_format = "HexA"
+[themes.light-dark.name]
+en_US = "Neutral Dark"
+zh_CN = "中性深色"
+zh_TW = "中性深色"
+[themes.light-dark.colors]
+background = "#181B1FFF"
+foreground = "#F1F3F5FF"
+panel = "#252A30FF"
+display_background = "#2B3138EE"
+display_foreground = "#F1F3F5FF"
+display_border = "#747E88FF"
+button = "#343B43FF"
+button_hover = "#454F59FF"
+button_pressed = "#58636FFF"
+border = "#747E88FF"
+accent = "#C2CBD4FF"
+
+[themes.light-light]
+color_format = "HexA"
+[themes.light-light.name]
+en_US = "Neutral Light"
+zh_CN = "中性浅色"
+zh_TW = "中性淺色"
+[themes.light-light.colors]
+background = "#F6F7F8FF"
+foreground = "#292E34FF"
+panel = "#E8EBEEFF"
+display_background = "#FFFFFFFF"
+display_foreground = "#292E34FF"
+display_border = "#ADB5BDFF"
+button = "#FFFFFFFF"
+button_hover = "#E5E9EDFF"
+button_pressed = "#D1D8DFFF"
+border = "#ADB5BDFF"
+accent = "#687583FF"
+
+[themes.purple-dark]
+color_format = "HexA"
+[themes.purple-dark.name]
+en_US = "Purple Dark"
+zh_CN = "紫色深色"
+zh_TW = "紫色深色"
+[themes.purple-dark.colors]
+background = "#21172DFF"
+foreground = "#F7F0FCFF"
+panel = "#30213FFF"
+display_background = "#39284BEE"
+display_foreground = "#F7F0FCFF"
+display_border = "#A17ABCFF"
+button = "#49325EFF"
+button_hover = "#5E4078FF"
+button_pressed = "#765195FF"
+border = "#A17ABCFF"
+accent = "#C18BE8FF"
+
+[themes.purple-light]
+color_format = "HexA"
+[themes.purple-light.name]
+en_US = "Purple Light"
+zh_CN = "紫色浅色"
+zh_TW = "紫色淺色"
+[themes.purple-light.colors]
+background = "#F7F2FAFF"
+foreground = "#32253DFF"
+panel = "#EAE0F0FF"
+display_background = "#FFFFFFFF"
+display_foreground = "#32253DFF"
+display_border = "#BBA3C9FF"
+button = "#FFFFFFFF"
+button_hover = "#EBDEF4FF"
+button_pressed = "#DCC8EAFF"
+border = "#BBA3C9FF"
+accent = "#8653A8FF"
+
+[themes.randname-dark]
+color_format = "HexA"
+[themes.randname-dark.name]
+en_US = "Randname Dark"
+zh_CN = "随机名深色"
+zh_TW = "隨機名深色"
+[themes.randname-dark.colors]
+background = "#211823FF"
+foreground = "#F9EDF7FF"
+panel = "#302333FF"
+display_background = "#38283BEE"
+display_foreground = "#FFF6FCFF"
+display_border = "#E36ABFFF"
+button = "#783468FF"
+button_foreground = "#FFFFFFFF"
+button_hover = "#A1448DFF"
+button_pressed = "#C64EA3FF"
+border = "#D44EADFF"
+accent = "#E36ABFFF"
+
+[themes.randname-light]
+color_format = "HexA"
+[themes.randname-light.name]
+en_US = "Randname Light"
+zh_CN = "随机名浅色"
+zh_TW = "隨機名淺色"
+[themes.randname-light.colors]
+background = "#FBF4FAFF"
+foreground = "#382B37FF"
+panel = "#F1E4EEFF"
+display_background = "#FFFFFFFF"
+display_foreground = "#382B37FF"
+display_border = "#D44EADFF"
+button = "#B93492FF"
+button_foreground = "#FFFFFFFF"
+button_hover = "#D44EADFF"
+button_pressed = "#92286FFF"
+border = "#BE439CFF"
+accent = "#C43398FF"

@@ -4,7 +4,6 @@ REM Windows build: compile every UI, package TOML data, and exclude unused Qt mo
 echo 編譯 .ui 為 Python 模塊到 lib\ ...
 if not exist lib mkdir lib
 pyside6-uic ui\Main.ui -o lib\ui_main.py
-pyside6-uic ui\WidgetSingle.ui -o lib\ui_widgetsingle.py
 pyside6-uic ui\WidgetMulti.ui -o lib\ui_widgetmulti.py
 pyside6-uic ui\WidgetLift.ui -o lib\ui_widgetlift.py
 pyside6-uic ui\WidgetScrollSingle.ui -o lib\ui_widgetscrollsingle.py
@@ -17,10 +16,12 @@ echo 用 Nuitka 編譯項目
 nuitka ^
   --standalone ^
   --enable-plugin=pyside6 ^
-  --include-data-file=.config.default.toml=.config.default.toml ^
+  --include-data-file=ui\randname1.png=ui\randname1.png ^
   --include-data-file=ui\randname-start_v3.6.png=ui\randname-start_v3.6.png ^
+  --include-data-file=.config.default.toml=.config.default.toml ^
+  --include-data-file=.name.default.toml=.name.default.toml ^
+  --include-data-dir=config=config ^
   --include-data-dir=doc=doc ^
-  --include-data-dir=theme=theme ^
   --output-dir=build ^
   --output-filename=randname.exe ^
   --show-progress ^

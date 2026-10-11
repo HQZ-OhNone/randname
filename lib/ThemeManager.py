@@ -8,25 +8,64 @@ from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication
 
 ROOT = Path(__file__).resolve().parent.parent
-THEME_DIR = ROOT / "theme"
+THEME_PATH = ROOT / "config" / "theme.toml"
 LOGGER = logging.getLogger(__name__)
+THEME_LOAD_WARNING: str | None = None
+DEFAULT_THEME = "randname-dark"
 
 
-def discover_themes() -> dict[str, dict]:
-    """Load every valid theme file, including user-added files."""
-    themes = {}
-    if not THEME_DIR.is_dir():
-        return themes
-    for path in sorted(THEME_DIR.glob("*.toml")):
-        try:
-            with path.open("rb") as theme_file:
-                theme = tomllib.load(theme_file)
-            if not isinstance(theme.get("colors"), dict):
-                raise ValueError("missing [colors] table")
-            themes[path.stem] = theme
-        except (OSError, tomllib.TOMLDecodeError, ValueError) as exc:
-            LOGGER.warning("Ignoring invalid theme %s: %s", path.name, exc)
-    return themes
+BUILTIN_THEME = {
+    "color_format": "HexA",
+    "name": {"en_US": "Randname Dark", "zh_CN": "随机名深色", "zh_TW": "隨機名深色"},
+    "colors": {
+        "background": "#211823FF",
+        "foreground": "#F9EDF7FF",
+        "panel": "#302333FF",
+        "display_background": "#38283BEE",
+        "display_foreground": "#FFF6FCFF",
+        "display_border": "#C47DB5FF",
+        "button": "#493149FF",
+        "button_hover": "#633F60FF",
+        "button_pressed": "#7A4B75FF",
+        "border": "#B86AA8FF",
+        "accent": "#D44EADFF",
+    },
+}
+
+
+def discover_themes(path: Path = THEME_PATH) -> dict[str, dict]:
+    """Load the consolidated theme catalog or a built-in fallback theme."""
+    global THEME_LOAD_WARNING, DEFAULT_THEME
+    THEME_LOAD_WARNING = None
+    try:
+        with path.open("rb") as theme_file:
+            data = tomllib.load(theme_file)
+        themes = data.get("themes")
+        if not isinstance(themes, dict) or not themes:
+            raise ValueError("missing [themes.*] entries")
+        loaded = {
+            name: theme
+            for name, theme in themes.items()
+            if isinstance(theme, dict)
+            and isinstance(theme.get("colors"), dict)
+            and isinstance(theme.get("name"), dict)
+        }
+        if loaded:
+            requested_default = data.get("default", "randname-dark")
+            DEFAULT_THEME = (
+                requested_default
+                if isinstance(requested_default, str) and requested_default in loaded
+                else "randname-dark" if "randname-dark" in loaded else next(iter(loaded))
+            )
+            if requested_default != DEFAULT_THEME:
+                LOGGER.warning("Unknown default theme %r; using %s", requested_default, DEFAULT_THEME)
+            return loaded
+        raise ValueError("no valid theme entries")
+    except (OSError, tomllib.TOMLDecodeError, ValueError) as exc:
+        THEME_LOAD_WARNING = f"{path}: {exc}"
+        DEFAULT_THEME = "randname-dark"
+        LOGGER.warning("Using built-in theme: %s", exc)
+        return {"randname-dark": BUILTIN_THEME}
 
 
 def available_themes() -> list[str]:
@@ -34,8 +73,7 @@ def available_themes() -> list[str]:
 
 
 def load_theme(name: str) -> dict:
-    with (THEME_DIR / f"{name}.toml").open("rb") as theme_file:
-        return tomllib.load(theme_file)
+    return discover_themes().get(name, BUILTIN_THEME)
 
 
 def _color(value: str, color_format: str, allow_alpha: bool = True) -> str:
@@ -73,6 +111,7 @@ def _stylesheet(theme: dict) -> str:
     background = _color(colors.get("background", "#202124"), color_format, False)
     panel = _color(colors.get("panel", "#292a2d"), color_format)
     button = _color(colors.get("button", "#303134"), color_format)
+    button_foreground = _color(colors.get("button_foreground", colors.get("foreground", "#f5f5f5")), color_format)
     button_hover = _color(colors.get("button_hover", "#45474d"), color_format)
     button_pressed = _color(colors.get("button_pressed", "#5f6368"), color_format)
     border = _color(colors.get("border", "#5f6368"), color_format)
@@ -96,7 +135,7 @@ def _stylesheet(theme: dict) -> str:
     }}
     QPushButton {{
         background-color: {button};
-        color: {foreground};
+        color: {button_foreground};
         border: 1px solid {border};
         border-radius: 4px;
         padding: 6px 12px;
@@ -115,6 +154,10 @@ def apply_theme(app: QApplication, name: str, themes: dict[str, dict] | None = N
     loaded = themes if themes is not None else discover_themes()
     if not loaded:
         return ""
-    selected = name if name in loaded else "randname" if "randname" in loaded else next(iter(loaded))
+    selected = (
+        name if name in loaded
+        else DEFAULT_THEME if DEFAULT_THEME in loaded
+        else next(iter(loaded))
+    )
     app.setStyleSheet(_stylesheet(loaded[selected]))
     return selected

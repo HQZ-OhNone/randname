@@ -26,18 +26,87 @@ it under certain conditions; check GPLv3 for details.
 
 import logging
 import sys
+import tomllib
 from pathlib import Path
 
-from PySide6.QtCore import QElapsedTimer, QTimer, QUrl
-from PySide6.QtGui import QAction, QActionGroup, QDesktopServices, QPixmap
-from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox, QMenu, QWidget, QSplashScreen
+from PySide6.QtCore import QElapsedTimer, QTimer, QUrl, Qt
+from PySide6.QtGui import QAction, QActionGroup, QDesktopServices, QIcon, QPixmap
+from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QDialogButtonBox,
+    QFileDialog,
+    QMainWindow,
+    QMessageBox,
+    QMenu,
+    QPlainTextEdit,
+    QTextBrowser,
+    QSplashScreen,
+    QVBoxLayout,
+    QWidget,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 ROOT_DIR = Path(__file__).resolve().parent
 UI_DIR = ROOT_DIR / "ui"
-LICENSE_PATH = ROOT_DIR / "doc" / "gpl-3.0.txt"
-REPO_URL = "https://www.github.com/HQZ-OhNone/randname"
+DEFAULT_REPO_URL = "https://www.github.com/HQZ-OhNone/randname"
+
+
+def _configured_path(config: dict, section: str, key: str, default: str) -> Path:
+    values = config.get(section, {}) if isinstance(config, dict) else {}
+    value = values.get(key, default) if isinstance(values, dict) else default
+    selected = Path(value) if isinstance(value, str) and value else Path(default)
+    return selected if selected.is_absolute() else ROOT_DIR / selected
+
+
+def _bootstrap_config() -> tuple[dict, list[str]]:
+    warnings = []
+    for path in (ROOT_DIR / "config" / "config.toml", ROOT_DIR / ".config.default.toml"):
+        try:
+            with path.open("rb") as config_file:
+                config = tomllib.load(config_file)
+            if path.name == ".config.default.toml":
+                warnings.append("config/config.toml")
+            return config, warnings
+        except FileNotFoundError:
+            warnings.append(str(path.relative_to(ROOT_DIR)))
+        except (OSError, tomllib.TOMLDecodeError) as exc:
+            warnings.append(f"{path.relative_to(ROOT_DIR)}: {exc}")
+    return {}, warnings
+
+
+def _configured_size(section: dict, screen_width: int, screen_height: int, *, splash=False) -> tuple[int, int]:
+    if section.get("size_mode") == "fixed":
+        width = section.get("width")
+        height = section.get("height")
+        if isinstance(width, int) and width > 0 and isinstance(height, int) and height > 0:
+            return width, height
+    if splash:
+        return max(1, int(screen_width * 0.25)), max(1, int(screen_height * 0.25))
+    aspect = section.get("aspect_ratio", 1.5)
+    if not isinstance(aspect, (int, float)) or isinstance(aspect, bool) or aspect <= 0:
+        aspect = 1.5
+    width = min(screen_width * 0.75, screen_height * 0.75 * aspect)
+    return max(1, int(width)), max(1, int(width / aspect))
+
+
+def _startup_file_check(config: dict | None = None) -> tuple[list[str], list[str]]:
+    help_directory = _configured_path(config or {}, "paths", "help_directory", "doc")
+    recoverable = (
+        ROOT_DIR / "config" / "config.toml",
+        ROOT_DIR / ".config.default.toml",
+        ROOT_DIR / "config" / "name.toml",
+        ROOT_DIR / ".name.default.toml",
+        ROOT_DIR / "config" / "language.toml",
+        ROOT_DIR / "config" / "theme.toml",
+        _configured_path(config or {}, "assets", "icon", "ui/randname1.png"),
+        _configured_path(config or {}, "assets", "splash_image", "ui/randname-start_v3.6.png"),
+        _configured_path(config or {}, "paths", "license_file", "doc/gpl-3.0.md"),
+        help_directory / "help_en_US.md",
+    )
+    warnings = [str(path.relative_to(ROOT_DIR)) for path in recoverable if not path.is_file()]
+    return warnings, []
 
 
 """
@@ -62,33 +131,53 @@ MainWindow 负责：
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, themes=None, selected_theme=""):
+    def __init__(
+        self,
+        themes=None,
+        selected_theme="",
+        languages=None,
+        selected_language="en_US",
+        rosters=None,
+        selected_roster="",
+        startup_warnings=None,
+    ):
         super().__init__()
+        app = QApplication.instance()
+        if isinstance(app, QApplication):
+            self.setWindowIcon(app.windowIcon())
         self.themes = themes if themes is not None else ThemeManager.discover_themes()
         self.selected_theme = selected_theme
+        self.languages = languages if languages is not None else LanguageManager.load_languages()[0]
+        self.current_language = LanguageManager.resolve_language(selected_language, self.languages)
+        self.rosters = rosters if rosters is not None else importnames.rosters
+        self.current_roster = selected_roster or importnames.active_roster
+        self.startup_warnings = startup_warnings or []
         self.names = self._load_names()
         self.multi_quantity = 1
         self.lift_quantity = 1
         self.lift_current_dict = None  # 保存当前减量抽的字典
+        self.multi_result = None
+        self.lift_result = None
 
         self.ui = None
-        self.page_single = None
         self.page_multi = None
         self.page_lift = None
         self.page_scrollsingle = None
         self.stacked_widget = None
 
-        self.action_single = None
         self.action_multi = None
         self.action_lift = None
         self.action_scrollsingle = None
         self.action_exit = None
         self.action_license = None
         self.action_repository = None
+        self.action_help = None
+        self.action_program_log = None
         self.theme_actions = None
+        self.language_actions = None
+        self.roster_actions = None
+        self.log_level_actions = None
 
-        self.single_button = None
-        self.single_label = None
         self.multi_button = None
         self.multi_label = None
         self.multi_quantity_label = None
@@ -108,11 +197,10 @@ class MainWindow(QMainWindow):
 
         self._build_ui()
         self._apply_config_window()
-        if StateManager.CONFIG_FALLBACK_USED:
-            QMessageBox.warning(
-                self,
-                "配置文件提示",
-                "doc/config.toml 不存在或无法解析，已加载默认配置。",
+        self._retranslate()
+        if self.startup_warnings:
+            self.statusBar().showMessage(
+                self._t("state.startup_warning", files=", ".join(self.startup_warnings)), 0
             )
 
     def _load_names(self) -> dict:
@@ -123,14 +211,18 @@ class MainWindow(QMainWindow):
         return {}
 
     def _apply_config_window(self):
-        """应用 TOML 中的初始尺寸；后续导入记忆不会改变窗口尺寸。"""
+        """Apply configured or screen-relative startup geometry."""
         config = getattr(importnames, "loaded_config", {})
         window = config.get("window", {}) if isinstance(config, dict) else {}
-        width = window.get("width", 800)
-        height = window.get("height", 600)
-        if isinstance(width, int) and isinstance(height, int) and width > 0 and height > 0:
-            self.resize(width, height)
+        screen = QApplication.primaryScreen()
+        geometry = screen.availableGeometry() if screen is not None else None
+        screen_width = geometry.width() if geometry is not None else 1280
+        screen_height = geometry.height() if geometry is not None else 800
+        width, height = _configured_size(window, screen_width, screen_height)
+        self.resize(width, height)
         self.setMinimumSize(0, 0)
+        if geometry is not None:
+            self.move(geometry.center().x() - width // 2, geometry.center().y() - height // 2)
 
     def _build_ui(self):
         # 使用已編譯的 Python UI 模塊（lib/ui_*.py），避免運行時依賴 .ui 文件
@@ -148,21 +240,27 @@ class MainWindow(QMainWindow):
             self.setWindowTitle(self.windowTitle() or "randname")
         except Exception as exc:  # pragma: no cover - defensive path for runtime errors
             logging.exception("加载主窗口失败: %s", exc)
-            self._show_error("主窗口加载失败", str(exc))
+            self._show_error(
+                self._t("menu.about"), self._t("error.window_init", error=str(exc))
+            )
             return
 
         try:
             self._bind_menu_actions()
             self._build_theme_menu()
+            self._build_language_menu()
+            self._build_roster_menu()
+            self._build_log_level_menu()
             self._load_pages()
             self._bind_page_actions()
         except Exception as exc:  # pragma: no cover - defensive path for runtime errors
             logging.exception("初始化界面控件失败: %s", exc)
-            self._show_error("界面初始化失败", str(exc))
+            self._show_error(
+                self._t("menu.about"), self._t("error.controls_init", error=str(exc))
+            )
 
     def _bind_menu_actions(self):
         # 從編譯後的 Ui_MainWindow 模塊獲取 QAction，避免使用 findChild
-        self.action_single = getattr(self.ui_main, "action_Single", None)
         self.action_multi = getattr(self.ui_main, "action_Multi", None)
         self.action_lift = getattr(self.ui_main, "action_Lift", None)
         self.action_scrollsingle = getattr(self.ui_main, "action_ScrollSingle", None)
@@ -172,9 +270,9 @@ class MainWindow(QMainWindow):
         self.action_exit = getattr(self.ui_main, "action_exit", None)
         self.action_license = getattr(self.ui_main, "action_license", None)
         self.action_repository = getattr(self.ui_main, "action_repository", None)
+        self.action_help = getattr(self.ui_main, "action_help", None)
+        self.action_program_log = getattr(self.ui_main, "action_program_log", None)
 
-        if self.action_single:
-            self.action_single.triggered.connect(self._show_single_page)
         if self.action_multi:
             self.action_multi.triggered.connect(self._show_multi_page)
         if self.action_lift:
@@ -193,6 +291,10 @@ class MainWindow(QMainWindow):
             self.action_license.triggered.connect(self._open_license)
         if self.action_repository:
             self.action_repository.triggered.connect(self._open_repository)
+        if self.action_help:
+            self.action_help.triggered.connect(self._open_help)
+        if self.action_program_log:
+            self.action_program_log.triggered.connect(self._show_program_log)
 
     def _build_theme_menu(self):
         theme_menu = getattr(self.ui_main, "menu_theme", None)
@@ -209,15 +311,162 @@ class MainWindow(QMainWindow):
             self.theme_actions.deleteLater()
         self.theme_actions = QActionGroup(theme_menu)
         self.theme_actions.setExclusive(True)
-        for name in self.themes:
-            action = QAction(name, self)
+        for key, theme in self.themes.items():
+            display_name = LanguageManager.localized_name(
+                theme.get("name", {}), self.current_language, self.languages
+            ) or key
+            action = QAction(display_name, self)
             action.setCheckable(True)
-            action.setChecked(name == self.selected_theme)
+            action.setChecked(key == self.selected_theme)
             action.triggered.connect(
-                lambda _checked=False, theme_name=name: self._select_theme(theme_name)
+                lambda _checked=False, theme_key=key: self._select_theme(theme_key)
             )
+            action.setData(key)
             self.theme_actions.addAction(action)
             theme_menu.addAction(action)
+
+    def _build_language_menu(self):
+        language_menu = self.ui_main.menu_language
+        language_menu.clear()
+        if self.language_actions is not None:
+            self.language_actions.deleteLater()
+        self.language_actions = QActionGroup(language_menu)
+        self.language_actions.setExclusive(True)
+        for code, pack in self.languages.items():
+            action = QAction(pack.get("display_name", code), self)
+            action.setCheckable(True)
+            action.setChecked(code == self.current_language)
+            action.setData(code)
+            action.triggered.connect(
+                lambda _checked=False, language_code=code: self._select_language(language_code)
+            )
+            self.language_actions.addAction(action)
+            language_menu.addAction(action)
+
+    def _build_roster_menu(self):
+        roster_menu = self.ui_main.menu_roster
+        roster_menu.clear()
+        if self.roster_actions is not None:
+            self.roster_actions.deleteLater()
+        self.roster_actions = QActionGroup(roster_menu)
+        self.roster_actions.setExclusive(True)
+        for key, roster in self.rosters.items():
+            display_name = LanguageManager.localized_name(
+                roster.get("name", {}), self.current_language, self.languages
+            ) or key
+            action = QAction(display_name, self)
+            action.setCheckable(True)
+            action.setChecked(key == self.current_roster)
+            action.setData(key)
+            action.triggered.connect(
+                lambda _checked=False, roster_key=key: self._select_roster(roster_key)
+            )
+            self.roster_actions.addAction(action)
+            roster_menu.addAction(action)
+
+    def _build_log_level_menu(self):
+        log_menu = self.ui_main.menu_log_level
+        log_menu.clear()
+        if self.log_level_actions is not None:
+            self.log_level_actions.deleteLater()
+        self.log_level_actions = QActionGroup(log_menu)
+        self.log_level_actions.setExclusive(True)
+        for level in StateManager.LOG_LEVEL_CHOICES:
+            action = QAction(self._t(f"log.{level}"), self)
+            action.setCheckable(True)
+            action.setChecked(level == StateManager.CURRENT_LOG_LEVEL)
+            action.setData(level)
+            action.triggered.connect(
+                lambda _checked=False, selected_level=level: self._select_log_level(selected_level)
+            )
+            self.log_level_actions.addAction(action)
+            log_menu.addAction(action)
+
+    def _select_log_level(self, level):
+        selected = StateManager.configure_logging(level)
+        self._build_log_level_menu()
+        StateManager.log(selected, "log_level_changed", result=selected)
+        self.statusBar().showMessage(self._t("state.log_level_changed", level=self._t(f"log.{selected}")))
+
+    def _t(self, key, **values):
+        return LanguageManager.translate(self.languages, self.current_language, key, **values)
+
+    def _select_language(self, code):
+        self.current_language = LanguageManager.resolve_language(code, self.languages)
+        self._build_language_menu()
+        self._build_theme_menu()
+        self._build_roster_menu()
+        self._build_log_level_menu()
+        self._retranslate()
+        self.statusBar().showMessage(
+            self._t("state.language_changed", name=self.languages[self.current_language]["display_name"])
+        )
+
+    def _select_roster(self, key):
+        self.names = importnames.select_roster(key)
+        self.current_roster = importnames.active_roster
+        self.lift_current_dict = None
+        self.lift_result = None
+        self.multi_quantity = min(max(1, self.multi_quantity), max(1, len(self.names)))
+        self.lift_quantity = min(max(1, self.lift_quantity), max(1, len(self.names)))
+        self._set_quantity_label(self.multi_quantity_label, self.multi_quantity)
+        self._set_quantity_label(self.lift_quantity_label, self.lift_quantity)
+        if self.lift_label is not None:
+            self.lift_label.setText(self._t("state.waiting"))
+        if self.scroll_controller is not None:
+            self.scroll_controller.update_names(self.names)
+        self._build_roster_menu()
+        roster = self.rosters.get(key, {})
+        display_name = LanguageManager.localized_name(
+            roster.get("name", {}), self.current_language, self.languages
+        ) or key
+        self.statusBar().showMessage(self._t("state.roster_changed", name=display_name))
+
+    def _retranslate(self):
+        self.ui_main.menu_file.setTitle(self._t("menu.file"))
+        self.ui_main.menu_mode.setTitle(self._t("menu.mode"))
+        self.ui_main.menu_theme.setTitle(self._t("menu.theme"))
+        self.ui_main.menu_language.setTitle(self._t("menu.language"))
+        self.ui_main.menu_roster.setTitle(self._t("menu.roster"))
+        self.ui_main.menu_about.setTitle(self._t("menu.about"))
+        self.ui_main.menu_log_level.setTitle(self._t("menu.log_level"))
+        for action, key in (
+            (self.action_multi, "mode.multi"),
+            (self.action_lift, "mode.lift"),
+            (self.action_scrollsingle, "mode.scroll"),
+            (self.action_inputconfig, "action.import"),
+            (self.action_outputconfig, "action.export"),
+            (self.action_reinputconfig, "action.reload"),
+            (self.action_exit, "action.exit"),
+            (self.action_license, "action.license"),
+            (self.action_repository, "action.repository"),
+            (self.action_help, "action.help"),
+            (self.action_program_log, "action.program_log"),
+        ):
+            if action is not None:
+                action.setText(self._t(key))
+        if hasattr(self, "ui_multi"):
+            self.ui_multi.pushButton_Multi.setText(self._t("button.draw"))
+            self.ui_multi.pushButton_MultiQuantityUp.setText(self._t("button.increase"))
+            self.ui_multi.pushButton_MultiQuantityDown.setText(self._t("button.decrease"))
+            if self.multi_label is not None:
+                self.multi_label.setText(self.multi_result or self._t("state.waiting"))
+        if hasattr(self, "ui_lift"):
+            self.ui_lift.pushButton_Lift.setText(self._t("button.draw"))
+            self.ui_lift.pushButton_LiftQuantityUp.setText(self._t("button.increase"))
+            self.ui_lift.pushButton_LiftQuantityDown.setText(self._t("button.decrease"))
+            self.ui_lift.pushButton_LiftRenew.setText(self._t("button.reset"))
+            if self.lift_label is not None:
+                self.lift_label.setText(self.lift_result or self._t("state.waiting"))
+        if hasattr(self, "ui_scrollsingle"):
+            self.ui_scrollsingle.pushButton_ScrollSingleStart.setText(self._t("button.start"))
+            self.ui_scrollsingle.pushButton_ScrollSingleStop.setText(self._t("button.stop"))
+            if self.scroll_controller is not None:
+                self.scroll_controller.set_button_texts(
+                    self._t("button.start"), self._t("button.stop")
+                )
+            if self.scroll_label is not None and self.scroll_label.text() in {"滚动抽取", "等待输入", "Ready"}:
+                self.scroll_label.setText(self._t("state.waiting"))
 
     def _select_theme(self, name):
         app = QApplication.instance()
@@ -226,6 +475,11 @@ class MainWindow(QMainWindow):
         try:
             self.selected_theme = ThemeManager.apply_theme(app, name, self.themes)
             StateManager.log("INFO", "theme", result=self.selected_theme)
+            theme = self.themes.get(self.selected_theme, {})
+            theme_name = LanguageManager.localized_name(
+                theme.get("name", {}), self.current_language, self.languages
+            ) or self.selected_theme
+            self.statusBar().showMessage(self._t("state.theme_changed", name=theme_name))
         except (OSError, ValueError, KeyError) as exc:
             StateManager.log("ERROR", "theme", error=str(exc))
             self._show_error("主题加载失败", str(exc))
@@ -235,11 +489,6 @@ class MainWindow(QMainWindow):
             raise RuntimeError("stackedWidget 未初始化")
 
         # 使用已編譯的 UI 類來建立各頁面（避免依賴 ui/ 目錄）
-        # Single 頁面
-        self.page_single = QWidget()
-        self.ui_single = ui_widgetsingle.Ui_Form()
-        self.ui_single.setupUi(self.page_single)
-
         # Multi 頁面
         self.page_multi = QWidget()
         self.ui_multi = ui_widgetmulti.Ui_Form()
@@ -250,21 +499,18 @@ class MainWindow(QMainWindow):
         self.ui_lift = ui_widgetlift.Ui_Form()
         self.ui_lift.setupUi(self.page_lift)
 
-        # ScrollSingle 頁面（使用專用 UI: WidgetScrollSingle.ui -> lib/ui_widgetscrollsingle.py）
+        # ScrollSingle page uses the dedicated compiled UI module.
         self.page_scrollsingle = QWidget()
         self.ui_scrollsingle = ui_widgetscrollsingle.Ui_Form()
         self.ui_scrollsingle.setupUi(self.page_scrollsingle)
 
-        self.stacked_widget.addWidget(self.page_single)
         self.stacked_widget.addWidget(self.page_multi)
         self.stacked_widget.addWidget(self.page_lift)
         self.stacked_widget.addWidget(self.page_scrollsingle)
-        default_mode = getattr(importnames, "loaded_config", {}).get("app", {}).get(
-            "default_mode", "ScrollSingle"
-        )
-        if default_mode == "Single":
-            self._show_single_page()
-        elif default_mode == "Multi":
+        config = getattr(importnames, "loaded_config", {})
+        app_config = config.get("app", {}) if isinstance(config, dict) else {}
+        default_mode = app_config.get("default_mode", "Multi") if isinstance(app_config, dict) else "Multi"
+        if default_mode == "Multi":
             self._show_multi_page()
         elif default_mode == "Lift":
             self._show_lift_page()
@@ -272,13 +518,6 @@ class MainWindow(QMainWindow):
             self._show_scrollsingle_page()
 
     def _bind_page_actions(self):
-        # Single 頁面綁定
-        self.single_button = getattr(self.ui_single, "pushButton_Single", None)
-        self.single_label = getattr(self.ui_single, "label_SingleOutput", None)
-        if self.single_button and self.single_label:
-            self.single_button.clicked.connect(self._handle_single)
-            self.single_label.setText("等待输入")
-
         # Multi 頁面綁定
         self.multi_button = getattr(self.ui_multi, "pushButton_Multi", None)
         self.multi_label = getattr(self.ui_multi, "label_MultiOutput", None)
@@ -293,7 +532,7 @@ class MainWindow(QMainWindow):
             self.multi_down_button.clicked.connect(lambda: self._adjust_quantity("multi", -1))
         if self.multi_button and self.multi_label:
             self.multi_button.clicked.connect(self._handle_multi)
-            self.multi_label.setText("等待输入")
+            self.multi_label.setText(self._t("state.waiting"))
 
         # ScrollSingle 綁定（使用 WidgetScrollSingle 的專用控件）
         try:
@@ -303,7 +542,7 @@ class MainWindow(QMainWindow):
             if self.scroll_label is not None:
                 # 默認顯示模式名稱
                 try:
-                    self.scroll_label.setText("滚动单抽")
+                    self.scroll_label.setText(self._t("state.waiting"))
                 except Exception:
                     pass
             # 创建控制器，但不自动启动
@@ -316,6 +555,8 @@ class MainWindow(QMainWindow):
                     self.names,
                     on_result=self._on_scroll_result,
                     rate=rate,
+                    start_text=self._t("button.start"),
+                    stop_text=self._t("button.stop"),
                 )
         except Exception as exc:
             logging.exception("初始化 ScrollSingle 失败: %s", exc)
@@ -337,11 +578,7 @@ class MainWindow(QMainWindow):
             self.lift_renew_button.clicked.connect(self._reset_lift_page)
         if self.lift_button and self.lift_label:
             self.lift_button.clicked.connect(self._handle_lift)
-            self.lift_label.setText("等待输入")
-
-    def _show_single_page(self):
-        if self.stacked_widget is not None:
-            self.stacked_widget.setCurrentWidget(self.page_single)
+            self.lift_label.setText(self._t("state.waiting"))
 
     def _show_multi_page(self):
         if self.stacked_widget is not None:
@@ -356,63 +593,119 @@ class MainWindow(QMainWindow):
             self.stacked_widget.setCurrentWidget(self.page_scrollsingle)
 
     def _on_import_memory(self):
-        # 导入记忆文件（JSON），应用并刷新软件状态（不修改 doc/config.toml）
+        # Import JSON memory without changing files under config/.
         try:
-            fname, _ = QFileDialog.getOpenFileName(self, "Import memory file", "", "JSON Files (*.json);;All Files (*)")
+            fname, _ = QFileDialog.getOpenFileName(
+                self, self._t("dialog.import_title"), "", self._t("dialog.json_filter")
+            )
             if not fname:
                 return
             from pathlib import Path
             StateManager.import_memory(Path(fname), apply_callback=self._apply_memory_import)
-            QMessageBox.information(self, "导入完成", f"已导入记忆文件: {fname}")
+            QMessageBox.information(
+                self, self._t("dialog.import_title"), self._t("dialog.import_success", path=fname)
+            )
         except Exception as exc:
             logging.exception("导入记忆失败: %s", exc)
-            QMessageBox.warning(self, "导入失败", str(exc))
+            QMessageBox.warning(
+                self, self._t("dialog.import_title"), self._t("dialog.operation_failed", error=str(exc))
+            )
 
     def _on_export_memory(self):
         try:
-            fname, _ = QFileDialog.getSaveFileName(self, "Export memory file", "memory-export.json", "JSON Files (*.json);;All Files (*)")
+            fname, _ = QFileDialog.getSaveFileName(
+                self,
+                self._t("dialog.export_title"),
+                "memory-export.json",
+                self._t("dialog.json_filter"),
+            )
             if not fname:
                 return
             from pathlib import Path
             StateManager.export_memory(Path(fname))
-            QMessageBox.information(self, "导出完成", f"已导出记忆文件: {fname}")
+            QMessageBox.information(
+                self, self._t("dialog.export_title"), self._t("dialog.export_success", path=fname)
+            )
         except Exception as exc:
             logging.exception("导出记忆失败: %s", exc)
-            QMessageBox.warning(self, "导出失败", str(exc))
+            QMessageBox.warning(
+                self, self._t("dialog.export_title"), self._t("dialog.operation_failed", error=str(exc))
+            )
 
     def _on_reload_config(self):
         try:
-            cfg = StateManager.load_config()
+            previous_theme = self.selected_theme
+            previous_language = self.current_language
+            previous_roster = self.current_roster
+            previous_names = self.names.copy()
+            previous_status = self.statusBar().currentMessage()
+            importnames.reload_data()
+            cfg = importnames.loaded_config
+            self.rosters = importnames.rosters
+            roster_key = previous_roster if previous_roster in self.rosters else importnames.active_roster
+            self.names = importnames.select_roster(roster_key)
+            self.current_roster = importnames.active_roster
+            roster_changed = previous_names != self.names
+            if roster_changed:
+                self.lift_current_dict = None
+            self.multi_quantity = min(max(1, self.multi_quantity), max(1, len(self.names)))
+            self.lift_quantity = min(max(1, self.lift_quantity), max(1, len(self.names)))
+            self._set_quantity_label(self.multi_quantity_label, self.multi_quantity)
+            self._set_quantity_label(self.lift_quantity_label, self.lift_quantity)
             self.themes = ThemeManager.discover_themes()
+            self.languages, preferred_language, language_warning = LanguageManager.load_languages()
             app_config = cfg.get("app", {}) if isinstance(cfg, dict) else {}
-            requested_theme = app_config.get("theme") if isinstance(app_config, dict) else None
-            if requested_theme not in self.themes:
-                requested_theme = (
-                    self.selected_theme if self.selected_theme in self.themes
-                    else "randname" if "randname" in self.themes
-                    else next(iter(self.themes), "")
-                )
-            self.selected_theme = requested_theme
+            if not isinstance(app_config, dict):
+                app_config = {}
+            requested_theme = previous_theme if previous_theme in self.themes else app_config.get(
+                "theme", ThemeManager.DEFAULT_THEME
+            )
+            self.selected_theme = (
+                requested_theme
+                if requested_theme in self.themes
+                else ThemeManager.DEFAULT_THEME if ThemeManager.DEFAULT_THEME in self.themes
+                else next(iter(self.themes), "")
+            )
+            self.current_language = LanguageManager.resolve_language(
+                previous_language
+                if previous_language in self.languages
+                else app_config.get("language") or preferred_language,
+                self.languages,
+            )
             self._build_theme_menu()
+            self._build_language_menu()
+            self._build_roster_menu()
+            self._build_log_level_menu()
+            self._retranslate()
             if self.themes:
-                self._select_theme(self.selected_theme)
-
-            # Apply the roster and themes at runtime without changing files.
-            names = cfg.get("names") if isinstance(cfg, dict) else None
-            if isinstance(names, dict) and names:
-                self.names = names
-                # 更新控制器们的名字源
-                try:
-                    if self.scroll_controller is not None:
-                        self.scroll_controller.update_names(self.names)
-                except Exception:
-                    pass
-                QMessageBox.information(self, "重新加载配置", "已重新载入名单并同步主题清单（仅当前运行中生效）。")
+                app = QApplication.instance()
+                if isinstance(app, QApplication):
+                    ThemeManager.apply_theme(app, self.selected_theme, self.themes)
+            if self.scroll_controller is not None:
+                if roster_changed:
+                    self.scroll_controller.update_names(self.names)
+            warnings = list(StateManager.CONFIG_WARNINGS)
+            if importnames.ROSTER_FALLBACK_USED:
+                warnings.append("config/name.toml")
+            if language_warning:
+                warnings.append(language_warning)
+            if ThemeManager.THEME_LOAD_WARNING:
+                warnings.append(ThemeManager.THEME_LOAD_WARNING)
+            self.startup_warnings = list(dict.fromkeys(warnings))
+            if warnings:
+                StateManager.log("WARN", "reload_fallback", error=", ".join(warnings))
+                self.statusBar().showMessage(
+                    self._t("state.startup_warning", files=", ".join(warnings)), 0
+                )
             else:
-                QMessageBox.warning(self, "重新加载配置", "已同步主题清单，但未找到可用名單。")
+                self.statusBar().showMessage(previous_status)
         except Exception as exc:
             logging.exception("重新加载配置失败: %s", exc)
-            QMessageBox.warning(self, "重新加载配置失败", str(exc))
+            QMessageBox.warning(
+                self,
+                self._t("action.reload"),
+                self._t("dialog.operation_failed", error=str(exc)),
+            )
 
     def _apply_memory_import(self, content: dict):
         # content 包含 loaded_config 与 last_results
@@ -422,29 +715,17 @@ class MainWindow(QMainWindow):
             # 结果文本可能很长，但导入记忆不能改变用户当前窗口尺寸。
             current_size = self.size()
             self.setMinimumSize(0, 0)
-            # 如果 memory 中包含 loaded_config，则在运行时应用其 names
-            loaded_cfg = content.get("loaded_config")
-            names = loaded_cfg.get("names") if isinstance(loaded_cfg, dict) else None
-            if isinstance(names, dict) and names:
-                self.names = names
-                # update controllers
-                try:
-                    if self.scroll_controller is not None:
-                        self.scroll_controller.update_names(self.names)
-                except Exception:
-                    pass
             # 将 last_results 应用到界面显示（若存在）
             last = content.get("last_results", {})
             if isinstance(last, dict):
-                if self.single_label is not None:
-                    v = last.get("Single", last.get("single"))
-                    self.single_label.setText(str(v.get("result") if isinstance(v, dict) else v))
                 if self.multi_label is not None:
                     v = last.get("Multi", last.get("multi"))
-                    self.multi_label.setText(str(v.get("result") if isinstance(v, dict) else v))
+                    self.multi_result = str(v.get("result") if isinstance(v, dict) else v)
+                    self.multi_label.setText(self.multi_result)
                 if self.lift_label is not None:
                     v = last.get("Lift", last.get("lift"))
-                    self.lift_label.setText(str(v.get("result") if isinstance(v, dict) else v))
+                    self.lift_result = str(v.get("result") if isinstance(v, dict) else v)
+                    self.lift_label.setText(self.lift_result)
                 if self.scroll_label is not None:
                     v = last.get("ScrollSingle", last.get("scrollsingle"))
                     self.scroll_label.setText(str(v.get("result") if isinstance(v, dict) else v))
@@ -453,36 +734,15 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             logging.exception("应用导入记忆失败: %s", exc)
 
-    def _handle_single(self):
-        try:
-            logging.info("执行单抽")
-            result = single_module.Single(self.names)
-            self._set_output_text(self.single_label, self._format_single_result(result))
-            self.statusBar().showMessage(f"单抽结果: {result}")
-            # 记录到内存与日志
-            try:
-                state = StateManager.load_memory()
-                state["loaded_config"] = getattr(importnames, 'loaded_config', None)
-                state.setdefault("last_results", {})["Single"] = {"result": result, "time": StateManager._now_iso()}
-                StateManager.save_memory(state)
-                StateManager.log("INFO", "Single", result=result)
-            except Exception:
-                logging.exception("记录 single 结果失败")
-        except Exception as exc:
-            logging.exception("单抽执行失败: %s", exc)
-            self._set_output_text(self.single_label, "单抽失败")
-            self._show_error("单抽失败", str(exc))
-            try:
-                StateManager.log("ERROR", "Single", error=str(exc))
-            except Exception:
-                pass
-
     def _handle_multi(self):
         try:
             logging.info("执行多抽，数量=%s", self.multi_quantity)
             result = multi_module.Multi(self.names, self.multi_quantity)
-            self._set_output_text(self.multi_label, self._format_output_result(result))
-            self.statusBar().showMessage(f"多抽完成，数量={self.multi_quantity}")
+            self.multi_result = self._format_output_result(result)
+            self._set_output_text(self.multi_label, self.multi_result)
+            self.statusBar().showMessage(
+                self._t("state.multi_result", count=self.multi_quantity)
+            )
             # 记录到内存与日志
             try:
                 state = StateManager.load_memory()
@@ -494,8 +754,9 @@ class MainWindow(QMainWindow):
                 logging.exception("记录 multi 结果失败")
         except Exception as exc:
             logging.exception("多抽执行失败: %s", exc)
-            self._set_output_text(self.multi_label, "多抽失败")
-            self._show_error("多抽失败", str(exc))
+            self.multi_result = self._t("dialog.operation_failed", error=str(exc))
+            self._set_output_text(self.multi_label, self.multi_result)
+            self._show_error(self._t("mode.multi"), str(exc))
             try:
                 StateManager.log("ERROR", "Multi", error=str(exc))
             except Exception:
@@ -511,13 +772,16 @@ class MainWindow(QMainWindow):
                 lift_dict = self.lift_current_dict
             
             result = lift_module.Lift(self.names, lift_dict, self.lift_quantity)
-            self._set_output_text(self.lift_label, self._format_output_result(result))
+            self.lift_result = self._format_output_result(result)
+            self._set_output_text(self.lift_label, self.lift_result)
             
             # 保存本次结果的Liftdict，供下一次使用
             if "Liftdict" in result:
                 self.lift_current_dict = result["Liftdict"]
             
-            self.statusBar().showMessage(f"减量抽完成，数量={self.lift_quantity}")
+            self.statusBar().showMessage(
+                self._t("state.lift_result", count=self.lift_quantity)
+            )
             # 记录到内存与日志
             try:
                 state = StateManager.load_memory()
@@ -529,8 +793,9 @@ class MainWindow(QMainWindow):
                 logging.exception("记录 lift 结果失败")
         except Exception as exc:
             logging.exception("减量抽执行失败: %s", exc)
-            self._set_output_text(self.lift_label, "减量抽失败")
-            self._show_error("减量抽失败", str(exc))
+            self.lift_result = self._t("dialog.operation_failed", error=str(exc))
+            self._set_output_text(self.lift_label, self.lift_result)
+            self._show_error(self._t("mode.lift"), str(exc))
             try:
                 StateManager.log("ERROR", "Lift", error=str(exc))
             except Exception:
@@ -569,11 +834,12 @@ class MainWindow(QMainWindow):
     def _reset_lift_page(self):
         # 刷新减量抽页面：不改变 lift_quantity，只重置当前的 Liftdict
         self.lift_current_dict = None  # 重置减量抽字典
+        self.lift_result = None
         # 保持数量值不变，仅更新显示
         self._set_quantity_label(self.lift_quantity_label, self.lift_quantity)
         if self.lift_label is not None:
             self.lift_label.setText("等待输入")
-        self.statusBar().showMessage("减量抽已重置")
+        self.statusBar().showMessage(self._t("state.waiting"))
 
     def _set_quantity_label(self, label, value):
         if label is not None:
@@ -582,13 +848,6 @@ class MainWindow(QMainWindow):
     def _set_output_text(self, label, text):
         if label is not None:
             label.setText(text)
-
-    def _format_single_result(self, result):
-        if isinstance(result, str) and result:
-            return result
-        if isinstance(result, dict):
-            return self._format_output_result(result)
-        return "未返回结果"
 
     def _format_output_result(self, result):
         if not isinstance(result, dict):
@@ -639,94 +898,253 @@ class MainWindow(QMainWindow):
         if app is not None:
             app.quit()
 
+    def _open_help(self):
+        language = self.current_language if self.current_language in {"en_US", "zh_CN", "zh_TW"} else "en_US"
+        config = getattr(importnames, "loaded_config", {})
+        help_directory = _configured_path(config, "paths", "help_directory", "doc")
+        help_paths = [help_directory / f"help_{language}.md"]
+        if language != "en_US":
+            help_paths.append(ROOT_DIR / "doc" / "help_en_US.md")
+        for help_path in help_paths:
+            if help_path.is_file():
+                self._show_document(self._t("action.help"), help_path, markdown=True)
+                return
+        self._show_error(
+            self._t("action.help"), self._t("error.help_missing", path=str(help_paths[-1]))
+        )
+
+    def _show_document(self, title: str, path: Path, *, markdown: bool) -> bool:
+        try:
+            content = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            logging.exception("无法读取文档 %s", path)
+            StateManager.log("ERROR", "read_document", error=f"{path}: {exc}")
+            self._show_error(title, self._t("dialog.operation_failed", error=str(exc)))
+            return False
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(title)
+        dialog.resize(900, 680)
+        dialog.setMinimumSize(620, 420)
+        text_view = QTextBrowser(dialog)
+        text_view.setOpenLinks(False)
+        text_view.setOpenExternalLinks(False)
+        text_view.setReadOnly(True)
+        if markdown:
+            text_view.setMarkdown(content)
+        else:
+            text_view.setPlainText(content)
+        text_view.setStyleSheet("QTextBrowser { border: none; padding: 16px; }")
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close, parent=dialog)
+        buttons.button(QDialogButtonBox.StandardButton.Close).setText(self._t("action.close"))
+        buttons.rejected.connect(dialog.reject)
+        buttons.accepted.connect(dialog.accept)
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(10)
+        layout.addWidget(text_view)
+        layout.addWidget(buttons)
+        StateManager.log("INFO", "open_document", result=path.name)
+        dialog.exec()
+        return True
+
+    def _show_program_log(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle(self._t("action.program_log"))
+        dialog.resize(820, 520)
+        text_view = QPlainTextEdit(dialog)
+        text_view.setReadOnly(True)
+        text_view.setPlainText(StateManager.session_log_text() or self._t("state.no_logs"))
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close, parent=dialog)
+        buttons.button(QDialogButtonBox.StandardButton.Close).setText(self._t("action.close"))
+        buttons.rejected.connect(dialog.reject)
+        buttons.accepted.connect(dialog.accept)
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(text_view)
+        layout.addWidget(buttons)
+        dialog.exec()
+
     def _open_license(self):
         try:
-            if LICENSE_PATH.exists():
-                logging.info("打开许可证文件: %s", LICENSE_PATH)
-                QDesktopServices.openUrl(QUrl.fromLocalFile(str(LICENSE_PATH)))
+            config = getattr(importnames, "loaded_config", {})
+            license_path = _configured_path(config, "paths", "license_file", "doc/gpl-3.0.md")
+            if license_path.exists():
+                self._show_document(self._t("action.license"), license_path, markdown=True)
             else:
-                self._show_error("许可证文件不存在", str(LICENSE_PATH))
+                self._show_error(
+                    self._t("action.license"),
+                    self._t("error.license_missing", path=str(license_path)),
+                )
         except Exception as exc:
             logging.exception("打开许可证文件失败: %s", exc)
-            self._show_error("打开许可证失败", str(exc))
+            self._show_error(
+                self._t("action.license"), self._t("error.open_license", error=str(exc))
+            )
 
     def _open_repository(self):
         try:
-            logging.info("打开项目仓库: %s", REPO_URL)
-            QDesktopServices.openUrl(QUrl(REPO_URL))
+            config = getattr(importnames, "loaded_config", {})
+            app_settings = config.get("app", {}) if isinstance(config, dict) else {}
+            repository_url = (
+                app_settings.get("repository_url", DEFAULT_REPO_URL)
+                if isinstance(app_settings, dict)
+                else DEFAULT_REPO_URL
+            )
+            logging.info("打开项目仓库: %s", repository_url)
+            QDesktopServices.openUrl(QUrl(repository_url))
         except Exception as exc:
             logging.exception("打开仓库链接失败: %s", exc)
-            self._show_error("打开仓库失败", str(exc))
+            self._show_error(
+                self._t("action.repository"), self._t("error.open_repository", error=str(exc))
+            )
 
     def _show_error(self, title, message):
         QMessageBox.critical(self, title, message)
 
 
 def main():
-    global lift_module, multi_module, single_module, ScrollSingle
+    global lift_module, multi_module, ScrollSingle
     global StateManager, ThemeManager, importnames
-    global ui_main, ui_widgetlift, ui_widgetmulti, ui_widgetsingle, ui_widgetscrollsingle
+    global LanguageManager
+    global ui_main, ui_widgetlift, ui_widgetmulti, ui_widgetscrollsingle
 
     app = QApplication(sys.argv)
-
+    bootstrap_config, bootstrap_warnings = _bootstrap_config()
+    icon_path = _configured_path(bootstrap_config, "assets", "icon", "ui/randname1.png")
+    app_icon = QIcon(str(icon_path))
+    if not app_icon.isNull():
+        app.setWindowIcon(app_icon)
+    else:
+        bootstrap_warnings.append(f"Invalid application icon: {icon_path}")
+    screen = app.primaryScreen()
+    geometry = screen.availableGeometry() if screen is not None else None
+    screen_width = geometry.width() if geometry is not None else 1280
+    screen_height = geometry.height() if geometry is not None else 800
+    splash_config = bootstrap_config.get("splash", {})
+    if not isinstance(splash_config, dict):
+        splash_config = {}
+    splash_enabled = splash_config.get("enabled", True) is True
+    splash_mode = splash_config.get("mode", 0)
+    splash_duration_ms = splash_config.get("duration_ms", 1000)
+    if not isinstance(splash_duration_ms, int) or isinstance(splash_duration_ms, bool):
+        splash_duration_ms = 1000
+    splash_duration_ms = max(0, splash_duration_ms)
     splash = None
     splash_timer = QElapsedTimer()
-    splash_duration_ms = 1000
-    splash_pixmap = QPixmap(str(UI_DIR / "randname-start_v3.6.png"))
-    if not splash_pixmap.isNull():
+    splash_path = _configured_path(
+        bootstrap_config, "assets", "splash_image", "ui/randname-start_v3.6.png"
+    )
+    splash_pixmap = QPixmap(str(splash_path))
+    if splash_enabled and not splash_pixmap.isNull():
+        splash_width, splash_height = _configured_size(
+            splash_config, screen_width, screen_height, splash=True
+        )
+        splash_pixmap = splash_pixmap.scaled(
+            splash_width,
+            splash_height,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
         splash = QSplashScreen(splash_pixmap)
         splash.show()
+        if geometry is not None:
+            splash.move(
+                geometry.center().x() - splash.width() // 2,
+                geometry.center().y() - splash.height() // 2,
+            )
         app.processEvents()
-        splash_timer = QElapsedTimer()
         splash_timer.start()
+    elif splash_enabled:
+        bootstrap_warnings.append(f"Missing or invalid splash image: {splash_path}")
 
-    # Load application modules only after the splash screen is visible.
-    from lib import Lift as lift_module
-    from lib import Multi as multi_module
-    from lib import Single as single_module
-    from lib import importnames
-    from lib import StateManager
-    from lib import ScrollSingle
-    from lib import ThemeManager
-    from lib import ui_main
-    from lib import ui_widgetsingle
-    from lib import ui_widgetmulti
-    from lib import ui_widgetlift
-    from lib import ui_widgetscrollsingle
+    missing_recoverable, missing_required = _startup_file_check(bootstrap_config)
+    bootstrap_warnings.extend(missing_recoverable)
+    if missing_required:
+        if splash is not None:
+            splash.close()
+        QMessageBox.critical(
+            None,
+            "Startup check failed",
+            "Required application files are missing:\n" + "\n".join(missing_required),
+        )
+        return 1
 
-    themes = ThemeManager.discover_themes()
+    app.processEvents()
+    try:
+        from lib import Lift as lift_module
+        from lib import Multi as multi_module
+        from lib import importnames
+        from lib import StateManager
+        from lib import ScrollSingle
+        from lib import ThemeManager
+        from lib import LanguageManager
+        from lib import ui_main
+        from lib import ui_widgetmulti
+        from lib import ui_widgetlift
+        from lib import ui_widgetscrollsingle
+    except Exception as exc:
+        if splash is not None:
+            splash.close()
+        QMessageBox.critical(
+            None,
+            "Startup failed",
+            f"A required application component could not be loaded:\n{type(exc).__name__}: {exc}",
+        )
+        return 1
+
     config = getattr(importnames, "loaded_config", {})
-    splash_config = config.get("splash", {}) if isinstance(config, dict) else {}
-    if isinstance(splash_config, dict):
-        configured_duration = splash_config.get("duration_ms", 1000)
-        if isinstance(configured_duration, int) and not isinstance(configured_duration, bool) and configured_duration >= 0:
-            splash_duration_ms = configured_duration
-        else:
-            logging.warning("启动画面时长配置无效，使用默认值 1000 毫秒")
-    requested_theme = (
-        config.get("app", {}).get("theme", "")
-        if isinstance(config, dict)
-        else ""
-    )
+    StateManager.configure_paths(config)
+    logging_config = config.get("logging", {}) if isinstance(config, dict) else {}
+    if not isinstance(logging_config, dict):
+        logging_config = {}
+    StateManager.configure_logging(logging_config.get("level", "INFO"))
+    themes = ThemeManager.discover_themes()
+    languages, preferred_language, language_warning = LanguageManager.load_languages()
+    app_config = config.get("app", {}) if isinstance(config, dict) else {}
+    if not isinstance(app_config, dict):
+        app_config = {}
+    requested_theme = app_config.get("theme", ThemeManager.DEFAULT_THEME)
     selected_theme = (
         requested_theme if requested_theme in themes
-        else "randname" if "randname" in themes
+        else ThemeManager.DEFAULT_THEME if ThemeManager.DEFAULT_THEME in themes
         else next(iter(themes), "")
     )
-    window = MainWindow(themes, selected_theme)
+    selected_roster = importnames.active_roster
+    startup_warnings = list(dict.fromkeys(bootstrap_warnings + StateManager.CONFIG_WARNINGS))
+    if importnames.ROSTER_FALLBACK_USED:
+        startup_warnings.append("config/name.toml")
+    if language_warning:
+        startup_warnings.append(language_warning)
+    if ThemeManager.THEME_LOAD_WARNING:
+        startup_warnings.append(ThemeManager.THEME_LOAD_WARNING)
+    if not (ROOT_DIR / "config" / "theme.toml").is_file():
+        startup_warnings.append("config/theme.toml")
+    startup_warnings = list(dict.fromkeys(startup_warnings))
+    for warning in startup_warnings:
+        StateManager.log("WARN", "startup_fallback", error=warning)
+    selected_language = LanguageManager.resolve_language(
+        app_config.get("language") or preferred_language, languages
+    )
+    window = MainWindow(
+        themes,
+        selected_theme,
+        languages,
+        selected_language,
+        importnames.rosters,
+        selected_roster,
+        startup_warnings,
+    )
     ThemeManager.apply_theme(app, selected_theme, themes)
+    window.show()
     if splash is not None:
-        remaining_ms = max(0, splash_duration_ms - splash_timer.elapsed())
-        def finish_startup():
-            splash.close()
-            window.show()
-
-        if remaining_ms:
-            QTimer.singleShot(remaining_ms, finish_startup)
+        if splash_mode in (1, "fixed"):
+            remaining_ms = max(0, splash_duration_ms - splash_timer.elapsed())
+            if remaining_ms:
+                QTimer.singleShot(remaining_ms, lambda: splash.finish(window))
+            else:
+                splash.finish(window)
         else:
-            finish_startup()
-    else:
-        window.show()
+            splash.finish(window)
     return app.exec()
 
 

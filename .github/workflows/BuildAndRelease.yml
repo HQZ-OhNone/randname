@@ -107,7 +107,6 @@ jobs:
         run: |
           # 將 ui/*.ui 編譯為 Python 模塊，放到 lib/
           pyside6-uic ui/Main.ui -o lib/ui_main.py
-          pyside6-uic ui/WidgetSingle.ui -o lib/ui_widgetsingle.py
           pyside6-uic ui/WidgetMulti.ui -o lib/ui_widgetmulti.py
           pyside6-uic ui/WidgetLift.ui -o lib/ui_widgetlift.py
           pyside6-uic ui/WidgetScrollSingle.ui -o lib/ui_widgetscrollsingle.py
@@ -117,11 +116,12 @@ jobs:
           nuitka \
             --standalone \
             --enable-plugin=pyside6 \
-            --include-data-file=.config.default.toml=.config.default.toml \
             --include-data-file=ui/randname1.png=ui/randname1.png \
             --include-data-file=ui/randname-start_v3.6.png=ui/randname-start_v3.6.png \
+            --include-data-file=.config.default.toml=.config.default.toml \
+            --include-data-file=.name.default.toml=.name.default.toml \
+            --include-data-dir=config=config \
             --include-data-dir=doc=doc \
-            --include-data-dir=theme=theme \
             --output-dir=build \
             --output-filename=randname \
             --lto=yes \
@@ -211,7 +211,6 @@ jobs:
         run: |
           # 將 ui/*.ui 編譯為 Python 模塊，放到 lib/
           pyside6-uic ui/Main.ui -o lib/ui_main.py
-          pyside6-uic ui/WidgetSingle.ui -o lib/ui_widgetsingle.py
           pyside6-uic ui/WidgetMulti.ui -o lib/ui_widgetmulti.py
           pyside6-uic ui/WidgetLift.ui -o lib/ui_widgetlift.py
           pyside6-uic ui/WidgetScrollSingle.ui -o lib/ui_widgetscrollsingle.py
@@ -221,11 +220,13 @@ jobs:
           nuitka `
             --standalone `
             --enable-plugin=pyside6 `
+            --include-data-file=ui\randname1.png=ui\randname1.png `
             --include-data-file=.config.default.toml=.config.default.toml `
+            --include-data-file=.name.default.toml=.name.default.toml `
+            --include-data-dir=config=config `
             --include-data-file=ui\randname-start_v3.6.png=ui\randname-start_v3.6.png `
             --windows-icon-from-ico=ui\randname1.ico `
             --include-data-dir=doc=doc `
-            --include-data-dir=theme=theme `
             --output-dir=build `
             --output-filename=randname.exe `
             --lto=yes `

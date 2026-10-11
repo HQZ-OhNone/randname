@@ -12,7 +12,7 @@ You should have received a copy of the GNU General Public License along with thi
 ScrollSingle mode implementation.
 
 Behavior:
-- Uses ui_widgetsingle layout (label + button) as the widget
+- Uses the dedicated WidgetScrollSingle UI (label + start/stop buttons)
 - Start: begin cycling through names rapidly (QTimer); every full cycle shuffle the name order
 - Stop: stop timer and current name is the result
 - Each start creates a new randomized order based on the initially loaded names
@@ -27,7 +27,7 @@ from datetime import datetime
 
 class ScrollController:
     def __init__(self, label_widget, start_button, stop_button, names_dict,
-                 on_result=None, rate=30):
+                 on_result=None, rate=30, start_text="开始", stop_text="停止"):
         """label_widget: QLabel to show name
            start_button: QPushButton to start rolling
            stop_button: QPushButton to stop rolling
@@ -37,6 +37,8 @@ class ScrollController:
         self.label = label_widget
         self.start_button = start_button
         self.stop_button = stop_button
+        self.start_text = start_text
+        self.stop_text = stop_text
         self.names = names_dict.copy() if isinstance(names_dict, dict) else {}
         self.on_result = on_result
 
@@ -54,7 +56,7 @@ class ScrollController:
         try:
             if self.start_button is not None:
                 try:
-                    self.start_button.setText("开始")
+                    self.start_button.setText(self.start_text)
                 except Exception:
                     pass
                 self.start_button.clicked.connect(self.start)
@@ -63,7 +65,7 @@ class ScrollController:
         try:
             if self.stop_button is not None:
                 try:
-                    self.stop_button.setText("停止")
+                    self.stop_button.setText(self.stop_text)
                 except Exception:
                     pass
                 self.stop_button.clicked.connect(self.stop)
@@ -157,7 +159,16 @@ class ScrollController:
 
     def update_names(self, new_names: dict):
         """更新可抽取的名字（不会重置按钮状态），保持现有running状态"""
-        self.names = new_names.copy() if isinstance(new_names, dict) else {}
-        # 如果没有顺序或顺序超过名字数，重新准备
-        if not self.current_order or len(self.current_order) != len(self.names):
+        updated_names = new_names.copy() if isinstance(new_names, dict) else {}
+        if updated_names != self.names:
+            self.names = updated_names
             self._prepare_new_order()
+            self.selected = None
+
+    def set_button_texts(self, start_text: str, stop_text: str) -> None:
+        self.start_text = start_text
+        self.stop_text = stop_text
+        if self.start_button is not None:
+            self.start_button.setText(self.start_text)
+        if self.stop_button is not None:
+            self.stop_button.setText(self.stop_text)

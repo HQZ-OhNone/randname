@@ -1,27 +1,57 @@
-# 隐藏的 randname 默认配置；doc/config.toml 缺失或损坏时只读使用。
-
 [app]
-name = "randname"
-default_mode = "ScrollSingle"
-theme = "randname"
+# 启动后打开的页面；可填 Multi、Lift 或 ScrollSingle。
+default_mode = "Multi"
+# 主题键名必须存在于 config/theme.toml 的 [themes.*] 中。
+theme = "randname-dark"
+# 启动语言覆盖项：留空时使用 config/language.toml 的 preferred。
+# 可填 en_US、zh_CN 或 zh_TW。
+language = ""
+# 默认名单键名必须存在于 config/name.toml 的 [rosters.*] 中。
+roster = "class_1"
+# About > Source repository 使用的项目网址。
+repository_url = "https://www.github.com/HQZ-OhNone/randname"
+
+[assets]
+# Qt 应用和窗口图标；相对路径以项目目录为基准，Linux 建议使用 PNG。
+# 修改时填写 ui/ 下已随程序打包的图片路径。
+icon = "ui/randname1.png"
+# 启动画面图片；enabled=true 时读取此文件。
+splash_image = "ui/randname-start_v3.6.png"
+
+[paths]
+# 以下文件路径相对项目目录；支持相对路径或绝对路径。
+# license_file/help_directory 用于 About 菜单；log_file/memory_file 用于程序读写。
+license_file = "doc/gpl-3.0.md"
+help_directory = "doc"
+log_file = "doc/log.log"
+memory_file = "doc/memory.json"
 
 [splash]
+# 是否显示启动画面；可填 true 或 false。
+enabled = true
+# 0=主窗口准备好即关闭；1=至少显示 duration_ms 毫秒。
+mode = 0
+# 固定模式的显示时间，单位毫秒；必须是非负整数。
 duration_ms = 1000
+# screen_ratio=按屏幕比例；fixed=使用下方 width/height。
+size_mode = "screen_ratio"
+# size_mode=fixed 时的启动画面宽高，单位为逻辑像素；screen_ratio 时作为备用尺寸。
+width = 480
+height = 270
 
 [window]
+# screen_ratio=按屏幕比例；fixed=使用下方 width/height。
+size_mode = "screen_ratio"
+# fixed 模式尺寸，单位为逻辑像素；screen_ratio 时按宽高上限及 aspect_ratio 计算。
 width = 800
 height = 600
+# 比例模式的宽/高，必须是大于 0 的数值；默认 3:2。
+aspect_ratio = 1.5
 
 [scroll_single]
+# 每秒轮播更新次数，必须为正整数。
 rate = 30
 
-[names]
-"0" = "周〇"
-"1" = "张三"
-"2" = "李四"
-"3" = "王五"
-"4" = "赵六"
-"5" = "孙七"
-"6" = "周八"
-"7" = "吴九"
-"8" = "郑睿"
+[logging]
+# 最低记录等级：DEBUG、INFO、WARNING、ERROR、CRITICAL。
+level = "INFO"

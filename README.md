@@ -10,22 +10,22 @@
 
 ### 特點
 - **簡潔易用**，無需任何經驗、開箱即用、上手就會，學習成本極低。
-- **功能豐富**，支持 Single、Multi、Lift、ScrollSingle 四种模式，启动后默认进入 ScrollSingle。
-- **可换主题**，菜单栏“主题”提供深色、浅色、蓝色、琥珀、绿色和紫色主题；主题配置位于 `theme/*.toml`。
-- **開源免費**，本程序在 [GPL v3.0](./doc/gpl-3.0.txt) 下發佈，任何人可以使用。
+- **抽取靈活**，支持多抽、減量抽與、滾動抽取等多種模式。
+- **多語言與主題**，支持简体中文、正體中文和英语，六種主题色系均提供明暗版本。
+- **開源免費**，本程序在 [GPL v3.0](./doc/gpl-3.0.md) 下發佈，任何人可以使用。
 
 ### 技術實現
 - python3.12.10
 - qt6.11.1(pyside6)
 
 ### 許可證
-[GNU General Public License v3.0](./doc/gpl-3.0.txt)
+[GNU General Public License v3.0](./doc/gpl-3.0.md)
 
 -----
 
 ### 使用
 
-使用指南： [简体中文](./doc/使用指南_简体中文.md) | [繁體中文](./doc/使用指南.md) | [English (US)](./doc/User_Guide_en-US.md)
+帮助文档： [简体中文](./doc/help_zh_CN.md) | [正體中文](./doc/help_zh_TW.md) | [English (US)](./doc/help_en_US.md)
 
 #### 方案一、使用預編譯程序
 1. 請從 [releases](https://github.com/HQZ-OhNone/randname/releases) 下載預編譯程序
@@ -46,10 +46,11 @@ pip install pyside6==6.11.1
 4. 運行 main.py
 
 #### 配置与运行记录
-- 当前配置为 `doc/config.toml`，程序只读加载；文件缺失或损坏时使用 `.config.default.toml`。
-- 配置使用 TOML，包含姓名、窗口初始尺寸、默认模式、主题和启动画面时长（`[splash].duration_ms`，毫秒）等选项，可直接编辑对应的值。
+- 程序配置位于 `config/config.toml`，名单位于 `config/name.toml`，语言包位于 `config/language.toml`，均使用 TOML。
+- `config/theme.toml` 集中保存主题颜色、多语言名称和默认主题；配置或名单缺失时分别回退到 `.config.default.toml` 和 `.name.default.toml`。
+- 启动画面与主窗口均可选择固定尺寸或屏幕比例尺寸；`[splash]` 支持关闭、就绪后关闭或固定显示时间。
 - `doc/memory.json` 保存各模式最近结果，`doc/log.log` 保存精简的英文逐行日志；两者均不会提交到 Git。
-- 菜单栏“文件 -> 导入...”和“导出...”用于记忆文件，不会覆盖 `doc/config.toml`。
+- 菜单栏“文件 -> 导入...”和“导出...”用于记忆文件，不会覆盖 `config/` 下的配置。
 
 #### 方案三、自行編譯二進制文件
 1. 在本機配置 Python 環境，可贊考 [Python官方網站](https://www.python.org/)
@@ -87,20 +88,18 @@ tar -cavf randname3_linux.tar.xz randname3
 
 - GUI：
   - 主界面：
-    - [x] Single: 单抽
     - [x] Multi: 多抽
     - [x] Lift: 减量抽
-    - [x] ScrollSingle: 滚动单抽（默认模式）
+    - [x] ScrollSingle: 滚动抽取（默认模式）
     - [w] Seats: 抽座位坐标
   - 菜单栏：
     - [x] 文件：退出、保存状态
-    - [x] 模式：单抽/连抽/减量抽/抽座位坐标
+    - [x] 模式：多抽/减量抽/滚动抽取
     - [x] 关于：许可证、仓库
     - [x] 主题：深色、浅色、蓝色、琥珀、绿色、紫色
-    - [ ] 捐赠、反馈
+    - [x] 反馈
 
 - 抽取：
-  - [x] Single: 单抽
   - [x] Multi: 连抽
   - [x] Lift: 减量抽
   - [w] Seats: 抽座位坐标

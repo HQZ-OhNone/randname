@@ -119,7 +119,7 @@ class Ui_Form(object):
 
     def retranslateUi(self, Form):
         Form.setWindowTitle(QCoreApplication.translate("Form", u"Form", None))
-        self.label_ScrollSingleOutput.setText(QCoreApplication.translate("Form", u"\u6eda\u52a8\u5355\u62bd", None))
+        self.label_ScrollSingleOutput.setText(QCoreApplication.translate("Form", u"\u6eda\u52a8\u62bd\u53d6", None))
         self.pushButton_ScrollSingleStart.setText(QCoreApplication.translate("Form", u"\u5f00\u59cb", None))
         self.pushButton_ScrollSingleStop.setText(QCoreApplication.translate("Form", u"\u505c\u6b62", None))
     # retranslateUi
