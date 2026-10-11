@@ -2559,7 +2559,7 @@ gridLayout (QGridLayout, 732×542)
 | `mode.multi` | Multi draw | 多抽 | 多抽 |
 | `mode.lift` | Elimination draw | 减量抽 | 減量抽 |
 | `mode.scroll` | Rolling single draw | 滚动单抽 | 滾動單抽 |
-| `mode.scrollmulti` | Scroll multi draw | 滚动多抽 | 滾動多抽 |
+| `mode.scrollmulti` | ScrollMulti | 滚动多抽 | 滾動多抽 |
 | `button.draw` | Draw | 抽取 | 抽取 |
 | `button.increase` | Increase | 增加 | 增加 |
 | `button.decrease` | Decrease | 减少 | 減少 |
@@ -2570,7 +2570,7 @@ gridLayout (QGridLayout, 732×542)
 | `state.waiting` | Ready | 等待输入 | 等待輸入 |
 | `state.multi_result` | Draw complete: `{count}` | 抽取完成：`{count}` 人 | 抽取完成：`{count}` 人 |
 | `state.lift_result` | Elimination draw complete: `{count}` | 减量抽完成：`{count}` 人 | 減量抽完成：`{count}` 人 |
-| `state.scrollmulti_result` | Scroll multi draw complete: `{count}` | 滚动多抽完成：`{count}` 人 | 滾動多抽完成：`{count}` 人 |
+| `state.scrollmulti_result` | ScrollMulti complete: `{count}` | 滚动多抽完成：`{count}` 人 | 滾動多抽完成：`{count}` 人 |
 | `state.no_result` | No result | 暂无结果 | 暫無結果 |
 | `state.roster_changed` | Roster: `{name}` | 名单：`{name}` | 名單：`{name}` |
 | `state.theme_changed` | Theme: `{name}` | 主题：`{name}` | 主題：`{name}` |
