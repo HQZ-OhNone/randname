@@ -105,6 +105,8 @@ def load_theme(name: str) -> dict:
 
 
 def _color(value: str, color_format: str, allow_alpha: bool = True) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"Invalid {color_format} color: {value!r}")
     if color_format in {"RGB", "RGBA"}:
         channels = [int(channel.strip()) for channel in value.split(",")]
         if color_format == "RGB":

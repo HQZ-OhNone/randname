@@ -46,6 +46,7 @@ ENGLISH = {
     "state.log_level_changed": "Log level: {level}",
     "state.startup_warning": "Startup used fallback data: {files}",
     "state.startup_error": "Required application files are missing: {files}",
+    "state.no_result": "No result",
     "dialog.import_title": "Import memory",
     "dialog.export_title": "Export memory",
     "dialog.json_filter": "JSON Files (*.json);;All Files (*)",
@@ -66,6 +67,7 @@ ENGLISH = {
     "error.controls_init": "Could not initialize the interface: {error}",
     "error.open_help": "Could not open the help file: {path}",
     "error.help_missing": "The help file is missing: {path}",
+    "error.theme_failed": "Could not apply the theme: {error}",
 }
 
 

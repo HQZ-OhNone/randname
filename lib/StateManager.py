@@ -1,5 +1,6 @@
 """Configuration, memory and concise structured logging for randname."""
 
+import copy
 from datetime import datetime
 import json
 import logging
@@ -213,7 +214,9 @@ def load_config() -> dict:
     CONFIG_SOURCE = "built-in"
     CONFIG_FALLBACK_USED = True
     CONFIG_WARNINGS.append("using built-in configuration")
-    return BUILTIN_CONFIG.copy()
+    # Deep copy: callers may mutate nested tables (e.g. app/splash) and must not
+    # corrupt the module level BUILTIN_CONFIG used by later reloads.
+    return copy.deepcopy(BUILTIN_CONFIG)
 
 
 def load_rosters() -> tuple[dict, bool]:

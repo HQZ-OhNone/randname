@@ -91,6 +91,17 @@ def _configured_size(section: dict, screen_width: int, screen_height: int, *, sp
     return max(1, int(width)), max(1, int(width / aspect))
 
 
+def _scroll_rate(config: dict | None) -> int:
+    """Read ``[scroll_single].rate`` defensively from a possibly broken config."""
+    section = config.get("scroll_single", {}) if isinstance(config, dict) else {}
+    rate = section.get("rate", 30) if isinstance(section, dict) else 30
+    try:
+        value = int(rate)
+    except (TypeError, ValueError):
+        return 30
+    return value if value > 0 else 30
+
+
 def _startup_file_check(config: dict | None = None) -> tuple[list[str], list[str]]:
     help_directory = _configured_path(config or {}, "paths", "help_directory", "doc")
     recoverable = (
@@ -194,6 +205,10 @@ class MainWindow(QMainWindow):
         self.scroll_button = None
         self.scroll_label = None
         self.scroll_controller = None
+        # True once the scroll page shows a real result (rolling stopped or a
+        # memory import). Used by _retranslate so switching language never
+        # clobbers a produced name with the placeholder.
+        self.scroll_has_result = False
 
         self._build_ui()
         self._apply_config_window()
@@ -465,7 +480,7 @@ class MainWindow(QMainWindow):
                 self.scroll_controller.set_button_texts(
                     self._t("button.start"), self._t("button.stop")
                 )
-            if self.scroll_label is not None and self.scroll_label.text() in {"滚动抽取", "等待输入", "Ready"}:
+            if self.scroll_label is not None and not self.scroll_has_result:
                 self.scroll_label.setText(self._t("state.waiting"))
 
     def _select_theme(self, name):
@@ -482,7 +497,7 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(self._t("state.theme_changed", name=theme_name))
         except (OSError, ValueError, KeyError) as exc:
             StateManager.log("ERROR", "theme", error=str(exc))
-            self._show_error("主题加载失败", str(exc))
+            self._show_error(self._t("menu.theme"), self._t("error.theme_failed", error=str(exc)))
 
     def _load_pages(self):
         if self.stacked_widget is None:
@@ -547,7 +562,7 @@ class MainWindow(QMainWindow):
                     pass
             # 创建控制器，但不自动启动
             if self.scroll_start_button is not None and self.scroll_stop_button is not None and self.scroll_label is not None:
-                rate = getattr(importnames, "loaded_config", {}).get("scroll_single", {}).get("rate", 30)
+                rate = _scroll_rate(importnames.loaded_config)
                 self.scroll_controller = ScrollSingle.ScrollController(
                     self.scroll_label,
                     self.scroll_start_button,
@@ -557,6 +572,7 @@ class MainWindow(QMainWindow):
                     rate=rate,
                     start_text=self._t("button.start"),
                     stop_text=self._t("button.stop"),
+                    reset_text=self._t("state.waiting"),
                 )
         except Exception as exc:
             logging.exception("初始化 ScrollSingle 失败: %s", exc)
@@ -679,6 +695,7 @@ class MainWindow(QMainWindow):
                 if isinstance(app, QApplication):
                     ThemeManager.apply_theme(app, self.selected_theme, self.themes)
             if self.scroll_controller is not None:
+                self.scroll_controller.update_rate(_scroll_rate(cfg))
                 if roster_changed:
                     self.scroll_controller.update_names(self.names)
             warnings = list(StateManager.CONFIG_WARNINGS)
@@ -704,6 +721,17 @@ class MainWindow(QMainWindow):
                 self._t("dialog.operation_failed", error=str(exc)),
             )
 
+    @staticmethod
+    def _remembered_text(value):
+        """Extract a printable result from a memory entry, or None when absent.
+
+        A stored ``null`` means "this mode has no remembered result"; it must not
+        be rendered as the literal text ``None``.
+        """
+        if value is None:
+            return None
+        return str(value.get("result") if isinstance(value, dict) else value)
+
     def _apply_memory_import(self, content: dict):
         # content 包含 loaded_config 与 last_results
         try:
@@ -716,16 +744,20 @@ class MainWindow(QMainWindow):
             last = content.get("last_results", {})
             if isinstance(last, dict):
                 if self.multi_label is not None:
-                    v = last.get("Multi", last.get("multi"))
-                    self.multi_result = str(v.get("result") if isinstance(v, dict) else v)
-                    self.multi_label.setText(self.multi_result)
+                    text = self._remembered_text(last.get("Multi", last.get("multi")))
+                    if text is not None:
+                        self.multi_result = text
+                        self.multi_label.setText(text)
                 if self.lift_label is not None:
-                    v = last.get("Lift", last.get("lift"))
-                    self.lift_result = str(v.get("result") if isinstance(v, dict) else v)
-                    self.lift_label.setText(self.lift_result)
+                    text = self._remembered_text(last.get("Lift", last.get("lift")))
+                    if text is not None:
+                        self.lift_result = text
+                        self.lift_label.setText(text)
                 if self.scroll_label is not None:
-                    v = last.get("ScrollSingle", last.get("scrollsingle"))
-                    self.scroll_label.setText(str(v.get("result") if isinstance(v, dict) else v))
+                    text = self._remembered_text(last.get("ScrollSingle", last.get("scrollsingle")))
+                    if text is not None:
+                        self.scroll_label.setText(text)
+                        self.scroll_has_result = True
             self.resize(current_size)
             self.setMinimumSize(0, 0)
         except Exception as exc:
@@ -804,6 +836,7 @@ class MainWindow(QMainWindow):
             logging.info("scrollsingle result: %s", result)
             if self.scroll_label is not None:
                 self.scroll_label.setText(str(result))
+            self.scroll_has_result = True
             # 保存到记忆与日志
             state = StateManager.load_memory()
             state["loaded_config"] = getattr(importnames, 'loaded_config', None)
@@ -835,7 +868,7 @@ class MainWindow(QMainWindow):
         # 保持数量值不变，仅更新显示
         self._set_quantity_label(self.lift_quantity_label, self.lift_quantity)
         if self.lift_label is not None:
-            self.lift_label.setText("等待输入")
+            self.lift_label.setText(self._t("state.waiting"))
         self.statusBar().showMessage(self._t("state.waiting"))
 
     def _set_quantity_label(self, label, value):
@@ -887,7 +920,7 @@ class MainWindow(QMainWindow):
                     for i in range(0, len(remaining), 4):
                         lines.append("  ".join(str(item) for item in remaining[i:i+4]))
                     return "\n".join(lines)
-        return "暂无结果"
+        return self._t("state.no_result")
 
     def _on_exit(self):
         logging.info("用户请求退出程序")
@@ -1127,7 +1160,13 @@ def main():
         selected_roster,
         startup_warnings,
     )
-    ThemeManager.apply_theme(app, selected_theme, themes)
+    try:
+        ThemeManager.apply_theme(app, selected_theme, themes)
+    except (OSError, ValueError, KeyError) as exc:
+        # A malformed color in theme.toml must never abort startup; keep the
+        # built-in palette and keep running.
+        logging.exception("应用启动主题失败: %s", exc)
+        StateManager.log("ERROR", "startup_theme", error=str(exc))
     window.show()
     if splash is not None:
         if splash_mode in (1, "fixed"):

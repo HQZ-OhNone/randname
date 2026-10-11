@@ -25,9 +25,20 @@ from PySide6.QtCore import QTimer
 import random
 from datetime import datetime
 
+
+def _interval_for_rate(rate) -> int:
+    """Convert a ticks-per-second setting into a safe QTimer interval."""
+    try:
+        ticks = int(rate)
+    except (TypeError, ValueError):
+        ticks = 30
+    return max(1, 1000 // max(1, ticks))
+
+
 class ScrollController:
     def __init__(self, label_widget, start_button, stop_button, names_dict,
-                 on_result=None, rate=30, start_text="开始", stop_text="停止"):
+                 on_result=None, rate=30, start_text="开始", stop_text="停止",
+                 reset_text="等待输入"):
         """label_widget: QLabel to show name
            start_button: QPushButton to start rolling
            stop_button: QPushButton to stop rolling
@@ -39,12 +50,13 @@ class ScrollController:
         self.stop_button = stop_button
         self.start_text = start_text
         self.stop_text = stop_text
+        self.reset_text = reset_text
         self.names = names_dict.copy() if isinstance(names_dict, dict) else {}
         self.on_result = on_result
 
         self.timer = QTimer()
         # 30 times/sec ~= 33ms per tick; TOML may override this value.
-        self.timer.setInterval(max(1, 1000 // max(1, int(rate))))
+        self.timer.setInterval(_interval_for_rate(rate))
         self.timer.timeout.connect(self._tick)
 
         self.running = False
@@ -110,15 +122,9 @@ class ScrollController:
 
     def stop(self):
         if not self.running:
-            # if already stopped, still may want to produce a result (random)
-            result = self.label.text() if self.label is not None else None
-            meta = {"time": self._now_str(), "mode": "ScrollSingle"}
-            if self.on_result is not None:
-                try:
-                    self.on_result(result, meta)
-                except Exception:
-                    pass
-            return result
+            # Already stopped: there is no new result to report, so the callback
+            # must stay silent instead of writing a bogus entry to memory/log.
+            return self.label.text() if self.label is not None else None
         self.timer.stop()
         self.running = False
         # update button enabled states
@@ -151,11 +157,17 @@ class ScrollController:
         """Reset visual state to initial (no selection)."""
         try:
             if self.label is not None:
-                self.label.setText("等待输入")
+                self.label.setText(self.reset_text)
                 self.label.setStyleSheet('')
         except Exception:
             pass
         self.selected = None
+
+    def update_rate(self, rate) -> int:
+        """Apply a new ticks-per-second value without disturbing the roll."""
+        interval = _interval_for_rate(rate)
+        self.timer.setInterval(interval)
+        return interval
 
     def update_names(self, new_names: dict):
         """更新可抽取的名字（不会重置按钮状态），保持现有running状态"""
