@@ -28,8 +28,6 @@
 
 帮助文档： [简体中文](./doc/help_zh_CN.md) | [正體中文](./doc/help_zh_TW.md) | [English (US)](./doc/help_en_US.md)
 
-业务逻辑说明： [简体中文](./doc/logic_zh_CN.md) | [正體中文](./doc/logic_zh_TW.md) | [English (US)](./doc/logic_en_US.md)
-
 #### 方案一、使用預編譯程序
 1. 請從 [releases](https://github.com/HQZ-OhNone/randname/releases) 下載預編譯程序
 2. 將壓縮包解壓到合適的目錄

@@ -83,7 +83,7 @@ font_family = ""
 display_font_size = 30
 
 # 自动缩字号的下限（pt）。名字太多/太长时不会小于这个值。
-display_min_font_size = 12
+display_min_font_size = 15
 
 # 每次缩小字号的步长（pt）。越小越平滑，但计算次数越多。
 display_font_step = 1
@@ -116,7 +116,7 @@ enabled = true
 mode = 1
 
 # mode = 1 时的最短显示时间，单位毫秒；0 表示不等待。
-duration_ms = 4000
+duration_ms = 2000
 
 # 启动画面尺寸模式：
 #   "screen_ratio" = 按可用屏幕比例缩放
@@ -124,7 +124,7 @@ duration_ms = 4000
 size_mode = "screen_ratio"
 
 # 启动画面占可用屏幕的比例，范围 0.05 到 1.0。
-screen_ratio = 0.25
+screen_ratio = 0.3
 
 # size_mode = "fixed" 时使用的启动画面宽高，单位为逻辑像素。
 # 图片会保持原始宽高比并缩放，不会拉伸变形。
@@ -154,8 +154,8 @@ touch_scroll = true
 show_mode = true       # 当前模式
 show_roster = true     # 当前名单
 show_quantity = true   # 当前数量
-show_theme = true      # 当前主题
-show_language = true   # 当前语言
+show_theme = false     # 当前主题
+show_language = false  # 当前语言
 show_log_level = true  # 当前日志等级
 show_version = true    # 程序版本
 
