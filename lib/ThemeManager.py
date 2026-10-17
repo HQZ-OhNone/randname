@@ -157,9 +157,9 @@ def _stylesheet(theme: dict) -> str:
     QLabel, QStatusBar, QMenuBar, QMenu {{
         color: {foreground};
     }}
-    QLabel#label_SingleOutput, QLabel#label_MultiOutput,
-    QLabel#label_LiftOutput, QLabel#label_ScrollSingleOutput,
-    QLabel#label_ScrollMultiOutput {{
+    QLabel#label_MultiOutput,
+    QLabel#label_LiftOutput, QLabel#label_ScrollMultiOutput,
+    QLabel#label_ScrollLiftOutput {{
         background-color: {display_background};
         color: {display_foreground};
         border: 1px solid {display_border};

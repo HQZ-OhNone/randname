@@ -122,8 +122,8 @@ class Ui_Form(object):
         sizePolicy1.setHeightForWidth(self.label_LiftOutput.sizePolicy().hasHeightForWidth())
         self.label_LiftOutput.setSizePolicy(sizePolicy1)
         font3 = QFont()
-        font3.setFamilies([u"\u6587\u6cc9\u9a7f\u7b49\u5bbd\u5fae\u7c73\u9ed1"])
-        font3.setPointSize(36)
+        font3.setFamilies([u"\u6587\u6cc9\u9a5b\u5fae\u7c73\u9ed1"])
+        font3.setPointSize(30)
         self.label_LiftOutput.setFont(font3)
         self.label_LiftOutput.setStyleSheet(u"QLabel {\n"
 "    background-color: rgba(20, 20, 20, 255);  /* \u6df1\u8272\u80cc\u666f */\n"

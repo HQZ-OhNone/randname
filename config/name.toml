@@ -1,3 +1,5 @@
+# randname 配置文件 - GNU GPL v3.0 - Copyright (C) 2026 HQZ-OhNone
+# 本文件使用 UTF-8 编码；修改后可在程序中选择“文件 > 刷新程序状态”。
 # 名单目录：每个 rosters.<键名> 是一组名单，键名需唯一且供 app.roster 引用。
 # name 表填写该名单的显示名称；新增其他语言时使用相同的 locale 代码。
 [rosters.class_1.name]

@@ -1,62 +1,170 @@
+# randname 主配置文件
+# 本程序使用 TOML 格式；以 # 开头的内容是注释，不会影响程序。
+# 修改后可在程序中选择“文件 > 刷新程序状态”立即生效；窗口尺寸等少数项目重启后生效。
+#
+# 路径规则：下面所有相对路径都以程序所在目录（本文件上一级目录）为基准。
+# 也可以填写绝对路径，例如 /home/user/randname/doc/log.log。
+#
+# 本程序是自由软件，依据 GNU GPL v3.0 发布；详见 doc/gpl-3.0.md。
+
 [app]
-# 启动后打开的页面；可填 Multi、Lift、ScrollSingle 或 ScrollMulti。
+# 启动后默认打开的模式。可填：
+#   "Single"          单抽（等于多抽数量 1，不单独占一个页面）
+#   "Multi"           多抽
+#   "Lift"            减量抽
+#   "ScrollSingle"    滚动单抽（等于滚动多抽数量 1）
+#   "ScrollMulti"     滚动多抽
+#   "ScrollLift"      滚动减量抽
+# 记忆文件中保存的有效模式优先于这里。
 default_mode = "Multi"
-# 启动主题后备项：config/theme.toml 的 default 优先；仅在 theme.toml 未指定（或无效）default 时使用此项。
-# 主题键名必须存在于 config/theme.toml 的 [themes.*] 中。
-theme = "randname-dark"
-# 启动语言后备项：config/language.toml 的 preferred 优先；仅在 language.toml 未指定（或无效）preferred 时使用此项。
-# 可填 en_US、zh_CN 或 zh_TW。
-language = ""
-# 默认名单键名必须存在于 config/name.toml 的 [rosters.*] 中。
+
+# 默认名单键名。必须存在于 config/name.toml 的 [rosters.<键名>] 中。
+# 记忆文件中保存的有效名单优先于这里。
 roster = "class_1"
-# About > Source repository 使用的项目网址。
-repository_url = "https://www.github.com/HQZ-OhNone/randname"
+
+# 是否记住上次使用的主题、语言、名单、模式、数量、日志等级和窗口尺寸。
+# true = 下次启动沿用上一次的选择；false = 每次都从配置文件与独立配置档读取。
+remember_preferences = true
 
 [assets]
-# Qt 应用和窗口图标；相对路径以项目目录为基准，Linux 建议使用 PNG。
-# 修改时填写 ui/ 下已随程序打包的图片路径。
+# 应用程序和窗口图标。建议使用 PNG；路径相对程序目录。
 icon = "ui/randname1.png"
-# 启动画面图片；enabled=true 时读取此文件。
-splash_image = "ui/randname-start_v3.6.png"
+
+# 启动画面图片。图片本身不包含版本号，程序会在右下角动态绘制版本号。
+splash_image = "ui/randname-start.png"
 
 [paths]
-# 以下文件路径相对项目目录；支持相对路径或绝对路径。
-# license_file/help_directory 用于 About 菜单；log_file/memory_file 用于程序读写。
+# 许可证文件，用于“关于 > 许可证”。
 license_file = "doc/gpl-3.0.md"
+
+# 帮助文档目录。程序会优先读取 help_<当前语言>.md，找不到时回退 help_en_US.md。
 help_directory = "doc"
+
+# 程序日志文件。日志查看器会实时读取这个文件，可一边运行程序一边查看。
 log_file = "doc/log.log"
+
+# 运行记忆文件。保存最近结果、界面偏好和窗口尺寸；不会写入 config/ 下的配置。
 memory_file = "doc/memory.json"
 
-[splash]
-# 是否显示启动画面；可填 true 或 false。
-enabled = true
-# 0=主窗口准备好即关闭；1=至少显示 duration_ms 毫秒。
-mode = 0
-# 固定模式的显示时间，单位毫秒；必须是非负整数。
-duration_ms = 1000
-# screen_ratio=按屏幕比例；fixed=使用下方 width/height。
-size_mode = "screen_ratio"
-# size_mode=fixed 时的启动画面宽高，单位为逻辑像素；screen_ratio 时作为备用尺寸。
-width = 480
-height = 270
-
 [window]
-# screen_ratio=按屏幕比例；fixed=使用下方 width/height。
+# 初始窗口尺寸模式：
+#   "screen_ratio" = 按可用屏幕比例计算初始尺寸
+#   "fixed"        = 使用下面的 width/height
+# 用户拉伸窗口后，若 remember_size = true，下次启动会使用记忆尺寸，而不是这里的初始值。
 size_mode = "screen_ratio"
-# fixed 模式尺寸，单位为逻辑像素；screen_ratio 时按宽高上限及 aspect_ratio 计算。
-width = 800
-height = 600
-# 比例模式的宽/高，必须是大于 0 的数值；默认 3:2。
+
+# screen_ratio 模式下的初始窗口占可用屏幕的比例，范围 0.05 到 1.0。
+# 例如 0.75 表示窗口宽高最多占屏幕可用区域的 75%。
+# 程序会同时考虑 aspect_ratio，避免窗口被拉得过宽或过高。
+screen_ratio = 0.75
+
+# 初始窗口宽/高比，必须大于 0。1.5 表示 3:2，2.0 表示 2:1。
 aspect_ratio = 1.5
 
-[scroll_single]
-# 每秒轮播更新次数，必须为正整数。
+# size_mode = "fixed" 时使用的初始宽高，单位为逻辑像素。
+# 若 size_mode = "screen_ratio"，这两项只作为无法计算屏幕尺寸时的后备值。
+width = 1000
+height = 600
+
+# 是否允许用户拖动窗口边缘拉伸。
+# true = 可拉伸；false = 窗口尺寸固定。
+resizable = true
+
+# 是否记住用户拉伸后的窗口尺寸，并在下次启动恢复。
+# true = 写入记忆文件；false = 每次使用上面的初始尺寸。
+remember_size = true
+
+[ui]
+# 输出框字体。留空字符串表示使用界面默认字体。
+font_family = ""
+
+# 输出框基准字号（pt）。名字不长时使用这个字号。
+display_font_size = 30
+
+# 自动缩字号的下限（pt）。名字太多/太长时不会小于这个值。
+display_min_font_size = 12
+
+# 每次缩小字号的步长（pt）。越小越平滑，但计算次数越多。
+display_font_step = 1
+
+# 多行文字的行距倍数。1.0 表示默认行距。
+display_line_spacing = 1.0
+
+# 输出框内边距（像素）。改变后请确认文字没有被边框遮挡。
+display_padding = 8
+
+# 抽取按钮、增加/减少按钮、重置按钮的字号（pt）。
+button_font_size = 24
+
+# 数量显示标签的字号（pt）。
+quantity_font_size = 20
+
+[scroll]
+# 滚动多抽和滚动减量抽每秒更新多少次，必须为正整数。
+# 数值越大滚动越快，但过低会显得卡顿，过高会增加 CPU 占用；推荐 20 到 60。
+# 旧配置中的 [scroll_multi].rate 仍可识别，但推荐使用本节。
 rate = 30
 
-[scroll_multi]
-# 滚动多抽每秒轮播更新次数，必须为正整数。
-rate = 30
+[splash]
+# 是否显示启动画面。true = 显示；false = 直接进入主窗口。
+enabled = true
+
+# 启动画面关闭时机：
+#   0 = 主窗口准备好后立即关闭
+#   1 = 至少显示 duration_ms 毫秒，让用户看清启动画面
+mode = 0
+
+# mode = 1 时的最短显示时间，单位毫秒；0 表示不等待。
+duration_ms = 1000
+
+# 启动画面尺寸模式：
+#   "screen_ratio" = 按可用屏幕比例缩放
+#   "fixed"        = 使用下面的 width/height
+size_mode = "screen_ratio"
+
+# 启动画面占可用屏幕的比例，范围 0.05 到 1.0。
+screen_ratio = 0.25
+
+# size_mode = "fixed" 时使用的启动画面宽高，单位为逻辑像素。
+# 图片会保持原始宽高比并缩放，不会拉伸变形。
+width = 500
+height = 250
+
+# 右下角版本号字号（pt）。填 0 表示根据图片高度自动计算。
+version_font_size = 0
+
+# 右下角版本号颜色，支持 #RRGGBB 或 #RRGGBBAA。
+# 建议使用与背景对比明显的颜色，例如深色图片用 #FFFFFF，浅色图片用 #222222。
+version_color = "#FFFFFF"
+
+[viewer]
+# 帮助、许可证和程序日志查看器的刷新间隔，单位毫秒。
+# 程序会实时读取文件；数值越小越及时，但频繁读取会增加开销。
+refresh_ms = 500
+
+# 查看器正文字号（pt）。
+font_size = 12
+
+# 查看器窗口最多占桌面可用区域的比例，范围 0.3 到 1.0。
+# 程序会预留边距，避免遮挡任务栏；小屏幕会自动缩小。
+max_screen_ratio = 0.85
+
+# 是否启用触屏拖动滚动。true = 可用手指拖动文本；false = 只使用滚动条/滚轮。
+touch_scroll = true
+
+[statusbar]
+# 状态栏永久信息区显示哪些内容。true = 显示；false = 隐藏。
+# 左侧仍会显示“抽取完成”等临时消息。
+show_mode = true       # 当前模式
+show_roster = true     # 当前名单
+show_quantity = true   # 当前数量
+show_theme = true      # 当前主题
+show_language = true   # 当前语言
+show_log_level = true  # 当前日志等级
+show_version = true    # 程序版本
 
 [logging]
-# 最低记录等级：DEBUG、INFO、WARNING、ERROR、CRITICAL。
+# 最低记录等级，可填 DEBUG、INFO、WARNING、ERROR、CRITICAL。
+# DEBUG 最详细，CRITICAL 只记录严重错误；日常使用推荐 INFO。
+# 低于该等级的日志不会写入文件，也不会显示在日志查看器中。
 level = "INFO"

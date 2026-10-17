@@ -1,13 +1,17 @@
 # randname Help
 
-randname is a desktop app for classroom roll calls. The Mode menu contains Multi draw, Elimination draw, Rolling single draw, and ScrollMulti. Multi draw accepts a quantity of one, so a separate single-draw mode is not needed.
+randname is a desktop app for classroom roll calls. The Mode menu contains Single, Multi, Elimination, Rolling Single, Rolling Multi, and Rolling Elimination.
 
 ## Drawing
 
-- **Multi draw:** Set the quantity with the increase/decrease buttons, then select Draw. A draw contains no duplicate names; later draws start from the full roster again. Set the quantity to `1` to draw one person.
-- **Elimination draw:** Each draw removes selected people from the remaining pool for the current run. Reset restores the active roster. Changing rosters or refreshing changed roster data also resets the remaining pool.
-- **Rolling single draw:** Select Start to cycle through the active roster and Stop to choose the visible name. The cycle rate is controlled by `scroll_single.rate`.
-- **ScrollMulti:** Set the quantity, then select Draw to show that many reels cycling at once. The button becomes "Stop (x/n)"; each press stops the frontmost reel and fixes its name. Names fixed this round never appear again in the same round. The cycle rate is controlled by `scroll_multi.rate`.
+- **Single:** A shortcut that opens Multi and sets the quantity to `1`; it has no separate page.
+- **Multi:** Set the quantity with the increase/decrease buttons, then select Draw. A draw contains no duplicate names; later draws start from the full roster again.
+- **Elimination:** Each draw removes selected people from the remaining pool for the current run. Reset restores the active roster. Changing rosters or refreshing changed roster data also resets the remaining pool.
+- **Rolling Single:** A shortcut that opens Rolling Multi and sets the quantity to `1`.
+- **Rolling Multi:** Set the quantity, then select Draw to show that many reels cycling at once. The button becomes "Stop (x/n)"; each press stops the frontmost reel and fixes its name. Names fixed this round never appear again in the same round. The cycle rate is controlled by `scroll.rate`.
+- **Rolling Elimination:** The rolling behaviour is the same as Rolling Multi, but names drawn this round are removed from the remaining pool. The Reset button restores the full roster. The rate is also controlled by `scroll.rate`.
+
+The output box never changes the window size. Names are shown on one line when possible, wrapped onto multiple lines when there is enough height, and the font is reduced for the current draw when the box is already full. Every mode uses this rule.
 
 ## Rosters
 
@@ -28,45 +32,56 @@ Use a unique key for every person. Roster display names use the current interfac
 
 ## Language and Themes
 
-Select a language from Language. Available language packs are listed in `config/language.toml`; English is built in and remains available if that file is missing. The `preferred` value selects the startup language. When it differs from `app.language` in `config/config.toml`, `language.toml`'s `preferred` wins (the `config.toml` value is used only when `preferred` is unset or invalid). Switching language applies immediately and does not discard the current draw result.
+Select a language from Language. Available language packs are listed in `config/language.toml`; English is built in and remains available if that file is missing. The `preferred` value selects the first-startup language. A legacy `app.language` in `config/config.toml` is only a fallback; `language.toml`'s `preferred` wins. Switching language applies immediately and does not discard the current draw result.
 
-Themes are stored in `config/theme.toml`. Its `default` key selects the fallback theme. When it differs from `app.theme` in `config/config.toml`, `theme.toml`'s `default` wins (the `config.toml` value is used only when `default` is unset or invalid). Amber, Blue, Dark, Green, Light, and Purple each have `-dark` and `-light` variants, alongside Randname pink variants. Theme names use the same current-language, system-language, English, key fallback order as roster names.
+Themes are stored in `config/theme.toml`. Its `default` key selects the fallback theme. Theme names use the same current-language, system-language, English, key fallback order as roster names.
+
+Valid preferences in the memory file (theme, language, roster, mode, quantities, log level, window size) take precedence over the configuration files, so the next startup reuses the last choices. Set `app.remember_preferences = false` in `config/config.toml` to always start from the configuration files.
+
+## Window and Status Bar
+
+The main window can be resized by dragging its edges. The resulting size is written to `doc/memory.json` and restored on the next startup; set `[window].remember_size = false` to disable this. Long names and memory imports never change the window size.
+
+The left side of the status bar shows temporary messages such as "Multi complete"; the right side shows the current mode, roster, quantity, theme, language, log level, and version. Each item can be hidden in `[statusbar]`.
 
 ## Settings
 
-Edit `config/config.toml` to set the startup mode, roster, splash screen, window size, rolling rate, and log level; the theme and language come from their dedicated `theme.toml` and `language.toml` files. Proportional dimensions use `screen_ratio`; explicit dimensions use `fixed`.
+Edit `config/config.toml` to set the startup mode, roster, splash screen, window size, output font sizes, rolling rate, viewer, status bar, and log level; the theme and language come from their dedicated `theme.toml` and `language.toml` files. Every option in the configuration file has an explanatory comment.
 
 ```toml
+[window]
+size_mode = "screen_ratio"   # or "fixed"
+screen_ratio = 0.75          # initial size as a share of the available screen
+aspect_ratio = 1.5
+width = 1000
+height = 600
+resizable = true
+remember_size = true
+
+[scroll]
+rate = 30
+
 [splash]
 enabled = true
-mode = 0
+mode = 1
 duration_ms = 1000
-size_mode = "screen_ratio"
-width = 480
-height = 270
-
-[window]
-size_mode = "screen_ratio"
-width = 800
-height = 600
-aspect_ratio = 1.5
-
-[logging]
-level = "INFO"
+screen_ratio = 0.25
 ```
 
-The proportional splash is constrained to one quarter of the screen width and height. The main window defaults to a 3:2 ratio and is constrained to three quarters of the screen width and height. Splash mode `0` closes when the main window is ready; mode `1` keeps it visible for `duration_ms`. Set `enabled = false` to disable it.
+In proportional mode the splash is constrained by `screen_ratio`, and the main window is calculated from `screen_ratio` and `aspect_ratio`. Splash mode `0` closes when the main window is ready; mode `1` keeps it visible for at least `duration_ms`. The current version is drawn in the bottom-right corner of the splash.
 
-Use **File > Refresh application data** after editing configuration, rosters, language packs, or themes. The current mode, theme, language, roster, result, and status are retained when their selections remain valid. If a selected theme, language, or roster was removed, randname chooses an available fallback.
+Use **File > Refresh application data** after editing configuration, rosters, language packs, or themes. The current mode, theme, language, roster, result, and status are retained when their selections remain valid. If a selected resource was removed, randname chooses an available fallback.
 
 ## Logs and Memory
 
-Choose a threshold under **About > Log level**: Debug, Information, Warning, Error, or Critical. Records below the selected level are omitted. **About > Program log** displays all records captured since this process started. The persistent log is `doc/log.log`.
+Choose a threshold under **About > Log level**: Debug, Information, Warning, Error, or Critical. Records below the selected level are omitted. **About > Program log** opens `doc/log.log` read-only and refreshes automatically as the file changes, so it can be watched while the program runs.
 
 File > Import memory and File > Export memory exchange recent results as JSON. They do not replace configuration or roster files. The runtime memory file is `doc/memory.json`.
+
+Help, the license, and the program log all use randname's own read-only viewer. The viewer is clamped to the available desktop area so the taskbar remains accessible; it supports touch-drag scrolling, and its font size and refresh interval can be adjusted in `[viewer]`.
 
 ## Startup and Troubleshooting
 
 The splash screen appears before data checks and window initialization. Missing configuration, roster, language, or theme files use their available backup or built-in data; randname reports these cases in the status bar and log without an extra dialog. Missing executable components stop startup and show a detailed error.
 
-If a configured choice is unavailable after editing files, use **File > Refresh application data**. Help and the license are rendered in randname's own window and do not require an external viewer. If the selected help translation is unavailable, the Help command opens this English document.
+If a configured choice is unavailable after editing files, use **File > Refresh application data**. If the selected help translation is unavailable, the Help command opens this English document. **About > Feedback** opens the GitHub Issues page.

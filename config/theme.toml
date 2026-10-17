@@ -1,3 +1,5 @@
+# randname 配置文件 - GNU GPL v3.0 - Copyright (C) 2026 HQZ-OhNone
+# 本文件使用 UTF-8 编码；修改后可在程序中选择“文件 > 刷新程序状态”。
 # 主题目录：修改 default 可更改启动默认与无效主题的回退项；值必须匹配下方主题键。
 default = "randname-dark"
 

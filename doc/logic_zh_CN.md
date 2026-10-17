@@ -1,0 +1,502 @@
+# randname 业务逻辑说明（简体中文）
+
+Copyright (C) 2026 HQZ-OhNone <ohnone_hqz@outlook.com>
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
+
+本文记录 randname 3.8.0 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
+`logic_en_US.md`，正體中文版见 `logic_zh_TW.md`。
+
+## 1. 术语与模式
+
+| 内部标识 | 简体界面 | 繁體界面 | English | 页面 |
+| --- | --- | --- | --- | --- |
+| `Multi` | 多抽 | 多抽 | Multi | 多抽页面 |
+| `Single` | 单抽 | 單抽 | Single | 多抽页面（数量 1） |
+| `Lift` | 减量抽 | 減量抽 | Elimination | 减量抽页面 |
+| `ScrollMulti` | 滚动多抽 | 滾動多抽 | Rolling Multi | 滚动多抽页面 |
+| `ScrollSingle` | 滚动单抽 | 滾動單抽 | Rolling Single | 滚动多抽页面（数量 1） |
+| `ScrollLift` | 滚动减量抽 | 滾動減量抽 | Rolling Elimination | 滚动减量抽页面 |
+
+- “单抽”和“滚动单抽”只是菜单快捷方式，不创建独立控制器或页面。
+- 内部结果、日志和记忆仍使用 `Multi`、`Lift`、`ScrollMulti`、`ScrollLift` 作为 `mode` 字段。
+- 用户可见文本不再出现裸 `ScrollMulti` 等内部标识。
+
+## 2. 文件与职责
+
+| 路径 | 职责 |
+| --- | --- |
+| `main.py` | 启动、主窗口、菜单、状态栏、页面切换、记忆回填、查看器入口 |
+| `lib/version.py` | `APP_VERSION = "3.8.0"` |
+| `lib/Multi.py` | 多抽算法 |
+| `lib/Lift.py` | 减量抽算法 |
+| `lib/ScrollMulti.py` | 滚动多抽控制器 |
+| `lib/ScrollLift.py` | 滚动减量抽控制器（继承 ScrollMultiController） |
+| `lib/OutputView.py` | 输出框单行/多行/缩字号自适应 |
+| `lib/TextViewer.py` | 只读、实时刷新的帮助/许可证/日志查看器 |
+| `lib/StateManager.py` | 配置、记忆、偏好、日志 |
+| `lib/importnames.py` | 启动时加载名单 |
+| `lib/ThemeManager.py` | 主题读取、样式表 |
+| `lib/LanguageManager.py` | 语言包、翻译、回退 |
+| `ui/*.ui` | Qt Designer 源文件 |
+| `lib/ui_*.py` | `pyside6-uic` 编译产物，构建前重新生成 |
+| `config/config.toml` | 主配置 |
+| `config/name.toml` | 名单 |
+| `config/theme.toml` | 主题 |
+| `config/language.toml` | 语言包 |
+| `doc/memory.json` | 偏好、窗口尺寸、最近结果 |
+| `doc/log.log` | 持久日志 |
+| `doc/logic_*.md` | 本业务逻辑文档 |
+
+## 3. 启动流程
+
+1. `main.py` 打印 GPL 横幅。
+2. 创建 `QApplication`。
+3. `_bootstrap_config()` 读取 `config/config.toml`；失败时读取 `.config.default.toml`，再失败使用内建配置。
+4. 读取图标；创建启动画面。
+5. 启动画面按 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 缩放，保持宽高比。
+6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.8.0`；字号优先 `[splash].version_font_size`，为 0 时按图片高度自动计算；颜色为 `version_color`。
+7. `_startup_file_check()` 检查可恢复文件；缺失项加入启动警告。`required` 当前恒为空，因此“启动检查失败”分支不可达。
+8. 导入 `lib` 模块。
+9. `StateManager.configure_paths()` 应用 `[paths]` 的日志/记忆路径。
+10. 读取记忆偏好；若 `[app].remember_preferences = false`，忽略偏好。
+11. 日志等级：记忆中的有效 `log_level` > `[logging].level` > `INFO`。
+12. 主题：记忆中的有效主题 > `theme.toml` 的 `default` > `config.toml` 的 `app.theme` > 主题目录第一项。
+13. 语言：记忆中的有效语言 > `language.toml` 的 `preferred` > `config.toml` 的 `app.language` > 系统语言 > `en_US`。
+14. 名单：记忆中的有效名单 > `config.toml` 的 `app.roster` > 名单目录第一项。
+15. 模式：记忆中的有效 `mode` > `config.toml` 的 `app.default_mode` > `Multi`。
+16. 创建 `MainWindow`，应用主题，显示窗口；若记忆为最大化则 `showMaximized()`。
+17. 启动画面按 `mode` 关闭。
+
+## 4. 配置优先级
+
+### 4.1 主题
+
+```
+记忆 preferences.theme（有效）
+  > theme.toml 的 default（有效）
+  > config.toml [app].theme（旧键，兼容）
+  > 主题目录第一项
+```
+
+### 4.2 语言
+
+```
+记忆 preferences.language（有效）
+  > language.toml 的 preferred（有效）
+  > config.toml [app].language（旧键，兼容）
+  > 系统语言
+  > en_US
+```
+
+### 4.3 其他
+
+- 名单：记忆 `preferences.roster` > `config.toml [app].roster` > 第一组名单。
+- 模式：记忆 `preferences.mode` > `config.toml [app].default_mode` > `Multi`。
+- 日志等级：记忆 `preferences.log_level` > `config.toml [logging].level` > `INFO`。
+- 数量：记忆 `preferences.quantities` > 1。
+- 窗口：`config.toml [window]` 计算初始尺寸；若 `remember_size = true` 且记忆尺寸有效，则记忆尺寸覆盖初始尺寸。
+
+`[app].remember_preferences = false` 会忽略启动时的应用偏好（主题/语言/名单/模式/数量/日志等级），但不影响 `[window].remember_size`。
+
+## 5. 窗口尺寸与状态栏
+
+### 5.1 初始尺寸
+
+`_configured_size(section, screen_width, screen_height)`：
+
+1. `size_mode = "fixed"` 且 `width`/`height` 为正整数：直接使用。
+2. 否则读取 `screen_ratio`（默认 0.75，范围 0.05~1.0）和 `aspect_ratio`（默认 1.5）。
+3. `width = screen_width * screen_ratio`。
+4. `height = width / aspect_ratio`。
+5. 若 `height > screen_height * screen_ratio`，则 `height = screen_height * screen_ratio`，`width = height * aspect_ratio`。
+6. 结果转整数，至少为 1。
+
+启动画面使用相同算法，默认 `screen_ratio = 0.25`、`aspect_ratio = 2.0`。
+
+### 5.2 拉伸与持久化
+
+- `[window].resizable = true` 时允许用户拖动边缘；最小尺寸 640×480。
+- `resizable = false` 时 `setFixedSize()`。
+- 内容变化（长名字、导入记忆、滚动 tick、字号变化）不会改变窗口尺寸。
+- 用户拉伸后，`resizeEvent` 启动 450ms 单次定时器；定时器触发时写入记忆。
+- 窗口状态变化（最大化/还原）也触发保存。
+- 关闭窗口时再次保存。
+- 最大化时保存 `normalGeometry()` 的宽高和 `maximized: true`；还原时保存当前宽高和 `maximized: false`。
+- 启动时记忆尺寸会被夹紧到当前屏幕可用区域，避免窗口超出屏幕。
+- “文件 > 刷新程序状态”不重置当前窗口尺寸。
+
+### 5.3 状态栏
+
+- 左侧是 `QStatusBar.showMessage()` 临时消息。
+- 右侧永久控件依次为：模式、名单、数量、主题、语言、日志等级、版本；每项前有 `|` 分隔符。
+- `[statusbar]` 的 `show_*` 控制显示/隐藏。
+- 切换模式、名单、数量、主题、语言、日志等级、刷新配置后调用 `_update_status_info()`。
+- 版本来自 `lib/version.py`。
+
+## 6. 输出框自适应（所有模式共用）
+
+`lib/OutputView.py` 包装一个 `QLabel`：
+
+1. `setSizePolicy(Ignored, Ignored)`、`setMinimumSize(0, 0)`，防止 `QLabel.sizeHint()` 把窗口撑大。
+2. 基准字号 `[ui].display_font_size`；下限 `display_min_font_size`；步长 `display_font_step`；行距 `display_line_spacing`；内边距 `display_padding`。
+3. 显示姓名列表时按显示宽度贪婪分行，姓名之间两个空格，不会从姓名中间断开。
+4. 先用基准字号尝试单行；单行放不下且高度足够时改为多行；仍放不下则逐步缩小字号。
+5. 极端情况下单个姓名仍比结果框宽时，允许 Qt 在字符间换行，避免内容完全不可见。
+6. 滚动模式在每轮开始时调用 `begin_round(pool_names, quantity)`：
+   - 按基准字号测量池中最宽的 `quantity` 个姓名；
+   - 计算一个能容纳最坏情况的字号并锁定；
+   - 本轮 tick 更新时沿用锁定字号，避免字号抖动；
+   - 结果/重置后恢复自动字号。
+7. `set_message()` 用于“等待输入”“暂无结果”等占位文案，始终使用基准字号。
+8. `resizeEvent` 触发重新排版；用户拉伸窗口后自动重新选择单行/多行/字号。
+
+## 7. 多抽（Multi）
+
+`Multi.Multi(alllist, quantity)`：
+
+1. 若 `quantity > len(alllist)`：`outdict = {}`，返回。
+2. 否则从完整名单键中无放回随机抽取 `quantity` 个。
+3. `outdict` 下标重排为 `"0"`, `"1"`, ...，每项为 `{"code": 原键, "name": 姓名}`。
+4. 时间格式 `%Y-%m-%d-%H:%M:%S`（短横线分隔）。
+5. 每次抽取都从完整名单开始，不消耗名单。
+
+结果：
+
+```json
+{
+  "mode": "Multi",
+  "quantity": {"total": 9, "selected": 3},
+  "time": "2026-10-18-12:00:00",
+  "outdict": {
+    "0": {"code": "1", "name": "张三"}
+  }
+}
+```
+
+## 8. 减量抽（Lift）
+
+`Lift.Lift(alllist, Liftdict, quantity)`：
+
+1. `Liftdict` 是当前剩余名单；首次为空时由 `MainWindow` 传入完整名单。
+2. 若 `Liftdict` 为空或 `quantity > len(Liftdict)`：`outdict = {}`，`Liftdict` 原样返回，界面显示“暂无结果”。
+3. 否则从 `Liftdict` 无放回抽取，`outdict` 每项为单键包裹 `{原键: 姓名}`（与 Multi 不同）。
+4. `Liftdict` 更新为未抽中的人。
+5. `quantity` 字段：
+   - `total`：完整名单人数；
+   - `wasted`：`total - len(抽取前 Liftdict)`；
+   - `selected`：本次抽取数；
+   - `Lift`：`len(抽取前 Liftdict) - selected`，即本轮之后剩余人数（命名容易误解）。
+6. `alllist` 直接引用完整名单字典，会随结果写入记忆。
+7. “重置”清空 `lift_current_dict`，下一次从完整名单开始；数量不变。
+8. 切换名单或刷新后名单内容变化时，`lift_current_dict` 清空。
+
+## 9. 滚动多抽（ScrollMulti）
+
+`ScrollMultiController`：
+
+- 构造时复制名单，`quantity` 默认 1，定时器间隔 `max(1, 1000 // rate)`。
+- `start()`：
+  1. 名单为空时调用 `on_warning(0)` 并返回。
+  2. `total = min(quantity, len(names))`；请求数超过名单时警告。
+  3. `pool = dict(names)`，为本轮建立共享池。
+  4. 创建 `total` 个 reel，每个 reel 有独立随机顺序、当前索引、当前键/姓名。
+  5. 调用 `view.begin_round(pool.values(), total)` 锁定本轮字号。
+  6. 立即 `_tick()` 显示第一帧，再启动定时器。
+- `_tick()`：
+  - 对每个 active reel 取顺序中的下一个键；
+  - 顺序用完则重新洗牌；
+  - 若键已不在池中（快速点击造成的过期键），重新洗牌并跳过；
+  - 更新 reel 的键/姓名；
+  - 刷新输出框。
+- `stop_next()`：
+  1. 取第一个 active reel；
+  2. 标记为 inactive；
+  3. 若它当前键已被更早停止的 reel 占用，则从剩余池随机补一个；
+  4. 从池中移除该键；
+  5. 为所有仍 active 的 reel 重建顺序，保证不会再落到已固定名字；
+  6. 刷新输出；
+  7. 若没有 active reel，调用 `_finish()`；否则更新按钮文案。
+- 按钮文案：运行中 `停止（剩余/总数）`，空闲 `抽取`。
+- `_finish()`：停止定时器、置 `running = False`、构造结果、恢复按钮、回调 `on_result(result, meta)`。
+- 结果：
+  - `mode = "ScrollMulti"`；
+  - `time` 短横线格式；
+  - `quantity.total = len(names)`，`quantity.selected = total`；
+  - `outdict` 按停止顺序 `"0"`, `"1"`, ...，每项 `{"code", "name"}`；
+  - 同一轮 code 不重复。
+- `show_result(result)`：从记忆恢复显示，不启动滚动；`outdict` 支持 `{"name","code"}` 和单键包裹两种旧格式。
+- `update_names()`：名单变化时更新并重置；`update_rate()` 只改间隔。
+
+## 10. 滚动减量抽（ScrollLift）
+
+`ScrollLiftController` 继承 `ScrollMultiController`，复用滚动/逐个停止逻辑，并增加“跨轮剩余池”：
+
+- `lift_pool` 初始为完整名单。
+- `start()`：
+  1. `lift_pool` 为空时警告并返回；主窗口显示“剩余名单已空，请重置后继续”。
+  2. `available = len(lift_pool)`；`total = min(quantity, available)`；请求数超过剩余时警告。
+  3. 保存 `round_available = available`。
+  4. 本轮池 `pool = dict(lift_pool)`。
+  5. 创建 reel、锁定字号、启动定时器。
+- 停止逻辑与 ScrollMulti 相同；本轮固定的人从 `pool` 移除。
+- `_finish()`：先把 `lift_pool = dict(pool)`（本轮结束后剩余的人），再走父类完成逻辑。
+- 结果：
+  - `mode = "ScrollLift"`；
+  - `quantity.total = len(names)`；
+  - `quantity.wasted = total - round_available`；
+  - `quantity.selected = total`；
+  - `quantity.Lift = round_available - total`；
+  - `outdict` 为本轮抽中者；
+  - `alllist` 为完整名单；
+  - `Liftdict` 为本轮之后剩余名单。
+- `reset()`：恢复 `lift_pool = dict(names)`，清空输出，数量不变。
+- `show_result()`：显示记忆结果；若存在 `Liftdict` 则恢复剩余池；旧记忆没有 `Liftdict` 时用完整名单减去 `outdict` 的 code 恢复。
+- 切换名单/刷新后名单变化：`update_names()` 会重置剩余池。
+- 导入记忆不会立即改变当前主题/语言；只恢复结果和剩余池。
+
+## 11. 单抽与滚动单抽别名
+
+- 菜单“单抽” → `_show_single_page()`：
+  - `multi_quantity = 1`；
+  - 更新数量标签；
+  - 切到多抽页面；
+  - 保存模式偏好为 `Multi`。
+- 菜单“滚动单抽” → `_show_scrollsingle_page()`：
+  - `scroll_multi_quantity = 1`；
+  - 更新控制器数量；
+  - 切到滚动多抽页面；
+  - 保存模式偏好为 `ScrollMulti`。
+- `default_mode` 兼容：
+  - `"Single"` → Multi 数量 1；
+  - `"ScrollSingle"` → ScrollMulti 数量 1；
+  - 其他非法值 → Multi。
+- 不创建 `Single.py`、`ScrollSingle.py`、`WidgetScrollSingle.ui` 或对应页面。
+
+## 12. 记忆文件
+
+### 12.1 结构
+
+```json
+{
+  "preferences": {
+    "theme": "randname-dark",
+    "language": "zh_CN",
+    "roster": "class_1",
+    "mode": "ScrollMulti",
+    "log_level": "INFO",
+    "quantities": {
+      "multi": 1,
+      "lift": 1,
+      "scroll_multi": 3,
+      "scroll_lift": 1
+    },
+    "window": {
+      "width": 1200,
+      "height": 760,
+      "maximized": false
+    }
+  },
+  "last_results": {
+    "Multi": null,
+    "Lift": null,
+    "ScrollMulti": null,
+    "ScrollLift": null
+  },
+  "loaded_config": null
+}
+```
+
+- `last_results.*` 的运行期条目通常为 `{"result": ..., "meta": ...}`；Multi/Lift 使用 `{"result": ..., "time": ...}`。
+- 写入使用 `json.dumps(..., ensure_ascii=False, indent=2)`，UTF-8。
+- `save_memory()` 先写 `.tmp` 再 `replace()`，避免中断留下半个 JSON。
+- 读取时 `_normalize_memory()` 补齐缺失字段、丢弃非法值、兼容旧 `loaded_config`。
+- 旧版 `ScrollSingle` 结果不再单独恢复；旧版 `last_results` 中的其他键会被忽略。
+
+### 12.2 偏好保存时机
+
+- 主题、语言、名单、模式、数量、日志等级变化后立即保存。
+- 窗口尺寸 450ms 防抖保存 + 关闭时保存 + 最大化状态变化保存。
+- 每次抽取/滚动停止后保存结果，同时更新 `loaded_config` 快照。
+- 导入/导出记忆不会写入 `config/`。
+- 导入时若导入文件没有 `preferences`，保留当前偏好；若有，则导入偏好下次启动生效，当前会话不立即切换主题/语言。
+- `remember_preferences = false` 时不读取/保存应用偏好，但 `remember_size` 仍可独立工作。
+
+## 13. 日志
+
+- `StateManager.configure_logging(level)` 设置根 logger 等级，并安装 `_SessionLogHandler`。
+- `_SessionLogHandler` 把 Python logging 记录追加到 `[paths].log_file`，同时保存到 `SESSION_LOG_RECORDS`。
+- `StateManager.log(level, action, result=None, error=None)` 写入精简单行：
+
+```
+time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
+```
+
+- 字段顺序固定：`time` → `level` → `action` → `result` → `error`。
+- `_log_value()` 把换行/制表符替换为空格，把 `{}[]` 替换为 `()`，保证严格单行。
+- 日志等级低于当前等级时不写入。
+- “关于 > 程序日志”读取日志文件，不是只读内存中的会话记录；因此可以看到程序启动以来的完整持久日志。
+- 日志查看器每 `[viewer].refresh_ms` 毫秒检查一次文件修改时间/大小；文件追加、替换、删除都会刷新。
+
+## 14. 内部文本查看器
+
+`lib/TextViewer.py`：
+
+- 帮助/许可证使用 `QTextBrowser` + `setMarkdown()`；日志使用 `QPlainTextEdit` + `setPlainText()`。
+- 只读：`setReadOnly(True)`、禁用撤销/重做。
+- 非模态：`setModal(False)`，可一边运行主程序一边查看。
+- `QFileSystemWatcher` 监听文件和父目录；同时用 `QTimer` 轮询兜底。
+- 刷新前记录滚动条位置；若原本在底部，刷新后自动跟随到底部；用户上滚后不强制跳到底部。
+- 尺寸：
+  - 使用父窗口所在屏幕的 `availableGeometry()`；
+  - 宽高不超过 `available * max_screen_ratio`，再减 24px 边距；
+  - 最大 900×680，最小尺寸按可用区域收缩；
+  - 居中显示。
+- 触屏：`QScroller.grabGesture(viewport, LeftMouseButtonGesture)`；滚动条宽 22px；关闭按钮最小高度 40px。
+- 同一路径重复打开时激活已有窗口，不重复创建。
+- 帮助/许可证文件内容变化时实时刷新，不需要重新打开。
+
+## 15. 主题与语言
+
+### 15.1 主题
+
+- `config/theme.toml` 集中保存 `default` 与 `[themes.<键>]`。
+- 每个主题含 `color_format`、`name`（多语言）和 `colors`。
+- 支持 `HexA`、`Hex`、`RGBA`、`RGB`。
+- `_stylesheet()` 生成全局 QSS：
+  - 页面/控件背景、文字；
+  - 输出框 ID 选择器：`label_MultiOutput`、`label_LiftOutput`、`label_ScrollMultiOutput`、`label_ScrollLiftOutput`；
+  - 按钮正常/悬停/按下；
+  - 菜单选中强调色；
+  - 状态栏背景。
+- ID 选择器优先级高于控件内联的 `QLabel` 元素选择器，因此主题色会覆盖 `.ui` 中的默认背景。
+- 主题名按当前语言、系统语言、英语、主题键回退。
+
+### 15.2 语言
+
+- `config/language.toml` 的 `preferred` 是首次启动首选；记忆偏好优先。
+- `LanguageManager.ENGLISH` 是内建兜底包；语言文件缺失时仍可用英语。
+- 翻译键缺失时回退到 `ENGLISH`，再回退键名。
+- `{count}`、`{name}` 等占位符必须保留；格式化失败时返回原文。
+- 切换语言立即刷新菜单、按钮、占位文案和状态栏，不清除当前结果。
+
+## 16. UI 与菜单
+
+- 主窗口：`ui/Main.ui` → `lib/ui_main.py`。
+- 页面：
+  - `ui/WidgetMulti.ui` → 多抽；
+  - `ui/WidgetLift.ui` → 减量抽；
+  - `ui/WidgetScrollMulti.ui` → 滚动多抽；
+  - `ui/WidgetScrollLift.ui` → 滚动减量抽（比滚动多抽多一个“重置”按钮）。
+- 模式菜单顺序：单抽、多抽、减量抽、分隔线、滚动单抽、滚动多抽、滚动减量抽。
+- 关于菜单：帮助、程序日志、日志等级、分隔线、许可证、项目仓库、反馈。
+- 仓库/反馈地址硬编码在 `main.py`：
+  - `REPOSITORY_URL`
+  - `FEEDBACK_URL`
+- 配置文件中不再提供这两个网址。
+- 模式 QAction 未归入 `QActionGroup`，可能出现多个勾选态；程序以当前页面/`current_mode` 为准。
+
+## 17. 构建与发布
+
+1. 用 `pyside6-uic` 编译：
+   - `ui/Main.ui` → `lib/ui_main.py`
+   - `ui/WidgetMulti.ui` → `lib/ui_widgetmulti.py`
+   - `ui/WidgetLift.ui` → `lib/ui_widgetlift.py`
+   - `ui/WidgetScrollMulti.ui` → `lib/ui_widgetscrollmulti.py`
+   - `ui/WidgetScrollLift.ui` → `lib/ui_widgetscrolllift.py`
+2. Nuitka 打包时包含：
+   - `ui/randname1.png`
+   - `ui/randname-start.png`
+   - `.config.default.toml`
+   - `.name.default.toml`
+   - `config/`
+   - `doc/`
+3. 旧文件 `WidgetScrollSingle.ui`、`ui_widgetscrollsingle.py`、`ScrollSingle.py`、`randname-start_v3.6.png`、`randname-start_v3.7.png` 已删除。
+4. 版本号在 `lib/version.py`；提交信息使用 `3.8.0[upgrade]_...` 触发发布流程。
+5. CI 在提交信息含 `[upgrade]` 时构建 Linux/Windows 包并创建 Release。
+
+## 18. 隐藏机制与边界
+
+### 18.1 输出与窗口
+
+- 输出框的 `Ignored` 尺寸策略是防止窗口被长文本撑大的关键；不要改回默认 `Expanding`。
+- `QLabel.setMinimumSize(0, 0)` 与手动分行共同保证布局不传播巨大最小尺寸。
+- 滚动模式字号在每轮开始时锁定，避免 tick 过程中字号上下跳动。
+- 用户拉伸窗口后，输出框会按新尺寸重新排版；窗口尺寸本身不会被内容修改。
+- 极端长姓名在最小字号下可能仍超宽，此时允许字符间换行；不要假设一定能完整单行显示。
+
+### 18.2 滚动
+
+- ScrollMulti 的 `pool` 是本轮共享池，`start()` 时从完整名单重建。
+- 快速点击“停止”可能发生在两个 tick 之间；`stop_next()` 会检查当前键是否仍可用，必要时从剩余池补抽。
+- 每次停止后重建所有 active reel 的顺序，保证不会再次落到已固定名字。
+- `quantity.total` 是完整名单人数，不是本轮实际抽取数；实际抽取数看 `quantity.selected`。
+- ScrollLift 的 `lift_pool` 跨轮保留；`quantity.wasted` 表示此前已经减量掉的人数。
+- ScrollLift 剩余池为空时不会自动重置，必须点“重置”。
+- 导入记忆恢复 ScrollLift 时会恢复 `Liftdict`，因此可以继续上一轮的剩余名单。
+
+### 18.3 减量抽
+
+- `_adjust_quantity` 的上限是完整名单长度，不是剩余长度；剩余不足时点“抽取”会走 `outdict={}` 分支显示“暂无结果”，需要手动调小数量或重置。
+- `Lift` 结果的 `quantity.Lift` 是“本轮之后剩余人数”，不是“已减量数”。
+- 导入历史记忆不会恢复 `lift_current_dict`；减量抽剩余状态只能通过当前会话继续。
+
+### 18.4 记忆
+
+- `loaded_config` 是抽取时配置快照，仅用于兼容旧记忆；新偏好以 `preferences` 为准。
+- 导入记忆不会写入 `config/`，不会改变名单，不会立即切换主题/语言。
+- 记忆文件损坏时回退默认结构，不阻止程序启动。
+- `save_memory()` 原子替换；不要在别处直接 `write_text()` 写 `memory.json`。
+- 旧版 `ScrollSingle` 记忆条目会被忽略；旧版 `scrollsingle` 小写键也不再生效。
+
+### 18.5 日志与查看器
+
+- 日志文件路径可由 `[paths].log_file` 修改；查看器读取同一路径。
+- 日志查看器是非模态的，关闭主窗口时会一并关闭。
+- 文件被删除后查看器显示“暂无日志”，并继续监听父目录；文件重新创建后自动恢复。
+- 触屏拖动依赖 `QScroller`；Windows/Linux 的触摸板/触屏行为可能不同，需要实机验证。
+
+### 18.6 安全与隐私
+
+- 程序不访问网络，唯一网络行为是用户点击“项目仓库”或“反馈”时调用系统浏览器。
+- 没有密钥、令牌、遥测或自动上传。
+- `config/` 全程只读；程序只写 `[paths].memory_file` 和 `[paths].log_file`。
+- `doc/memory.json`、`doc/log.log` 已加入 `.gitignore`。
+
+### 18.7 编码与格式
+
+- 所有文本文件使用 UTF-8 + LF。
+- TOML 由 `tomllib` 直接解析，不要使用 BOM。
+- 记忆 JSON 使用 `ensure_ascii=False`，中文原样保存。
+- 新代码文件包含 GPL 标识；配置/文档包含版权与许可说明。
+
+## 19. 测试
+
+- `tests/test_output_fit.py`：单行/多行/缩字号/超长姓名。
+- `tests/test_memory.py`：偏好读写、旧格式兼容、导入结果提取。
+- `tests/test_scroll_lift.py`：剩余池、逐个停止、重置、数量越界。
+- `tests/test_config.py`：新旧配置键兼容与非法值回退。
+- 运行：`QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests`。
+
+## 20. 版本
+
+当前版本：**3.8.0**。
+
+本轮主要变化：
+
+- 修复滚动多抽窗口闪动；
+- 修复导入记忆撑宽窗口和打印字典内容；
+- 输出框全模式自适应；
+- 窗口可拉伸并持久化尺寸；
+- 状态栏信息扩展；
+- 记忆偏好与窗口尺寸；
+- 单抽/滚动单抽别名；
+- 新增滚动减量抽；
+- 实时只读文本查看器；
+- 启动画面新图与动态版本号；
+- 配置注释与精简；
+- 业务逻辑文档多语言化。

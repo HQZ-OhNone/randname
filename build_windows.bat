@@ -6,7 +6,7 @@ if not exist lib mkdir lib
 pyside6-uic ui\Main.ui -o lib\ui_main.py
 pyside6-uic ui\WidgetMulti.ui -o lib\ui_widgetmulti.py
 pyside6-uic ui\WidgetLift.ui -o lib\ui_widgetlift.py
-pyside6-uic ui\WidgetScrollSingle.ui -o lib\ui_widgetscrollsingle.py
+pyside6-uic ui\WidgetScrollLift.ui -o lib\ui_widgetscrolllift.py
 pyside6-uic ui\WidgetScrollMulti.ui -o lib\ui_widgetscrollmulti.py
 
 echo 安裝 Nuitka 與 PySide6
@@ -18,7 +18,7 @@ nuitka ^
   --standalone ^
   --enable-plugin=pyside6 ^
   --include-data-file=ui\randname1.png=ui\randname1.png ^
-  --include-data-file=ui\randname-start_v3.6.png=ui\randname-start_v3.6.png ^
+  --include-data-file=ui\randname-start.png=ui\randname-start.png ^
   --include-data-file=.config.default.toml=.config.default.toml ^
   --include-data-file=.name.default.toml=.name.default.toml ^
   --include-data-dir=config=config ^

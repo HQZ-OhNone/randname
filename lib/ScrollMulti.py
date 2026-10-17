@@ -16,8 +16,8 @@ Behavior:
   single large action button.
 - Start: create ``n`` reels (n = selected quantity) and roll every reel with a
   shared timer. All reels are shown together in the single output box, one name
-  per slot, arranged the same way as Multi results. The action button becomes
-  "停止（n/n）".
+  per slot. The OutputView decides single-line / multi-line / font shrinking.
+  The action button becomes "停止（n/n）".
 - Every press stops the next rolling reel, fixing the name it currently shows.
   A name fixed this round is removed from the round pool, so no other reel can
   draw it again in this round. The button shows "停止（x/n）" with x the number
@@ -51,31 +51,18 @@ def _interval_for_rate(rate) -> int:
     return max(1, 1000 // max(1, ticks))
 
 
-def _format_names(items) -> str:
-    """Arrange names in the single output box exactly like Multi results."""
-    names = [str(item) for item in items]
-    if not names:
-        return ""
-    if len(names) <= 4:
-        return "  ".join(names)
-    lines = []
-    for index in range(0, len(names), 4):
-        lines.append("  ".join(names[index:index + 4]))
-    return "\n".join(lines)
-
-
 class ScrollMultiController:
-    def __init__(self, label_widget, button, names_dict, on_result=None, rate=30,
+    def __init__(self, view, button, names_dict, on_result=None, rate=30,
                  draw_text="抽取", stop_format="停止（{remaining}/{total}）",
                  reset_text="等待输入", on_warning=None, on_state_change=None):
-        """label_widget: QLabel that shows every reel inside one box
+        """view: OutputView that shows every reel inside one box
            button: QPushButton used to start and to stop reels one by one
            names_dict: dict of key->name
            on_result: callable(result_dict, meta_dict) when a round completes
            on_warning: callable(message) when a round cannot start
            on_state_change: callable() whenever the button state changes
         """
-        self.label = label_widget
+        self.view = view
         self.button = button
         self.names = names_dict.copy() if isinstance(names_dict, dict) else {}
         self.on_result = on_result
@@ -108,12 +95,12 @@ class ScrollMultiController:
         return datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
 
     def _update_label(self) -> None:
-        if self.label is None:
+        if self.view is None:
             return
         if not self.reels:
-            self.label.setText(str(self.reset_text))
+            self.view.set_message(str(self.reset_text))
             return
-        self.label.setText(_format_names(reel["name"] for reel in self.reels))
+        self.view.set_names(reel["name"] for reel in self.reels)
 
     def _set_button_text(self) -> None:
         if self.button is None:
@@ -213,6 +200,8 @@ class ScrollMultiController:
             for _ in range(self.total)
         ]
 
+        if self.view is not None:
+            self.view.begin_round(list(self.pool.values()), self.total)
         self.running = True
         self._tick()  # show a first name immediately instead of an empty box
         self.timer.start()
@@ -281,6 +270,8 @@ class ScrollMultiController:
         self.timer.stop()
         self.running = False
         self.pool = {}
+        if self.view is not None:
+            self.view.clear_round()
         self._show_placeholder()
         self._set_button_text()
 
@@ -308,6 +299,8 @@ class ScrollMultiController:
         self.pool = {}
         self.total = len(reels)
         self.reels = reels
+        if self.view is not None:
+            self.view.clear_round()
         self._update_label()
         self._set_button_text()
 

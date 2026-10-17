@@ -91,8 +91,8 @@ class Ui_Form(object):
         sizePolicy1.setHeightForWidth(self.label_ScrollMultiOutput.sizePolicy().hasHeightForWidth())
         self.label_ScrollMultiOutput.setSizePolicy(sizePolicy1)
         font2 = QFont()
-        font2.setFamilies([u"\u6587\u6cc9\u9a7f\u7b49\u5bbd\u5fae\u7c73\u9ed1"])
-        font2.setPointSize(36)
+        font2.setFamilies([u"\u6587\u6cc9\u9a5b\u5fae\u7c73\u9ed1"])
+        font2.setPointSize(30)
         self.label_ScrollMultiOutput.setFont(font2)
         self.label_ScrollMultiOutput.setStyleSheet(u"QLabel {\n"
 "    background-color: rgba(20, 20, 20, 255);  /* \u6df1\u8272\u80cc\u666f */\n"

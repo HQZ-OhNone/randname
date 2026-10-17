@@ -54,10 +54,13 @@
     <property name="title">
      <string>模式</string>
     </property>
+    <addaction name="action_Single"/>
     <addaction name="action_Multi"/>
     <addaction name="action_Lift"/>
+    <addaction name="separator"/>
     <addaction name="action_ScrollSingle"/>
     <addaction name="action_ScrollMulti"/>
+    <addaction name="action_ScrollLift"/>
    </widget>
    <widget class="QMenu" name="menu_about">
     <property name="title">
@@ -69,6 +72,7 @@
     <addaction name="separator"/>
     <addaction name="action_license"/>
     <addaction name="action_repository"/>
+    <addaction name="action_feedback"/>
    </widget>
    <widget class="QMenu" name="menu_log_level">
     <property name="title">
@@ -100,7 +104,12 @@
   <widget class="QStatusBar" name="statusbar"/>
   <action name="action_Multi">
    <property name="text">
-   <string>抽取</string>
+   <string>多抽</string>
+   </property>
+  </action>
+  <action name="action_Single">
+   <property name="text">
+   <string>单抽</string>
    </property>
   </action>
   <action name="action_Lift">
@@ -133,14 +142,24 @@
     <string>开源仓库</string>
    </property>
   </action>
+  <action name="action_feedback">
+   <property name="text">
+    <string>反馈</string>
+   </property>
+  </action>
   <action name="action_ScrollSingle">
    <property name="text">
-    <string>滚动抽取</string>
+    <string>滚动单抽</string>
    </property>
   </action>
   <action name="action_ScrollMulti">
    <property name="text">
     <string>滚动多抽</string>
+   </property>
+  </action>
+  <action name="action_ScrollLift">
+   <property name="text">
+    <string>滚动减量抽</string>
    </property>
   </action>
   <action name="action_inputconfig">
