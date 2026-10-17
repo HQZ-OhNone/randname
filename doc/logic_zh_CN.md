@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文记录 randname 3.8.1 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
+本文记录 randname 3.8.2 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
 `logic_en_US.md`，正體中文版见 `logic_zh_TW.md`。
 
 ## 1. 术语与模式
@@ -31,7 +31,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路径 | 职责 |
 | --- | --- |
 | `main.py` | 启动、主窗口、菜单、状态栏、页面切换、记忆回填、查看器入口 |
-| `lib/version.py` | `APP_VERSION = "3.8.1"` |
+| `lib/version.py` | `APP_VERSION = "3.8.2"` |
 | `lib/Multi.py` | 多抽算法 |
 | `lib/Lift.py` | 减量抽算法 |
 | `lib/ScrollMulti.py` | 滚动多抽控制器 |
@@ -59,18 +59,18 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 3. `_bootstrap_config()` 读取 `config/config.toml`；失败时读取 `.config.default.toml`，再失败使用内建配置。
 4. 读取图标；创建启动画面。
 5. 启动画面按 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 缩放，保持宽高比。
-6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.8.1`；字号优先 `[splash].version_font_size`，为 0 时按图片高度自动计算；颜色为 `version_color`。
+6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.8.2`；字号优先 `[splash].version_font_size`，为 0 时按图片高度自动计算；颜色为 `version_color`。
 7. `_startup_file_check()` 检查可恢复文件；缺失项加入启动警告。`required` 当前恒为空，因此“启动检查失败”分支不可达。
 8. 导入 `lib` 模块。
 9. `StateManager.configure_paths()` 应用 `[paths]` 的日志/记忆路径。
-10. 读取记忆偏好；若 `[app].remember_preferences = false`，忽略偏好。
-11. 日志等级：记忆中的有效 `log_level` > `[logging].level` > `INFO`。
-12. 主题：记忆中的有效主题 > `theme.toml` 的 `default` > `config.toml` 的 `app.theme` > 主题目录第一项。
-13. 语言：记忆中的有效语言 > `language.toml` 的 `preferred` > `config.toml` 的 `app.language` > 系统语言 > `en_US`。
+10. 读取记忆中保留的主题、名单和日志等级；`[app].remember_preferences = false` 时全部忽略。窗口尺寸由 `[window].remember_size` 单独决定。
+11. 日志等级：记忆中的有效值 > `[logging].level` > `INFO`。
+12. 主题：记忆中的有效值 > `theme.toml` 的 `default` > `config.toml` `app.theme` > 主题目录第一项。
+13. 语言：`language.toml` 的 `preferred` > `config.toml` `app.language` > 系统语言 > `en_US`。
 14. 名单：记忆中的有效名单 > `config.toml` 的 `app.roster` > 名单目录第一项。
-15. 模式：记忆中的有效 `mode` > `config.toml` 的 `app.default_mode` > `Multi`。
-16. 创建 `MainWindow`，应用主题，显示窗口；若记忆为最大化则 `showMaximized()`。
-17. 启动画面按 `mode` 关闭。
+15. 模式：`config.toml` 的 `app.default_mode` > `Multi`。
+16. 创建 `MainWindow`，应用主题；主窗口是否立即显示取决于 `[splash].mode`。
+17. `[splash].mode = 1` 时先只显示启动画面，剩余时间到后才显示主窗口并关闭启动画面；其他模式在主窗口准备好后立即显示并关闭启动画面。
 
 ## 4. 配置优先级
 
@@ -86,8 +86,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 ### 4.2 语言
 
 ```
-记忆 preferences.language（有效）
-  > language.toml 的 preferred（有效）
+language.toml 的 preferred（有效）
   > config.toml [app].language（旧键，兼容）
   > 系统语言
   > en_US
@@ -96,12 +95,12 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 ### 4.3 其他
 
 - 名单：记忆 `preferences.roster` > `config.toml [app].roster` > 第一组名单。
-- 模式：记忆 `preferences.mode` > `config.toml [app].default_mode` > `Multi`。
+- 模式：`config.toml [app].default_mode` > `Multi`（不读取记忆）。
 - 日志等级：记忆 `preferences.log_level` > `config.toml [logging].level` > `INFO`。
-- 数量：记忆 `preferences.quantities` > 1。
+- 数量：固定从 1 开始（不读取记忆）。
 - 窗口：`config.toml [window]` 计算初始尺寸；若 `remember_size = true` 且记忆尺寸有效，则记忆尺寸覆盖初始尺寸。
 
-`[app].remember_preferences = false` 会忽略启动时的应用偏好（主题/语言/名单/模式/数量/日志等级），但不影响 `[window].remember_size`。
+`[app].remember_preferences = false` 会忽略启动时的主题、名单和日志等级，但不影响 `[window].remember_size`。
 
 ## 5. 窗口尺寸与状态栏
 
@@ -117,6 +116,13 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 6. 结果转整数，至少为 1。
 
 启动画面使用相同算法，默认 `screen_ratio = 0.25`、`aspect_ratio = 2.0`。
+
+启动画面关闭时机由 `[splash].mode` 决定：
+
+- `mode = 0`：主窗口准备好后立即 `window.show()` 并关闭启动画面。
+- `mode = 1`：只显示启动画面，等 `duration_ms - splash_timer.elapsed()` 到点后再 `window.show()` 并 `splash.finish(window)`。
+- 延后显示主窗口是为了避开 Wayland：Wayland 不支持 `QSplashScreen` 置顶，主窗口一旦提前显示就会完全盖住启动画面。
+- `_splash_wait_ms(mode, duration_ms, elapsed_ms)` 负责计算剩余毫秒数，其他模式返回 0。
 
 ### 5.2 拉伸与持久化
 
@@ -316,15 +322,17 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 - `save_memory()` 先写 `.tmp` 再 `replace()`，避免中断留下半个 JSON。
 - 读取时 `_normalize_memory()` 补齐缺失字段、丢弃非法值、兼容旧 `loaded_config`。
 - 旧版 `ScrollSingle` 结果不再单独恢复；旧版 `last_results` 中的其他键会被忽略。
+- 启动时只使用 `preferences.theme`、`preferences.roster`、`preferences.log_level` 和 `preferences.window`；`language`、`mode`、`quantities` 即使仍存在于旧记忆文件也不会生效，程序也不再更新这些键。
 
 ### 12.2 偏好保存时机
 
-- 主题、语言、名单、模式、数量、日志等级变化后立即保存。
+- 主题、名单、日志等级变化后立即保存。
+- 语言、模式和数量变化不再写入偏好；下次启动分别回到 `language.toml`、`[app].default_mode` 和 1。
 - 窗口尺寸 450ms 防抖保存 + 关闭时保存 + 最大化状态变化保存。
 - 每次抽取/滚动停止后保存结果，同时更新 `loaded_config` 快照。
 - 导入/导出记忆不会写入 `config/`。
 - 导入时若导入文件没有 `preferences`，保留当前偏好；若有，则导入偏好下次启动生效，当前会话不立即切换主题/语言。
-- `remember_preferences = false` 时不读取/保存应用偏好，但 `remember_size` 仍可独立工作。
+- `remember_preferences = false` 时不读取/保存主题、名单和日志等级，但 `remember_size` 仍可独立工作。
 
 ## 13. 日志
 
@@ -416,7 +424,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
    - `config/`
    - `doc/`
 3. 旧文件 `WidgetScrollSingle.ui`、`ui_widgetscrollsingle.py`、`ScrollSingle.py`、`randname-start_v3.6.png`、`randname-start_v3.7.png` 已删除。
-4. 版本号在 `lib/version.py`；提交信息使用 `3.8.1[upgrade]_...` 触发发布流程。
+4. 版本号在 `lib/version.py`；提交信息使用 `3.8.2[upgrade]_...` 触发发布流程。
 5. CI 在提交信息含 `[upgrade]` 时构建 Linux/Windows 包并创建 Release。
 
 ## 18. 隐藏机制与边界
@@ -479,12 +487,12 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - `tests/test_output_fit.py`：单行/多行/缩字号/超长姓名。
 - `tests/test_memory.py`：偏好读写、旧格式兼容、导入结果提取。
 - `tests/test_scroll_lift.py`：剩余池、逐个停止、重置、数量越界。
-- `tests/test_config.py`：新旧配置键兼容与非法值回退。
+- `tests/test_config.py`：新旧配置键兼容、非法值回退、启动画面等待时间与偏好过滤。
 - 运行：`QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests`。
 
 ## 20. 版本
 
-当前版本：**3.8.1**。
+当前版本：**3.8.2**。
 
 本轮主要变化：
 
@@ -513,3 +521,12 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
   - 邮件客户端无法唤起时，弹出信息框显示邮箱地址。
 - 新增常量 `EMAIL_ADDRESS`；与仓库/反馈网址一样硬编码在 `main.py`。
 - 版本号更新为 `3.8.1`。
+
+## 22. 3.8.2 增补
+
+- 启动画面 `mode = 1` 时不再提前显示主窗口；`reveal_window()` 在剩余时间到后才 `window.show()` 并关闭启动画面，修复 Wayland 下启动画面被主窗口完全遮住、“一闪而过”的问题。
+- 新增 `_splash_wait_ms()` 计算启动画面剩余显示时间；`mode = 0` 和其他模式返回 0，保持“就绪即关闭”。
+- 记忆偏好只保留主题、名单、日志等级和窗口尺寸。新增 `_startup_preferences()` 在启动时过滤旧记忆；`_current_preferences()` 不再写入语言、模式和数量。
+- 启动时语言回到 `language.toml` 的 `preferred`，模式回到 `[app].default_mode`，数量从 1 开始。
+- 旧记忆文件中的 `language`、`mode`、`quantities` 保留但被忽略。
+- 版本号更新为 `3.8.2`。

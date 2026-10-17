@@ -36,7 +36,7 @@ Select a language from Language. Available language packs are listed in `config/
 
 Themes are stored in `config/theme.toml`. Its `default` key selects the fallback theme. Theme names use the same current-language, system-language, English, key fallback order as roster names.
 
-Valid preferences in the memory file (theme, language, roster, mode, quantities, log level, window size) take precedence over the configuration files, so the next startup reuses the last choices. Set `app.remember_preferences = false` in `config/config.toml` to always start from the configuration files.
+The memory file keeps only the theme, roster, log level, and window size from the last session; mode, language, and quantities return to the configuration defaults on every startup. Set `app.remember_preferences = false` in `config/config.toml` to stop remembering even the theme, roster, and log level (window size remains controlled by `[window].remember_size`).
 
 ## Window and Status Bar
 
@@ -68,7 +68,7 @@ duration_ms = 1000
 screen_ratio = 0.25
 ```
 
-In proportional mode the splash is constrained by `screen_ratio`, and the main window is calculated from `screen_ratio` and `aspect_ratio`. Splash mode `0` closes when the main window is ready; mode `1` keeps it visible for at least `duration_ms`. The current version is drawn in the bottom-right corner of the splash.
+In proportional mode the splash is constrained by `screen_ratio`, and the main window is calculated from `screen_ratio` and `aspect_ratio`. Splash mode `0` closes when the main window is ready; mode `1` keeps it visible for at least `duration_ms` and only then shows the main window, so the window cannot cover the splash. The current version is drawn in the bottom-right corner of the splash.
 
 Use **File > Refresh application data** after editing configuration, rosters, language packs, or themes. The current mode, theme, language, roster, result, and status are retained when their selections remain valid. If a selected resource was removed, randname chooses an available fallback.
 

@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文記錄 randname 3.8.1 的實際行為、隱藏機制與邊界。簡體中文見
+本文記錄 randname 3.8.2 的實際行為、隱藏機制與邊界。簡體中文見
 `logic_zh_CN.md`，英文見 `logic_en_US.md`。
 
 ## 1. 術語與模式
@@ -32,7 +32,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路徑 | 職責 |
 | --- | --- |
 | `main.py` | 啟動、主視窗、選單、狀態列、頁面切換、記憶回填 |
-| `lib/version.py` | `APP_VERSION = "3.8.1"` |
+| `lib/version.py` | `APP_VERSION = "3.8.2"` |
 | `lib/Multi.py` | 多抽演算法 |
 | `lib/Lift.py` | 減量抽演算法 |
 | `lib/ScrollMulti.py` | 滾動多抽控制器 |
@@ -57,21 +57,20 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
    `.config.default.toml`，再失敗使用內建設定。
 4. 載入圖示與啟動畫面。
 5. 依 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 縮放，保持比例。
-6. `_draw_splash_version()` 在右下角繪製 `v3.8.1`；`version_font_size = 0`
+6. `_draw_splash_version()` 在右下角繪製 `v3.8.2`；`version_font_size = 0`
    表示自動字號，`version_color` 控制顏色。
 7. `_startup_file_check()` 收集可恢復檔案警告；`required` 目前恆為空。
 8. 匯入 `lib` 模組。
 9. `StateManager.configure_paths()` 套用 `[paths]`。
-10. 讀取記憶偏好；`[app].remember_preferences = false` 時忽略。
+10. 讀取記憶中保留的主題、名單和日誌等級；`[app].remember_preferences = false` 時全部忽略。視窗尺寸由 `[window].remember_size` 單獨決定。
 11. 日誌等級：記憶中有效值 > `[logging].level` > `INFO`。
 12. 主題：記憶中有效值 > `theme.toml` 的 `default` > `config.toml`
     `app.theme` > 第一個主題。
-13. 語言：記憶中有效值 > `language.toml` 的 `preferred` > `config.toml`
-    `app.language` > 系統語言 > `en_US`。
+13. 語言：`language.toml` 的 `preferred` > `config.toml` `app.language` > 系統語言 > `en_US`。
 14. 名單：記憶中有效值 > `[app].roster` > 第一組名單。
-15. 模式：記憶中有效值 > `[app].default_mode` > `Multi`。
-16. 建立 `MainWindow`、套用主題、顯示；若記憶為最大化則還原。
-17. 依 `[splash].mode` 關閉啟動畫面。
+15. 模式：`[app].default_mode` > `Multi`。
+16. 建立 `MainWindow`、套用主題；主視窗是否立即顯示取決於 `[splash].mode`。
+17. `[splash].mode = 1` 時先只顯示啟動畫面，剩餘時間到後才顯示主視窗並關閉啟動畫面；其他模式在主視窗就緒後立即顯示並關閉啟動畫面。
 
 ## 4. 設定優先順序
 
@@ -87,8 +86,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 語言：
 
 ```
-記憶 preferences.language（有效）
-  > language.toml preferred（有效）
+language.toml preferred（有效）
   > config.toml [app].language（舊鍵）
   > 系統語言
   > en_US
@@ -97,13 +95,13 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 其他：
 
 - 名單：記憶 `preferences.roster` > `[app].roster` > 第一組。
-- 模式：記憶 `preferences.mode` > `[app].default_mode` > `Multi`。
+- 模式：`[app].default_mode` > `Multi`（不讀取記憶）。
 - 日誌等級：記憶 `preferences.log_level` > `[logging].level` > `INFO`。
-- 數量：記憶 `preferences.quantities` > 1。
+- 數量：固定從 1 開始（不讀取記憶）。
 - 視窗：`[window]` 計算初始尺寸；`remember_size = true` 且記憶尺寸有效時，
   記憶尺寸覆蓋初始尺寸。
 
-`[app].remember_preferences = false` 只忽略應用偏好，不影響
+`[app].remember_preferences = false` 只忽略主題、名單和日誌等級，不影響
 `[window].remember_size`。
 
 ## 5. 視窗與狀態列
@@ -121,6 +119,13 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 6. 回傳至少 1 的整數。
 
 啟動畫面使用相同演算法，預設 `screen_ratio = 0.25`、`aspect_ratio = 2.0`。
+
+啟動畫面關閉時機由 `[splash].mode` 決定：
+
+- `mode = 0`：主視窗就緒後立即 `window.show()` 並關閉啟動畫面。
+- `mode = 1`：只顯示啟動畫面，等 `duration_ms - splash_timer.elapsed()` 到點後再 `window.show()` 並 `splash.finish(window)`。
+- 延後顯示主視窗是為了避開 Wayland：Wayland 不支援 `QSplashScreen` 置頂，主視窗一旦提前顯示就會完全蓋住啟動畫面。
+- `_splash_wait_ms(mode, duration_ms, elapsed_ms)` 計算剩餘毫秒數，其他模式回傳 0。
 
 ### 拉伸與持久化
 
@@ -305,13 +310,15 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 - `save_memory()` 先寫 `.tmp` 再原子替換。
 - `_normalize_memory()` 補齊欄位、丟棄非法值、相容舊 `loaded_config`。
 - 舊 `ScrollSingle` 條目會被忽略。
-- 主題、語言、名單、模式、數量、日誌等級變更後立即儲存偏好。
+- 啟動時只使用 `preferences.theme`、`preferences.roster`、`preferences.log_level` 和 `preferences.window`；`language`、`mode`、`quantities` 即使仍存在於舊記憶檔也不會生效，程式也不再更新這些鍵。
+- 主題、名單、日誌等級變更後立即儲存偏好。
+- 語言、模式和數量變更不再寫入偏好；下次啟動分別回到 `language.toml`、`[app].default_mode` 和 1。
 - 視窗尺寸 450ms 防抖 + 關閉 + 最大化/還原時儲存。
 - 每次抽取/滾動完成後儲存結果。
 - 匯入/匯出不寫 `config/`。
 - 匯入檔沒有 `preferences` 時保留目前偏好；有偏好時下次啟動生效，目前工作階段
   不立即切換。
-- `remember_preferences = false` 關閉應用偏好，但 `remember_size` 仍獨立運作。
+- `remember_preferences = false` 關閉主題、名單和日誌等級的記憶，但 `remember_size` 仍獨立運作。
 
 ## 13. 日誌
 
@@ -388,7 +395,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
    `.config.default.toml`、`.name.default.toml`、`config/`、`doc/`。
 3. 已刪除 `WidgetScrollSingle.ui`、`ui_widgetscrollsingle.py`、
    `ScrollSingle.py`、`randname-start_v3.6.png`、`randname-start_v3.7.png`。
-4. 版本在 `lib/version.py`；提交訊息使用 `3.8.1[upgrade]_...` 觸發發布。
+4. 版本在 `lib/version.py`；提交訊息使用 `3.8.2[upgrade]_...` 觸發發布。
 
 ## 18. 隱藏機制與邊界
 
@@ -444,13 +451,13 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - `tests/test_output_fit.py`
 - `tests/test_memory.py`
 - `tests/test_scroll_lift.py`
-- `tests/test_config.py`
+- `tests/test_config.py`（含啟動畫面等待與偏好過濾）
 
 執行：`QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests`。
 
 ## 20. 版本
 
-目前版本：**3.8.1**。
+目前版本：**3.8.2**。
 
 本輪主要變更：
 
@@ -483,3 +490,12 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
   - 無法喚起郵件程式時，彈出資訊框顯示電子郵件地址。
 - `EMAIL_ADDRESS` 與專案/回饋網址一樣硬寫在 `main.py`。
 - 版本更新為 `3.8.1`。
+
+## 22. 3.8.2 增補
+
+- 啟動畫面 `mode = 1` 不再提前顯示主視窗；`reveal_window()` 在剩餘時間到後才 `window.show()` 並關閉啟動畫面，修正 Wayland 下啟動畫面被主視窗完全遮住、「一閃而過」的問題。
+- 新增 `_splash_wait_ms()` 計算啟動畫面剩餘顯示時間；`mode = 0` 和其他模式回傳 0，維持「就緒即關閉」。
+- 記憶偏好只保留主題、名單、日誌等級和視窗尺寸。新增 `_startup_preferences()` 在啟動時過濾舊記憶；`_current_preferences()` 不再寫入語言、模式和數量。
+- 啟動時語言回到 `language.toml` 的 `preferred`，模式回到 `[app].default_mode`，數量從 1 開始。
+- 舊記憶檔中的 `language`、`mode`、`quantities` 保留但被忽略。
+- 版本更新為 `3.8.2`。

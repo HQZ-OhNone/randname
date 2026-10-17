@@ -52,9 +52,9 @@ pip install pyside6==6.11.1
 - 程序配置位于 `config/config.toml`，名单位于 `config/name.toml`，语言包位于 `config/language.toml`，均使用 TOML。
 - `config/theme.toml` 集中保存主题颜色、多语言名称和默认主题；配置或名单缺失时分别回退到 `.config.default.toml` 和 `.name.default.toml`。
 - `config/config.toml` 内每一項都有面向首次使用者的注释，可直接照着修改。
-- 主题以 `theme.toml` 的 `default`、语言以 `language.toml` 的 `preferred` 为初始值；记忆文件中保存的有效偏好优先，因此下次启动会沿用上一次的主题、语言、名单、模式、数量和窗口尺寸。
+- 主题以 `theme.toml` 的 `default`、语言以 `language.toml` 的 `preferred` 为初始值；记忆文件会保留上次的主题、名单、日志等级和窗口尺寸，模式、语言和数量每次启动回到配置默认值。
 - 主窗口可自由拉伸；拉伸后的尺寸会写入记忆文件。输出框不会因为名字过长而改变窗口大小，而是自动切换单行/多行显示，必要时缩小字号。
-- 启动画面与主窗口均支持固定尺寸或屏幕比例尺寸；`[splash]` 支持关闭、就绪后关闭或固定显示时间。
+- 启动画面与主窗口均支持固定尺寸或屏幕比例尺寸；`[splash]` 支持关闭、就绪后关闭或固定显示时间（时间到后才显示主窗口）。
 - `doc/memory.json` 保存偏好与各模式最近结果，`doc/log.log` 保存精简的英文逐行日志；两者均不会提交到 Git。
 - 菜单栏“文件 -> 导入记忆...”和“导出记忆...”用于记忆文件，不会覆盖 `config/` 下的配置。
 - “关于 > 程序日志”会实时读取 `doc/log.log`，可以一边运行程序一边查看；帮助、许可证也使用同一个只读查看器。

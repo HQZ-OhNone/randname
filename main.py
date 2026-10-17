@@ -127,6 +127,41 @@ def _configured_size(section: dict, screen_width: int, screen_height: int, *, sp
     return max(1, int(width)), max(1, int(height))
 
 
+# 记忆偏好中允许跨启动保留的应用项；窗口尺寸由 [window].remember_size 单独控制。
+REMEMBERED_APP_PREFERENCES = ("theme", "roster", "log_level")
+
+
+def _startup_preferences(all_preferences: dict, remember: bool = True) -> dict:
+    """只回填需要记住的偏好，其余项留给配置文件与独立配置档。"""
+    if not isinstance(all_preferences, dict):
+        return {}
+    preferences = {}
+    window = all_preferences.get("window")
+    if isinstance(window, dict):
+        preferences["window"] = window
+    if remember:
+        for key in REMEMBERED_APP_PREFERENCES:
+            value = all_preferences.get(key)
+            if isinstance(value, str) and value:
+                preferences[key] = value
+    return preferences
+
+
+def _splash_wait_ms(mode, duration_ms, elapsed_ms) -> int:
+    """返回 mode=1 时启动画面还需显示的毫秒数；其他模式立即关闭。"""
+    if mode not in (1, "fixed"):
+        return 0
+    try:
+        duration = max(0, int(duration_ms))
+    except (TypeError, ValueError):
+        duration = 0
+    try:
+        elapsed = max(0, int(elapsed_ms))
+    except (TypeError, ValueError):
+        elapsed = 0
+    return max(0, duration - elapsed)
+
+
 def _rate_from_config(config: dict | None, default: int = 30) -> int:
     """Read a positive ticks-per-second rate, accepting old section names."""
     if not isinstance(config, dict):
@@ -1063,18 +1098,11 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------------ memory
     def _current_preferences(self):
+        # 只保存跨启动需要保留的偏好；模式、语言和数量每次启动回配置默认。
         return {
             "theme": self.selected_theme,
-            "language": self.current_language,
             "roster": self.current_roster,
-            "mode": self.current_mode,
             "log_level": StateManager.CURRENT_LOG_LEVEL,
-            "quantities": {
-                "multi": self.multi_quantity,
-                "lift": self.lift_quantity,
-                "scroll_multi": self.scroll_multi_quantity,
-                "scroll_lift": self.scroll_lift_quantity,
-            },
         }
 
     def _save_app_preferences(self):
@@ -1747,9 +1775,7 @@ def main():
         app_config = {}
     remember_preferences = app_config.get("remember_preferences", True) is not False
     all_preferences = StateManager.load_preferences()
-    preferences = all_preferences if remember_preferences else {
-        "window": all_preferences.get("window")
-    }
+    preferences = _startup_preferences(all_preferences, remember_preferences)
     if not isinstance(preferences, dict):
         preferences = {}
 
@@ -1815,18 +1841,23 @@ def main():
     except (OSError, ValueError, KeyError) as exc:
         logging.exception("应用启动主题失败: %s", exc)
         StateManager.log("ERROR", "startup_theme", error=str(exc))
-    window.show()
-    if window._start_maximized:
-        window.showMaximized()
-    if splash is not None:
-        if splash_mode in (1, "fixed"):
-            remaining_ms = max(0, splash_duration_ms - splash_timer.elapsed())
-            if remaining_ms:
-                QTimer.singleShot(remaining_ms, lambda: splash.finish(window))
-            else:
-                splash.finish(window)
-        else:
+    def reveal_window():
+        window.show()
+        if window._start_maximized:
+            window.showMaximized()
+        if splash is not None:
             splash.finish(window)
+
+    if splash is None:
+        reveal_window()
+    else:
+        # mode=1：先只显示启动画面，时间到再显示主窗口。
+        # Wayland 不支持启动画面置顶，提前显示主窗口会把启动画面完全盖住。
+        wait_ms = _splash_wait_ms(splash_mode, splash_duration_ms, splash_timer.elapsed())
+        if wait_ms:
+            QTimer.singleShot(wait_ms, reveal_window)
+        else:
+            reveal_window()
     return app.exec()
 
 

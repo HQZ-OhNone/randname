@@ -52,6 +52,38 @@ class ConfigHelperTests(unittest.TestCase):
         self.assertEqual(main.EMAIL_ADDRESS, "ohnone_hqz@outlook.com")
         self.assertTrue(main.FEEDBACK_URL.endswith("/issues"))
 
+    def test_splash_wait_respects_mode_and_duration(self):
+        self.assertEqual(main._splash_wait_ms(0, 4000, 500), 0)
+        self.assertEqual(main._splash_wait_ms(1, 4000, 500), 3500)
+        self.assertEqual(main._splash_wait_ms(1, 4000, 4500), 0)
+        self.assertEqual(main._splash_wait_ms("fixed", 1000, 1000), 0)
+
+    def test_startup_preferences_keep_only_remembered_items(self):
+        all_preferences = {
+            "theme": "randname-dark",
+            "language": "zh_CN",
+            "roster": "class_1",
+            "mode": "Lift",
+            "log_level": "DEBUG",
+            "quantities": {"multi": 4},
+            "window": {"width": 1000, "height": 700, "maximized": False},
+        }
+        preferences = main._startup_preferences(all_preferences, True)
+        self.assertEqual(preferences["theme"], "randname-dark")
+        self.assertEqual(preferences["roster"], "class_1")
+        self.assertEqual(preferences["log_level"], "DEBUG")
+        self.assertEqual(preferences["window"]["width"], 1000)
+        self.assertNotIn("language", preferences)
+        self.assertNotIn("mode", preferences)
+        self.assertNotIn("quantities", preferences)
+
+    def test_startup_preferences_master_switch(self):
+        preferences = main._startup_preferences(
+            {"theme": "randname-dark", "window": {"width": 1, "height": 1}}, False
+        )
+        self.assertNotIn("theme", preferences)
+        self.assertIn("window", preferences)
+
 
 if __name__ == "__main__":
     unittest.main()

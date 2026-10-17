@@ -136,3 +136,43 @@ verification results.
 - 三语言反馈菜单均显示 GitHub Issues / Email（或对应译名）。
 - 模拟邮件客户端失败时，弹窗显示 `ohnone_hqz@outlook.com`。
 - 仍需实机验证系统 `mailto:` 关联和真实窗口主题效果。
+
+## 2026-10-18 / 3.8.2
+
+### 已完成 / Completed
+
+- 修复启动画面在 Wayland 下一闪而过：`mode = 1` 时不再提前显示主窗口，等 `duration_ms` 剩余时间到后才 `window.show()` 并关闭启动画面。
+- 新增 `_splash_wait_ms()`；`mode = 0` 仍是主窗口就绪即关闭。
+- 记忆偏好只保留主题、名单、日志等级和窗口尺寸；模式、语言和数量每次启动回到配置默认值。
+- 新增 `_startup_preferences()` 过滤旧记忆；`_current_preferences()` 不再写入语言、模式和数量。
+- `remember_preferences` 仍作为总开关，`false` 时忽略主题/名单/日志等级，窗口尺寸仍由 `remember_size` 控制。
+- 版本号更新为 `3.8.2`。
+
+### English summary
+
+- Fixed the splash flashing by on Wayland: with `mode = 1` the main window is
+  no longer shown early; it waits for the remaining `duration_ms`, then calls
+  `window.show()` and closes the splash.
+- Added `_splash_wait_ms()`; `mode = 0` still closes as soon as the window is
+  ready.
+- Memory preferences now keep only theme, roster, log level, and window size;
+  mode, language, and quantities return to configuration defaults every startup.
+- Added `_startup_preferences()` to filter old memory, and
+  `_current_preferences()` no longer writes language, mode, or quantities.
+- `remember_preferences` remains the master switch; `false` ignores theme,
+  roster, and log level while `remember_size` still works independently.
+- Bumped the version to `3.8.2`.
+
+### 发现但未解决 / Found but unresolved
+
+- 旧 `doc/memory.json` 仍保留 `language`、`mode`、`quantities` 键，按要求不主动清除；这些键启动时被忽略。
+- Wayland 下启动画面位置由合成器决定，`move()` 不保证居中。
+- 启动画面点击不能跳过等待；如有需要可后续增加点击提前显示主窗口。
+- 启动画面被其它置顶窗口遮挡时仍需实机确认。
+
+### 验证 / Verification
+
+- `QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests` 通过。
+- 离屏计时探针：`QSplashScreen.show` 后约 4 秒才出现 `QMainWindow.show`，随后 `splash.finish`。
+- 启动偏好过滤测试覆盖保留项、忽略项和 `remember_preferences = false`。
+- 仍需在真实 Wayland 桌面确认启动画面完整停留 `duration_ms`。

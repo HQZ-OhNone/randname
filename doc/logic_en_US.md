@@ -9,7 +9,7 @@ version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
 This document records the actual behaviour, hidden mechanisms, and edge cases
-of randname 3.8.1. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
+of randname 3.8.2. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 `logic_zh_TW.md`.
 
 ## 1. Terms and modes
@@ -34,7 +34,7 @@ of randname 3.8.1. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 | Path | Responsibility |
 | --- | --- |
 | `main.py` | Startup, main window, menus, status bar, page switching, memory restore |
-| `lib/version.py` | `APP_VERSION = "3.8.1"` |
+| `lib/version.py` | `APP_VERSION = "3.8.2"` |
 | `lib/Multi.py` | Multi draw algorithm |
 | `lib/Lift.py` | Elimination draw algorithm |
 | `lib/ScrollMulti.py` | Rolling Multi controller |
@@ -59,24 +59,28 @@ of randname 3.8.1. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
    `.config.default.toml`, then the built-in configuration.
 4. Load the icon and create the splash screen.
 5. Scale the splash according to `[splash]`, keeping the image aspect ratio.
-6. `_draw_splash_version()` draws `v3.8.1` in the bottom-right corner.
+6. `_draw_splash_version()` draws `v3.8.2` in the bottom-right corner.
    `version_font_size = 0` selects an automatic size; `version_color` controls
    the text colour.
 7. `_startup_file_check()` collects recoverable-file warnings. `required` is
    currently always empty, so the fatal startup-check branch is unreachable.
 8. Import `lib` modules.
 9. `StateManager.configure_paths()` applies `[paths]`.
-10. Load memory preferences unless `[app].remember_preferences = false`.
+10. Read the remembered theme, roster, and log level unless
+    `[app].remember_preferences = false`. Window size is controlled separately
+    by `[window].remember_size`.
 11. Log level: remembered valid value > `[logging].level` > `INFO`.
 12. Theme: remembered valid value > `theme.toml` `default` >
     `config.toml` `app.theme` > first theme.
-13. Language: remembered valid value > `language.toml` `preferred` >
-    `config.toml` `app.language` > system language > `en_US`.
+13. Language: `language.toml` `preferred` > `config.toml` `app.language` >
+    system language > `en_US`.
 14. Roster: remembered valid value > `config.toml` `app.roster` > first roster.
-15. Mode: remembered valid value > `config.toml` `app.default_mode` > `Multi`.
-16. Create `MainWindow`, apply the theme, show the window, and restore
-    maximized state if remembered.
-17. Close the splash according to `mode`.
+15. Mode: `config.toml` `app.default_mode` > `Multi`.
+16. Create `MainWindow` and apply the theme; whether the window is shown
+    immediately depends on `[splash].mode`.
+17. With `[splash].mode = 1`, only the splash is shown until the remaining time
+    elapses, then the main window appears and the splash closes. Other modes
+    show the window and close the splash as soon as the window is ready.
 
 ## 4. Configuration precedence
 
@@ -92,8 +96,7 @@ memory preferences.theme (valid)
 Language:
 
 ```
-memory preferences.language (valid)
-  > language.toml preferred (valid)
+language.toml preferred (valid)
   > config.toml [app].language (legacy)
   > system language
   > en_US
@@ -102,11 +105,14 @@ memory preferences.language (valid)
 Other values:
 
 - Roster: memory `preferences.roster` > `[app].roster` > first roster.
-- Mode: memory `preferences.mode` > `[app].default_mode` > `Multi`.
+- Mode: `[app].default_mode` > `Multi` (memory is not read).
 - Log level: memory `preferences.log_level` > `[logging].level` > `INFO`.
-- Quantities: memory `preferences.quantities` > 1.
+- Quantities: always start from 1 (memory is not read).
 - Window: `[window]` computes the initial size; a valid remembered size
   overrides it when `remember_size = true`.
+
+`[app].remember_preferences = false` ignores the remembered theme, roster, and
+log level, but does not affect `[window].remember_size`.
 
 `[app].remember_preferences = false` ignores application preferences at
 startup. `[window].remember_size` is independent.
@@ -128,6 +134,17 @@ startup. `[window].remember_size` is independent.
 
 The splash uses the same algorithm with `screen_ratio = 0.25` and
 `aspect_ratio = 2.0` by default.
+
+`[splash].mode` controls when the splash closes:
+
+- `mode = 0`: show the main window and close the splash as soon as the window
+  is ready.
+- `mode = 1`: keep only the splash visible, then call `window.show()` and
+  `splash.finish(window)` after `duration_ms - splash_timer.elapsed()`.
+- Delaying the main window avoids Wayland: `QSplashScreen` cannot stay on top
+  there, so an early main window would completely cover the splash.
+- `_splash_wait_ms(mode, duration_ms, elapsed_ms)` computes the remaining
+  milliseconds and returns 0 for every other mode.
 
 ### Resizing and persistence
 
@@ -335,16 +352,21 @@ remaining pool:
 - `_normalize_memory()` fills missing fields, discards invalid values, and
   supports the legacy `loaded_config`.
 - Legacy `ScrollSingle` entries are ignored.
-- Preferences are saved immediately after theme, language, roster, mode,
-  quantity, or log-level changes.
+- Startup uses only `preferences.theme`, `preferences.roster`,
+  `preferences.log_level`, and `preferences.window`; `language`, `mode`, and
+  `quantities` are ignored even if an old memory file still contains them, and
+  the program no longer updates those keys.
+- Preferences are saved immediately after theme, roster, or log-level changes.
+- Language, mode, and quantity changes are no longer persisted; the next
+  startup uses `language.toml`, `[app].default_mode`, and 1 respectively.
 - Window size is saved after a 450 ms debounce, on close, and on
   maximize/restore.
 - Draw results are saved after each completed draw/round.
 - Import/export never writes to `config/`.
 - Import without `preferences` keeps the current preferences; imported
   preferences take effect on the next startup, not immediately.
-- `remember_preferences = false` disables application preferences, but
-  `remember_size` still works independently.
+- `remember_preferences = false` disables remembered theme, roster, and log
+  level, but `remember_size` still works independently.
 
 ## 13. Logging
 
@@ -433,7 +455,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
    `.config.default.toml`, `.name.default.toml`, `config/`, and `doc/`.
 3. Removed files: `WidgetScrollSingle.ui`, `ui_widgetscrollsingle.py`,
    `ScrollSingle.py`, `randname-start_v3.6.png`, `randname-start_v3.7.png`.
-4. Version lives in `lib/version.py`; use `3.8.1[upgrade]_...` in the commit
+4. Version lives in `lib/version.py`; use `3.8.2[upgrade]_...` in the commit
    message to trigger the release workflow.
 
 ## 18. Hidden mechanisms and edge cases
@@ -499,13 +521,13 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - `tests/test_output_fit.py`
 - `tests/test_memory.py`
 - `tests/test_scroll_lift.py`
-- `tests/test_config.py`
+- `tests/test_config.py` (including splash wait and preference filtering)
 
 Run: `QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests`.
 
 ## 20. Version
 
-Current version: **3.8.1**.
+Current version: **3.8.2**.
 
 Main changes in this release:
 
@@ -542,3 +564,20 @@ Main changes in this release:
   - if no mail client can be opened, an information dialog shows the address.
 - `EMAIL_ADDRESS` is hard-coded in `main.py`, like the repository/feedback URLs.
 - Version is now `3.8.1`.
+
+## 22. 3.8.2 additions
+
+- With `mode = 1`, the splash no longer shows the main window early;
+  `reveal_window()` waits for the remaining time, then calls `window.show()`
+  and closes the splash. This fixes the splash being completely covered by the
+  main window and appearing to "flash by" on Wayland.
+- Added `_splash_wait_ms()` to compute the remaining splash time; `mode = 0`
+  and other modes return 0 and keep the close-as-soon-as-ready behaviour.
+- Memory preferences now keep only theme, roster, log level, and window size.
+  `_startup_preferences()` filters old memory on startup, and
+  `_current_preferences()` no longer writes language, mode, or quantities.
+- Startup language comes from `language.toml` `preferred`, mode from
+  `[app].default_mode`, and quantities start at 1.
+- Old `language`, `mode`, and `quantities` keys remain in the memory file but
+  are ignored.
+- Version is now `3.8.2`.
