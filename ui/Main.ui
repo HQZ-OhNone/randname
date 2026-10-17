@@ -72,7 +72,14 @@
     <addaction name="separator"/>
     <addaction name="action_license"/>
     <addaction name="action_repository"/>
-    <addaction name="action_feedback"/>
+    <addaction name="menu_feedback"/>
+   </widget>
+   <widget class="QMenu" name="menu_feedback">
+    <property name="title">
+     <string>反馈</string>
+    </property>
+    <addaction name="action_feedback_github"/>
+    <addaction name="action_feedback_email"/>
    </widget>
    <widget class="QMenu" name="menu_log_level">
     <property name="title">
@@ -142,9 +149,14 @@
     <string>开源仓库</string>
    </property>
   </action>
-  <action name="action_feedback">
+  <action name="action_feedback_github">
    <property name="text">
-    <string>反馈</string>
+    <string>GitHub Issues</string>
+   </property>
+  </action>
+  <action name="action_feedback_email">
+   <property name="text">
+    <string>Email</string>
    </property>
   </action>
   <action name="action_ScrollSingle">

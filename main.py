@@ -50,6 +50,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QDialog,
     QFileDialog,
+    QHBoxLayout,
     QLabel,
     QMainWindow,
     QMessageBox,
@@ -68,6 +69,7 @@ UI_DIR = ROOT_DIR / "ui"
 # 仓库与反馈地址固定不变，直接写在程序中，不放进配置文件。
 REPOSITORY_URL = "https://www.github.com/HQZ-OhNone/randname"
 FEEDBACK_URL = "https://github.com/HQZ-OhNone/randname/issues"
+EMAIL_ADDRESS = "ohnone_hqz@outlook.com"
 
 
 def _configured_path(config: dict, section: str, key: str, default: str) -> Path:
@@ -242,7 +244,8 @@ class MainWindow(QMainWindow):
         self.action_exit = None
         self.action_license = None
         self.action_repository = None
-        self.action_feedback = None
+        self.action_feedback_github = None
+        self.action_feedback_email = None
         self.action_help = None
         self.action_program_log = None
         self.theme_actions = None
@@ -279,6 +282,8 @@ class MainWindow(QMainWindow):
 
         self.status_widgets = {}
         self.status_separators = []
+        self.status_container = None
+        self.status_message_label = None
         self.viewer_dialogs = {}
         self._ready = False
         self._resizable = True
@@ -293,7 +298,7 @@ class MainWindow(QMainWindow):
         self._retranslate()
         self._update_status_info()
         if self.startup_warnings:
-            self.statusBar().showMessage(
+            self._show_status_message(
                 self._t("state.startup_warning", files=", ".join(self.startup_warnings)), 0
             )
         self._ready = True
@@ -454,7 +459,8 @@ class MainWindow(QMainWindow):
         self.action_exit = getattr(self.ui_main, "action_exit", None)
         self.action_license = getattr(self.ui_main, "action_license", None)
         self.action_repository = getattr(self.ui_main, "action_repository", None)
-        self.action_feedback = getattr(self.ui_main, "action_feedback", None)
+        self.action_feedback_github = getattr(self.ui_main, "action_feedback_github", None)
+        self.action_feedback_email = getattr(self.ui_main, "action_feedback_email", None)
         self.action_help = getattr(self.ui_main, "action_help", None)
         self.action_program_log = getattr(self.ui_main, "action_program_log", None)
 
@@ -482,8 +488,10 @@ class MainWindow(QMainWindow):
             self.action_license.triggered.connect(self._open_license)
         if self.action_repository:
             self.action_repository.triggered.connect(self._open_repository)
-        if self.action_feedback:
-            self.action_feedback.triggered.connect(self._open_feedback)
+        if self.action_feedback_github:
+            self.action_feedback_github.triggered.connect(self._open_feedback_github)
+        if self.action_feedback_email:
+            self.action_feedback_email.triggered.connect(self._open_feedback_email)
         if self.action_help:
             self.action_help.triggered.connect(self._open_help)
         if self.action_program_log:
@@ -577,6 +585,18 @@ class MainWindow(QMainWindow):
 
     def _build_status_widgets(self):
         status = self._status_config()
+        # QStatusBar 的 addPermanentWidget 默认从右往左排列。这里放一个占满
+        # 状态栏的容器，在容器内部用 QHBoxLayout 左对齐所有信息。
+        container = QWidget(self)
+        container.setObjectName("status_container")
+        layout = QHBoxLayout(container)
+        layout.setContentsMargins(4, 0, 4, 0)
+        layout.setSpacing(4)
+        self.status_container = container
+        self.status_message_label = QLabel("", container)
+        self.status_message_label.setObjectName("status_message")
+        layout.addWidget(self.status_message_label)
+
         keys = (
             ("mode", "show_mode"),
             ("roster", "show_roster"),
@@ -587,17 +607,25 @@ class MainWindow(QMainWindow):
             ("version", "show_version"),
         )
         for key, option in keys:
-            separator = QLabel("|", self)
+            separator = QLabel("|", container)
             separator.setObjectName("status_separator")
-            self.statusBar().addPermanentWidget(separator)
-            label = QLabel("", self)
+            layout.addWidget(separator)
+            label = QLabel("", container)
             label.setObjectName(f"status_{key}")
             label.setMargin(2)
-            self.statusBar().addPermanentWidget(label)
+            layout.addWidget(label)
             self.status_widgets[key] = label
             self.status_separators.append((separator, key))
-            label.setVisible(status.get(option, True) is not False)
-            separator.setVisible(status.get(option, True) is not False)
+            visible = status.get(option, True) is not False
+            label.setVisible(visible)
+            separator.setVisible(visible)
+        layout.addStretch(1)
+        self.statusBar().addPermanentWidget(container, 1)
+
+    def _show_status_message(self, text, _timeout=0):
+        """在状态栏最左侧显示临时消息；信息区保持左对齐。"""
+        if self.status_message_label is not None:
+            self.status_message_label.setText(str(text))
 
     def _refresh_status_visibility(self):
         status = self._status_config()
@@ -653,7 +681,7 @@ class MainWindow(QMainWindow):
         selected = StateManager.configure_logging(level)
         self._build_log_level_menu()
         StateManager.log(selected, "log_level_changed", result=selected)
-        self.statusBar().showMessage(self._t("state.log_level_changed", level=self._t(f"log.{selected}")))
+        self._show_status_message(self._t("state.log_level_changed", level=self._t(f"log.{selected}")))
         self._update_status_info()
         self._save_app_preferences()
 
@@ -664,7 +692,7 @@ class MainWindow(QMainWindow):
         self._build_roster_menu()
         self._build_log_level_menu()
         self._retranslate()
-        self.statusBar().showMessage(
+        self._show_status_message(
             self._t("state.language_changed", name=self.languages[self.current_language]["display_name"])
         )
         self._update_status_info()
@@ -697,7 +725,7 @@ class MainWindow(QMainWindow):
         display_name = LanguageManager.localized_name(
             roster.get("name", {}), self.current_language, self.languages
         ) or key
-        self.statusBar().showMessage(self._t("state.roster_changed", name=display_name))
+        self._show_status_message(self._t("state.roster_changed", name=display_name))
         self._update_status_info()
         self._save_app_preferences()
 
@@ -709,6 +737,7 @@ class MainWindow(QMainWindow):
         self.ui_main.menu_roster.setTitle(self._t("menu.roster"))
         self.ui_main.menu_about.setTitle(self._t("menu.about"))
         self.ui_main.menu_log_level.setTitle(self._t("menu.log_level"))
+        self.ui_main.menu_feedback.setTitle(self._t("menu.feedback"))
         for action, key in (
             (self.action_multi, "mode.multi"),
             (self.action_single, "mode.single"),
@@ -722,7 +751,8 @@ class MainWindow(QMainWindow):
             (self.action_exit, "action.exit"),
             (self.action_license, "action.license"),
             (self.action_repository, "action.repository"),
-            (self.action_feedback, "action.feedback"),
+            (self.action_feedback_github, "action.feedback.github"),
+            (self.action_feedback_email, "action.feedback.email"),
             (self.action_help, "action.help"),
             (self.action_program_log, "action.program_log"),
         ):
@@ -778,7 +808,7 @@ class MainWindow(QMainWindow):
             theme_name = LanguageManager.localized_name(
                 theme.get("name", {}), self.current_language, self.languages
             ) or self.selected_theme
-            self.statusBar().showMessage(self._t("state.theme_changed", name=theme_name))
+            self._show_status_message(self._t("state.theme_changed", name=theme_name))
             self._update_status_info()
             self._save_app_preferences()
         except (OSError, ValueError, KeyError) as exc:
@@ -1133,7 +1163,7 @@ class MainWindow(QMainWindow):
                     self.multi_view.set_names(names, use_lock=False)
                 else:
                     self.multi_view.set_message(self._t("state.no_result"))
-            self.statusBar().showMessage(
+            self._show_status_message(
                 self._t("state.multi_result", count=self.multi_quantity)
             )
             self._update_status_info()
@@ -1174,7 +1204,7 @@ class MainWindow(QMainWindow):
                     self.lift_view.set_message(self._t("state.no_result"))
             if "Liftdict" in result:
                 self.lift_current_dict = result["Liftdict"]
-            self.statusBar().showMessage(
+            self._show_status_message(
                 self._t("state.lift_result", count=self.lift_quantity)
             )
             self._update_status_info()
@@ -1208,7 +1238,7 @@ class MainWindow(QMainWindow):
                 quantity = result.get("quantity", {})
                 if isinstance(quantity, dict):
                     selected = quantity.get("selected", 0)
-            self.statusBar().showMessage(
+            self._show_status_message(
                 self._t("state.scrollmulti_result", count=selected)
             )
             self._update_status_info()
@@ -1232,7 +1262,7 @@ class MainWindow(QMainWindow):
                 quantity = result.get("quantity", {})
                 if isinstance(quantity, dict):
                     selected = quantity.get("selected", 0)
-            self.statusBar().showMessage(
+            self._show_status_message(
                 self._t("state.scrolllift_result", count=selected)
             )
             self._update_status_info()
@@ -1252,13 +1282,13 @@ class MainWindow(QMainWindow):
         try:
             if mode == "ScrollLift" and count == 0:
                 key = "state.scrolllift_empty"
-                self.statusBar().showMessage(self._t(key))
+                self._show_status_message(self._t(key))
             elif mode == "ScrollLift":
                 key = "state.scrolllift_invalid"
-                self.statusBar().showMessage(self._t(key, count=count))
+                self._show_status_message(self._t(key, count=count))
             else:
                 key = "state.scrollmulti_invalid"
-                self.statusBar().showMessage(self._t(key, count=count))
+                self._show_status_message(self._t(key, count=count))
             StateManager.log("WARN", mode, error=f"requested more than {count}")
         except Exception:
             pass
@@ -1295,14 +1325,14 @@ class MainWindow(QMainWindow):
         self._set_quantity_label(self.lift_quantity_label, self.lift_quantity)
         if self.lift_view is not None:
             self.lift_view.set_message(self._t("state.waiting"))
-        self.statusBar().showMessage(self._t("state.waiting"))
+        self._show_status_message(self._t("state.waiting"))
 
     def _reset_scroll_lift_page(self):
         if self.scroll_lift_controller is not None:
             self.scroll_lift_controller.reset()
         if self.scroll_lift_view is not None:
             self.scroll_lift_view.set_message(self._t("state.waiting"))
-        self.statusBar().showMessage(self._t("state.waiting"))
+        self._show_status_message(self._t("state.waiting"))
 
     # ------------------------------------------------------------------ display helpers
     def _set_quantity_label(self, label, value):
@@ -1365,7 +1395,8 @@ class MainWindow(QMainWindow):
             previous_language = self.current_language
             previous_roster = self.current_roster
             previous_names = self.names.copy()
-            previous_status = self.statusBar().currentMessage()
+            previous_status = (self.status_message_label.text()
+                               if self.status_message_label is not None else "")
             importnames.reload_data()
             cfg = importnames.loaded_config
             self.rosters = importnames.rosters
@@ -1441,11 +1472,11 @@ class MainWindow(QMainWindow):
             self.startup_warnings = list(dict.fromkeys(warnings))
             if warnings:
                 StateManager.log("WARN", "reload_fallback", error=", ".join(warnings))
-                self.statusBar().showMessage(
+                self._show_status_message(
                     self._t("state.startup_warning", files=", ".join(warnings)), 0
                 )
             else:
-                self.statusBar().showMessage(previous_status)
+                self._show_status_message(previous_status)
             self._update_status_info()
             self._save_app_preferences()
         except Exception as exc:
@@ -1541,16 +1572,30 @@ class MainWindow(QMainWindow):
                 self._t("error.open_repository", error=str(exc)),
             )
 
-    def _open_feedback(self):
+    def _open_feedback_github(self):
         try:
             logging.info("打开反馈页面: %s", FEEDBACK_URL)
             QDesktopServices.openUrl(QUrl(FEEDBACK_URL))
         except Exception as exc:
             logging.exception("打开反馈链接失败: %s", exc)
             self._show_error(
-                self._t("action.feedback"),
+                self._t("menu.feedback"),
                 self._t("error.open_feedback", error=str(exc)),
             )
+
+    def _open_feedback_email(self):
+        mailto = f"mailto:{EMAIL_ADDRESS}?subject=randname%20feedback"
+        try:
+            logging.info("打开邮件反馈: %s", EMAIL_ADDRESS)
+            if QDesktopServices.openUrl(QUrl(mailto)):
+                return
+        except Exception:
+            logging.exception("打开邮件客户端失败")
+        QMessageBox.information(
+            self,
+            self._t("menu.feedback"),
+            self._t("dialog.email_fallback", email=EMAIL_ADDRESS),
+        )
 
     def _on_exit(self):
         logging.info("用户请求退出程序")

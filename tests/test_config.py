@@ -48,6 +48,10 @@ class ConfigHelperTests(unittest.TestCase):
         self.assertEqual(main.MainWindow._normalize_mode("ScrollLift"), ("ScrollLift", None))
         self.assertEqual(main.MainWindow._normalize_mode("unknown"), ("Multi", None))
 
+    def test_feedback_targets_are_hardcoded(self):
+        self.assertEqual(main.EMAIL_ADDRESS, "ohnone_hqz@outlook.com")
+        self.assertTrue(main.FEEDBACK_URL.endswith("/issues"))
+
 
 if __name__ == "__main__":
     unittest.main()

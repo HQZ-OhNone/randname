@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文记录 randname 3.8.0 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
+本文记录 randname 3.8.1 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
 `logic_en_US.md`，正體中文版见 `logic_zh_TW.md`。
 
 ## 1. 术语与模式
@@ -31,7 +31,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路径 | 职责 |
 | --- | --- |
 | `main.py` | 启动、主窗口、菜单、状态栏、页面切换、记忆回填、查看器入口 |
-| `lib/version.py` | `APP_VERSION = "3.8.0"` |
+| `lib/version.py` | `APP_VERSION = "3.8.1"` |
 | `lib/Multi.py` | 多抽算法 |
 | `lib/Lift.py` | 减量抽算法 |
 | `lib/ScrollMulti.py` | 滚动多抽控制器 |
@@ -59,7 +59,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 3. `_bootstrap_config()` 读取 `config/config.toml`；失败时读取 `.config.default.toml`，再失败使用内建配置。
 4. 读取图标；创建启动画面。
 5. 启动画面按 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 缩放，保持宽高比。
-6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.8.0`；字号优先 `[splash].version_font_size`，为 0 时按图片高度自动计算；颜色为 `version_color`。
+6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.8.1`；字号优先 `[splash].version_font_size`，为 0 时按图片高度自动计算；颜色为 `version_color`。
 7. `_startup_file_check()` 检查可恢复文件；缺失项加入启动警告。`required` 当前恒为空，因此“启动检查失败”分支不可达。
 8. 导入 `lib` 模块。
 9. `StateManager.configure_paths()` 应用 `[paths]` 的日志/记忆路径。
@@ -416,7 +416,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
    - `config/`
    - `doc/`
 3. 旧文件 `WidgetScrollSingle.ui`、`ui_widgetscrollsingle.py`、`ScrollSingle.py`、`randname-start_v3.6.png`、`randname-start_v3.7.png` 已删除。
-4. 版本号在 `lib/version.py`；提交信息使用 `3.8.0[upgrade]_...` 触发发布流程。
+4. 版本号在 `lib/version.py`；提交信息使用 `3.8.1[upgrade]_...` 触发发布流程。
 5. CI 在提交信息含 `[upgrade]` 时构建 Linux/Windows 包并创建 Release。
 
 ## 18. 隐藏机制与边界
@@ -484,7 +484,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-当前版本：**3.8.0**。
+当前版本：**3.8.1**。
 
 本轮主要变化：
 
@@ -500,3 +500,16 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - 启动画面新图与动态版本号；
 - 配置注释与精简；
 - 业务逻辑文档多语言化。
+
+## 21. 3.8.1 增补
+
+- `OutputView` 尺寸策略从 `Ignored` 改为 `Expanding`，并保留 `.ui` 中 160 的水平 stretch；否则 `QGridLayout` 会把宽度分给左右 spacer，输出框只剩几十像素。
+- `OutputView` 始终保持 `wordWrap = True`。手动分行仍由 `pack_names()` 完成；`wordWrap` 只用于降低 `QLabel.minimumSizeHint()`，避免长姓名撑大窗口。
+- 状态栏改为一个占满宽度的 `QWidget` 容器，内部用 `QHBoxLayout` 左对齐临时消息和全部信息标签；不再使用 `QStatusBar.showMessage()`，避免普通 widget 被临时消息隐藏。
+- 临时消息通过 `_show_status_message()` 写入 `status_message_label`；“刷新程序状态”保存/恢复的也是该标签文本。
+- “关于 > 反馈”改为二级菜单：
+  - `GitHub Issues`：打开 `https://github.com/HQZ-OhNone/randname/issues`；
+  - `Email`：调用系统邮件客户端向 `ohnone_hqz@outlook.com` 发送邮件；
+  - 邮件客户端无法唤起时，弹出信息框显示邮箱地址。
+- 新增常量 `EMAIL_ADDRESS`；与仓库/反馈网址一样硬编码在 `main.py`。
+- 版本号更新为 `3.8.1`。

@@ -9,7 +9,7 @@ version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
 This document records the actual behaviour, hidden mechanisms, and edge cases
-of randname 3.8.0. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
+of randname 3.8.1. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 `logic_zh_TW.md`.
 
 ## 1. Terms and modes
@@ -34,7 +34,7 @@ of randname 3.8.0. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 | Path | Responsibility |
 | --- | --- |
 | `main.py` | Startup, main window, menus, status bar, page switching, memory restore |
-| `lib/version.py` | `APP_VERSION = "3.8.0"` |
+| `lib/version.py` | `APP_VERSION = "3.8.1"` |
 | `lib/Multi.py` | Multi draw algorithm |
 | `lib/Lift.py` | Elimination draw algorithm |
 | `lib/ScrollMulti.py` | Rolling Multi controller |
@@ -59,7 +59,7 @@ of randname 3.8.0. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
    `.config.default.toml`, then the built-in configuration.
 4. Load the icon and create the splash screen.
 5. Scale the splash according to `[splash]`, keeping the image aspect ratio.
-6. `_draw_splash_version()` draws `v3.8.0` in the bottom-right corner.
+6. `_draw_splash_version()` draws `v3.8.1` in the bottom-right corner.
    `version_font_size = 0` selects an automatic size; `version_color` controls
    the text colour.
 7. `_startup_file_check()` collects recoverable-file warnings. `required` is
@@ -433,7 +433,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
    `.config.default.toml`, `.name.default.toml`, `config/`, and `doc/`.
 3. Removed files: `WidgetScrollSingle.ui`, `ui_widgetscrollsingle.py`,
    `ScrollSingle.py`, `randname-start_v3.6.png`, `randname-start_v3.7.png`.
-4. Version lives in `lib/version.py`; use `3.8.0[upgrade]_...` in the commit
+4. Version lives in `lib/version.py`; use `3.8.1[upgrade]_...` in the commit
    message to trigger the release workflow.
 
 ## 18. Hidden mechanisms and edge cases
@@ -505,7 +505,7 @@ Run: `QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests`.
 
 ## 20. Version
 
-Current version: **3.8.0**.
+Current version: **3.8.1**.
 
 Main changes in this release:
 
@@ -521,3 +521,24 @@ Main changes in this release:
 - New splash image with dynamic version.
 - Documented, simplified configuration.
 - Multilingual business-logic documentation.
+
+## 21. 3.8.1 additions
+
+- `OutputView` now uses an `Expanding` size policy and preserves the 160
+  horizontal stretch from the `.ui` file. The previous `Ignored` policy let the
+  grid give most width to the left/right spacers, leaving the output box only a
+  few dozen pixels wide.
+- `OutputView` keeps `wordWrap = True`. Manual line packing is still performed by
+  `pack_names()`; `wordWrap` only keeps `QLabel.minimumSizeHint()` small so long
+  names cannot enlarge the window.
+- The status bar is now a full-width `QWidget` container with a `QHBoxLayout`
+  that left-aligns the temporary message and all information labels. It no
+  longer uses `QStatusBar.showMessage()`, which would hide normal widgets.
+- Temporary messages go through `_show_status_message()` into
+  `status_message_label`; configuration refresh saves/restores that label text.
+- About > Feedback is now a submenu:
+  - `GitHub Issues`: opens `https://github.com/HQZ-OhNone/randname/issues`;
+  - `Email`: opens the system mail client for `ohnone_hqz@outlook.com`;
+  - if no mail client can be opened, an information dialog shows the address.
+- `EMAIL_ADDRESS` is hard-coded in `main.py`, like the repository/feedback URLs.
+- Version is now `3.8.1`.

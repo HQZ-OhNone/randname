@@ -75,11 +75,18 @@ class OutputView(QObject):
         self._locked_point_size = None
         self._font_family = ""
         self._message_mode = True
-        self.configure(config, fallback_point_size)
 
-        self.label.setWordWrap(False)
-        self.label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
+        # 输出框必须保留 .ui 中 160 的水平 stretch，否则 QGridLayout 会把
+        # 大部分宽度分给左右 spacer，输出框只剩几十像素。
+        # Expanding + wordWrap=True 让 minimumSizeHint 保持较小，长名字
+        # 由 OutputView 手动分行/缩字号处理，同时窗口不会被内容撑大。
+        self.label.setWordWrap(True)
+        policy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        policy.setHorizontalStretch(160)
+        policy.setVerticalStretch(0)
+        self.label.setSizePolicy(policy)
         self.label.setMinimumSize(0, 0)
+        self.configure(config, fallback_point_size)
         self.label.installEventFilter(self)
         self.set_message("")
 
@@ -113,7 +120,7 @@ class OutputView(QObject):
         self._text = str(text)
         font = QFont(self._base_font)
         font.setPointSizeF(self.base_point_size)
-        self.label.setWordWrap(False)
+        self.label.setWordWrap(True)
         self.label.setFont(font)
         self.label.setText(self._text)
 
@@ -193,11 +200,10 @@ class OutputView(QObject):
         return self.min_point_size
 
     def _apply(self, names, point_size):
-        font, lines, width, height = self._layout_for(names, point_size)
-        available_width, available_height = self._available()
+        font, lines, _width, _height = self._layout_for(names, point_size)
         self.label.setFont(font)
-        # 极端情况下单个姓名仍比结果框宽：允许 Qt 在字符间换行，避免内容完全不可见。
-        self.label.setWordWrap(width > available_width or height > available_height)
+        # 始终保持 wordWrap，避免 QLabel 重新产生巨大的 minimumSizeHint。
+        self.label.setWordWrap(True)
         text = "\n".join(lines)
         if text != self._text:
             self._text = text

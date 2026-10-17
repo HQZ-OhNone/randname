@@ -84,4 +84,4 @@ Help, the license, and the program log all use randname's own read-only viewer. 
 
 The splash screen appears before data checks and window initialization. Missing configuration, roster, language, or theme files use their available backup or built-in data; randname reports these cases in the status bar and log without an extra dialog. Missing executable components stop startup and show a detailed error.
 
-If a configured choice is unavailable after editing files, use **File > Refresh application data**. If the selected help translation is unavailable, the Help command opens this English document. **About > Feedback** opens the GitHub Issues page.
+If a configured choice is unavailable after editing files, use **File > Refresh application data**. If the selected help translation is unavailable, the Help command opens this English document. **About > Feedback** contains GitHub Issues and Email; if no mail client can be opened, a dialog shows the email address.

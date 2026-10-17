@@ -50,6 +50,15 @@ class OutputFitTests(unittest.TestCase):
         self.assertNotIn("\n", label.text())
         self.assertGreaterEqual(label.font().pointSizeF(), 30)
 
+    def test_size_policy_keeps_output_wide(self):
+        from PySide6.QtWidgets import QSizePolicy
+        label, _view = self.make_view()
+        policy = label.sizePolicy()
+        self.assertEqual(policy.horizontalPolicy(), QSizePolicy.Policy.Expanding)
+        self.assertEqual(policy.verticalPolicy(), QSizePolicy.Policy.Expanding)
+        self.assertEqual(policy.horizontalStretch(), 160)
+        self.assertTrue(label.wordWrap())
+
     def test_long_names_are_wrapped_or_shrunk(self):
         label, view = self.make_view()
         view.set_names(["非常非常非常长的名字"] * 20, use_lock=False)

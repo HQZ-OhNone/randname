@@ -96,3 +96,43 @@ verification results.
 - `pyside6-uic` 重新生成 `lib/ui_*.py`，删除 `ui_widgetscrollsingle.py`。
 - 仍需手动验证：真实桌面主题/字体、触屏滚动、启动画面版本号位置、日志实时刷新、
   导入/导出对话框、Nuitka 打包。
+
+## 2026-10-18 / 3.8.1
+
+### 已完成 / Completed
+
+- 修复输出框过小：`OutputView` 改用 `Expanding` 并保留 160 水平 stretch，恢复占满窗口的显示区域。
+- 输出框始终保持 `wordWrap=True`，长姓名不会重新撑大窗口。
+- 状态栏改为左对齐容器，临时消息与模式/名单/数量/主题/语言/日志/版本统一左对齐。
+- 移除对 `QStatusBar.showMessage()` 的依赖，避免临时消息隐藏状态栏信息。
+- “关于 > 反馈”改为二级菜单：
+  - GitHub Issues；
+  - Email（调用系统邮件客户端）。
+- 邮件客户端无法唤起时弹窗显示 `ohnone_hqz@outlook.com`。
+- 版本号更新为 `3.8.1`。
+
+### English summary
+
+- Fixed the tiny output box by restoring `Expanding` size policy and the 160
+  horizontal stretch; long names still cannot resize the window.
+- Left-aligned the status bar with a full-width container and a custom temporary
+  message label instead of `QStatusBar.showMessage()`.
+- Added a Feedback submenu with GitHub Issues and Email; email falls back to an
+  information dialog showing the address when no mail client can be opened.
+- Bumped the version to `3.8.1`.
+
+### 发现但未解决 / Found but unresolved
+
+- 邮件客户端能否成功唤起取决于系统 `mailto:` 关联，需要在 Windows/Linux 实机验证。
+- 状态栏信息较多时，窄窗口仍可能显得拥挤；可继续用 `[statusbar]` 隐藏部分字段。
+- 触屏滚动与超长姓名裁切仍需实机验证。
+
+### 验证 / Verification
+
+- `python -m compileall main.py lib tests` 通过。
+- `QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests`：19 项通过。
+- 离屏窗口 1000px 宽时，输出框宽度恢复为约 718px，不再是 80px。
+- 状态栏容器占满宽度，临时消息和信息标签从左侧开始排列。
+- 三语言反馈菜单均显示 GitHub Issues / Email（或对应译名）。
+- 模拟邮件客户端失败时，弹窗显示 `ohnone_hqz@outlook.com`。
+- 仍需实机验证系统 `mailto:` 关联和真实窗口主题效果。

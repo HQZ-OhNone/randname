@@ -17,7 +17,7 @@
 ### 技術實現
 - python3.12.10
 - qt6.11.1(pyside6)
-- 目前版本：3.8.0
+- 目前版本：3.8.1
 
 ### 許可證
 [GNU General Public License v3.0](./doc/gpl-3.0.md)
@@ -84,7 +84,7 @@ tar -cavf randname3_linux.tar.xz randname3
 ```
 
 ### 反饋
-歡迎提 [issue](https://github.com/HQZ-OhNone/randname/issues) 或發郵件。
+歡迎提 [issue](https://github.com/HQZ-OhNone/randname/issues) 或寄信至 <ohnone_hqz@outlook.com>。
 
 -----
 HQZ-OhNone \<ohnone_hqz@outlook.com>  

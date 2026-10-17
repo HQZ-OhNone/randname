@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文記錄 randname 3.8.0 的實際行為、隱藏機制與邊界。簡體中文見
+本文記錄 randname 3.8.1 的實際行為、隱藏機制與邊界。簡體中文見
 `logic_zh_CN.md`，英文見 `logic_en_US.md`。
 
 ## 1. 術語與模式
@@ -32,7 +32,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路徑 | 職責 |
 | --- | --- |
 | `main.py` | 啟動、主視窗、選單、狀態列、頁面切換、記憶回填 |
-| `lib/version.py` | `APP_VERSION = "3.8.0"` |
+| `lib/version.py` | `APP_VERSION = "3.8.1"` |
 | `lib/Multi.py` | 多抽演算法 |
 | `lib/Lift.py` | 減量抽演算法 |
 | `lib/ScrollMulti.py` | 滾動多抽控制器 |
@@ -57,7 +57,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
    `.config.default.toml`，再失敗使用內建設定。
 4. 載入圖示與啟動畫面。
 5. 依 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 縮放，保持比例。
-6. `_draw_splash_version()` 在右下角繪製 `v3.8.0`；`version_font_size = 0`
+6. `_draw_splash_version()` 在右下角繪製 `v3.8.1`；`version_font_size = 0`
    表示自動字號，`version_color` 控制顏色。
 7. `_startup_file_check()` 收集可恢復檔案警告；`required` 目前恆為空。
 8. 匯入 `lib` 模組。
@@ -388,7 +388,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
    `.config.default.toml`、`.name.default.toml`、`config/`、`doc/`。
 3. 已刪除 `WidgetScrollSingle.ui`、`ui_widgetscrollsingle.py`、
    `ScrollSingle.py`、`randname-start_v3.6.png`、`randname-start_v3.7.png`。
-4. 版本在 `lib/version.py`；提交訊息使用 `3.8.0[upgrade]_...` 觸發發布。
+4. 版本在 `lib/version.py`；提交訊息使用 `3.8.1[upgrade]_...` 觸發發布。
 
 ## 18. 隱藏機制與邊界
 
@@ -450,7 +450,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-目前版本：**3.8.0**。
+目前版本：**3.8.1**。
 
 本輪主要變更：
 
@@ -466,3 +466,20 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - 啟動畫面新圖與動態版本號。
 - 設定註解與精簡。
 - 業務邏輯文件多語言化。
+
+## 21. 3.8.1 增補
+
+- `OutputView` 尺寸策略由 `Ignored` 改為 `Expanding`，並保留 `.ui` 中 160 的水平
+  stretch；否則 `QGridLayout` 會把寬度分給左右 spacer，輸出框只剩幾十像素。
+- `OutputView` 始終保持 `wordWrap = True`。手動分行仍由 `pack_names()` 完成；
+  `wordWrap` 只用於降低 `QLabel.minimumSizeHint()`，避免長姓名撐大視窗。
+- 狀態列改為佔滿寬度的 `QWidget` 容器，內部用 `QHBoxLayout` 左對齊臨時訊息與
+  全部資訊標籤；不再使用 `QStatusBar.showMessage()`，避免一般 widget 被臨時訊息隱藏。
+- 臨時訊息透過 `_show_status_message()` 寫入 `status_message_label`；重新整理設定時
+  保存/還原的也是該標籤文字。
+- 「關於 > 回饋」改為二級選單：
+  - `GitHub Issues`：開啟 `https://github.com/HQZ-OhNone/randname/issues`；
+  - `Email`：呼叫系統郵件程式寄信至 `ohnone_hqz@outlook.com`；
+  - 無法喚起郵件程式時，彈出資訊框顯示電子郵件地址。
+- `EMAIL_ADDRESS` 與專案/回饋網址一樣硬寫在 `main.py`。
+- 版本更新為 `3.8.1`。
