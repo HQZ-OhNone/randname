@@ -88,8 +88,6 @@ BUILTIN_CONFIG = {
         "screen_ratio": 0.25,
         "width": 500,
         "height": 250,
-        "version_font_size": 0,
-        "version_color": "#FFFFFF",
     },
     "window": {
         "size_mode": "screen_ratio",

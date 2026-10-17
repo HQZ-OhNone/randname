@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文記錄 randname 3.8.2 的實際行為、隱藏機制與邊界。簡體中文見
+本文記錄 randname 3.8.3 的實際行為、隱藏機制與邊界。簡體中文見
 `logic_zh_CN.md`，英文見 `logic_en_US.md`。
 
 ## 1. 術語與模式
@@ -32,7 +32,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路徑 | 職責 |
 | --- | --- |
 | `main.py` | 啟動、主視窗、選單、狀態列、頁面切換、記憶回填 |
-| `lib/version.py` | `APP_VERSION = "3.8.2"` |
+| `lib/version.py` | `APP_VERSION = "3.8.3"` |
 | `lib/Multi.py` | 多抽演算法 |
 | `lib/Lift.py` | 減量抽演算法 |
 | `lib/ScrollMulti.py` | 滾動多抽控制器 |
@@ -57,8 +57,8 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
    `.config.default.toml`，再失敗使用內建設定。
 4. 載入圖示與啟動畫面。
 5. 依 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 縮放，保持比例。
-6. `_draw_splash_version()` 在右下角繪製 `v3.8.2`；`version_font_size = 0`
-   表示自動字號，`version_color` 控制顏色。
+6. `_draw_splash_version()` 在右下角繪製 `v3.8.3`；字號始終依圖片寬度的三分之一
+   自動縮放，文字固定為純白色，不提供字號或顏色設定。
 7. `_startup_file_check()` 收集可恢復檔案警告；`required` 目前恆為空。
 8. 匯入 `lib` 模組。
 9. `StateManager.configure_paths()` 套用 `[paths]`。
@@ -395,7 +395,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
    `.config.default.toml`、`.name.default.toml`、`config/`、`doc/`。
 3. 已刪除 `WidgetScrollSingle.ui`、`ui_widgetscrollsingle.py`、
    `ScrollSingle.py`、`randname-start_v3.6.png`、`randname-start_v3.7.png`。
-4. 版本在 `lib/version.py`；提交訊息使用 `3.8.2[upgrade]_...` 觸發發布。
+4. 版本在 `lib/version.py`；提交訊息使用 `3.8.3[upgrade]_...` 觸發發布。
 
 ## 18. 隱藏機制與邊界
 
@@ -451,15 +451,15 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - `tests/test_output_fit.py`
 - `tests/test_memory.py`
 - `tests/test_scroll_lift.py`
-- `tests/test_config.py`（含啟動畫面等待與偏好過濾）
+- `tests/test_config.py`（含啟動畫面等待、版本號字號換算與偏好過濾）
 
 執行：`QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests`。
 
 ## 20. 版本
 
-目前版本：**3.8.2**。
+目前版本：**3.8.3**。
 
-本輪主要變更：
+3.8.x 主要變更：
 
 - 修正滾動多抽視窗閃動。
 - 修正匯入記憶撐寬視窗與直接顯示字典內容。
@@ -473,6 +473,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - 啟動畫面新圖與動態版本號。
 - 設定註解與精簡。
 - 業務邏輯文件多語言化。
+- 啟動畫面版本號依圖片寬度三分之一自動縮放並固定純白。
 
 ## 21. 3.8.1 增補
 
@@ -499,3 +500,14 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - 啟動時語言回到 `language.toml` 的 `preferred`，模式回到 `[app].default_mode`，數量從 1 開始。
 - 舊記憶檔中的 `language`、`mode`、`quantities` 保留但被忽略。
 - 版本更新為 `3.8.2`。
+
+## 23. 3.8.3 增補
+
+- `_draw_splash_version()` 改為依圖片寬度自動縮放：以 100px 探針字型量測 `v3.8.3`
+  的寬度，再依目標寬度（圖片寬度的三分之一）反推實際像素字號；
+  `_splash_version_pixel_size()` 負責換算，非法輸入回退為 1px。
+- 字號嚴格隨啟動畫面縮放比例變化，不再讀取固定字號，也沒有最小字號跳變。
+- 版本號文字固定為純白色 `#FFFFFF`；保留黑色半透明陰影以增強對比。
+- 移除 `[splash].version_font_size` 和 `[splash].version_color`；舊設定中的這兩個鍵會被忽略。
+- 邊距與陰影偏移依圖片尺寸等比縮放，避免不同解析度下位置偏移。
+- 版本更新為 `3.8.3`。

@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文记录 randname 3.8.2 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
+本文记录 randname 3.8.3 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
 `logic_en_US.md`，正體中文版见 `logic_zh_TW.md`。
 
 ## 1. 术语与模式
@@ -31,7 +31,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路径 | 职责 |
 | --- | --- |
 | `main.py` | 启动、主窗口、菜单、状态栏、页面切换、记忆回填、查看器入口 |
-| `lib/version.py` | `APP_VERSION = "3.8.2"` |
+| `lib/version.py` | `APP_VERSION = "3.8.3"` |
 | `lib/Multi.py` | 多抽算法 |
 | `lib/Lift.py` | 减量抽算法 |
 | `lib/ScrollMulti.py` | 滚动多抽控制器 |
@@ -59,7 +59,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 3. `_bootstrap_config()` 读取 `config/config.toml`；失败时读取 `.config.default.toml`，再失败使用内建配置。
 4. 读取图标；创建启动画面。
 5. 启动画面按 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 缩放，保持宽高比。
-6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.8.2`；字号优先 `[splash].version_font_size`，为 0 时按图片高度自动计算；颜色为 `version_color`。
+6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.8.3`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
 7. `_startup_file_check()` 检查可恢复文件；缺失项加入启动警告。`required` 当前恒为空，因此“启动检查失败”分支不可达。
 8. 导入 `lib` 模块。
 9. `StateManager.configure_paths()` 应用 `[paths]` 的日志/记忆路径。
@@ -424,7 +424,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
    - `config/`
    - `doc/`
 3. 旧文件 `WidgetScrollSingle.ui`、`ui_widgetscrollsingle.py`、`ScrollSingle.py`、`randname-start_v3.6.png`、`randname-start_v3.7.png` 已删除。
-4. 版本号在 `lib/version.py`；提交信息使用 `3.8.2[upgrade]_...` 触发发布流程。
+4. 版本号在 `lib/version.py`；提交信息使用 `3.8.3[upgrade]_...` 触发发布流程。
 5. CI 在提交信息含 `[upgrade]` 时构建 Linux/Windows 包并创建 Release。
 
 ## 18. 隐藏机制与边界
@@ -487,14 +487,14 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - `tests/test_output_fit.py`：单行/多行/缩字号/超长姓名。
 - `tests/test_memory.py`：偏好读写、旧格式兼容、导入结果提取。
 - `tests/test_scroll_lift.py`：剩余池、逐个停止、重置、数量越界。
-- `tests/test_config.py`：新旧配置键兼容、非法值回退、启动画面等待时间与偏好过滤。
+- `tests/test_config.py`：新旧配置键兼容、非法值回退、启动画面等待时间、版本号字号换算与偏好过滤。
 - 运行：`QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests`。
 
 ## 20. 版本
 
-当前版本：**3.8.2**。
+当前版本：**3.8.3**。
 
-本轮主要变化：
+3.8.x 主要变化：
 
 - 修复滚动多抽窗口闪动；
 - 修复导入记忆撑宽窗口和打印字典内容；
@@ -507,7 +507,8 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - 实时只读文本查看器；
 - 启动画面新图与动态版本号；
 - 配置注释与精简；
-- 业务逻辑文档多语言化。
+- 业务逻辑文档多语言化；
+- 启动画面版本号按图片宽度三分之一自动缩放并固定纯白。
 
 ## 21. 3.8.1 增补
 
@@ -530,3 +531,12 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - 启动时语言回到 `language.toml` 的 `preferred`，模式回到 `[app].default_mode`，数量从 1 开始。
 - 旧记忆文件中的 `language`、`mode`、`quantities` 保留但被忽略。
 - 版本号更新为 `3.8.2`。
+
+## 23. 3.8.3 增补
+
+- `_draw_splash_version()` 改为按图片宽度自动缩放：用 100px 探针字体测量 `v3.8.3` 的宽度，再按目标宽度（图片宽度的三分之一）反推实际像素字号；`_splash_version_pixel_size()` 负责换算，非法输入回退为 1px。
+- 字号严格随启动画面缩放比例变化，不再读取固定字号，也没有最小字号跳变。
+- 版本号文字固定为纯白色 `#FFFFFF`；保留黑色半透明阴影以增强对比度。
+- 移除 `[splash].version_font_size` 和 `[splash].version_color`；旧配置中的这两个键会被忽略。
+- 边距与阴影偏移按图片尺寸等比缩放，避免不同分辨率下位置偏移。
+- 版本号更新为 `3.8.3`。

@@ -58,6 +58,16 @@ class ConfigHelperTests(unittest.TestCase):
         self.assertEqual(main._splash_wait_ms(1, 4000, 4500), 0)
         self.assertEqual(main._splash_wait_ms("fixed", 1000, 1000), 0)
 
+    def test_splash_version_pixel_size_scales_with_width(self):
+        self.assertEqual(main._splash_version_pixel_size(300, 333), 111)
+        self.assertEqual(main._splash_version_pixel_size(300, 500), 167)
+        self.assertEqual(main._splash_version_pixel_size(300, 333, 50), 56)
+
+    def test_splash_version_pixel_size_rejects_invalid_values(self):
+        self.assertEqual(main._splash_version_pixel_size(0, 333), 1)
+        self.assertEqual(main._splash_version_pixel_size(300, 0), 1)
+        self.assertEqual(main._splash_version_pixel_size(-1, 333), 1)
+
     def test_startup_preferences_keep_only_remembered_items(self):
         all_preferences = {
             "theme": "randname-dark",

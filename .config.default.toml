@@ -131,12 +131,7 @@ screen_ratio = 0.25
 width = 500
 height = 250
 
-# 右下角版本号字号（pt）。填 0 表示根据图片高度自动计算。
-version_font_size = 0
-
-# 右下角版本号颜色，支持 #RRGGBB 或 #RRGGBBAA。
-# 建议使用与背景对比明显的颜色，例如深色图片用 #FFFFFF，浅色图片用 #222222。
-version_color = "#FFFFFF"
+# 右下角版本号始终为纯白色，字号自动取图片宽度的三分之一，无需配置。
 
 [viewer]
 # 帮助、许可证和程序日志查看器的刷新间隔，单位毫秒。

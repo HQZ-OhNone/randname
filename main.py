@@ -35,13 +35,14 @@ import sys
 import tomllib
 from pathlib import Path
 
-from PySide6.QtCore import QElapsedTimer, QEvent, QTimer, QUrl, Qt
+from PySide6.QtCore import QElapsedTimer, QEvent, QPointF, QTimer, QUrl, Qt
 from PySide6.QtGui import (
     QAction,
     QActionGroup,
     QColor,
     QDesktopServices,
     QFont,
+    QFontMetricsF,
     QIcon,
     QPainter,
     QPixmap,
@@ -1635,35 +1636,45 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(self, title, message)
 
 
-def _draw_splash_version(pixmap: QPixmap, config: dict) -> QPixmap:
-    splash = config.get("splash", {}) if isinstance(config, dict) else {}
-    if not isinstance(splash, dict):
-        splash = {}
-    size = splash.get("version_font_size", 0)
+def _splash_version_pixel_size(measured_width: float, target_width: float, reference_px: int = 100) -> int:
+    """按目标宽度反推版本号字号；measured_width 是 reference_px 下的文字宽度。"""
     try:
-        size = int(size)
+        measured = float(measured_width)
+        target = float(target_width)
+        reference = int(reference_px)
     except (TypeError, ValueError):
-        size = 0
-    if size <= 0:
-        size = max(10, pixmap.height() // 24)
-    color = splash.get("version_color", "#FFFFFF")
-    if not isinstance(color, str) or not color:
-        color = "#FFFFFF"
-    version_color = QColor(color)
-    if not version_color.isValid():
-        version_color = QColor("#FFFFFF")
+        return 1
+    if measured <= 0 or target <= 0 or reference <= 0:
+        return 1
+    return max(1, int(round(reference * target / measured)))
+
+
+def _draw_splash_version(pixmap: QPixmap) -> QPixmap:
+    """在启动画面右下角绘制纯白版本号，宽度固定为图片宽度的三分之一。"""
+    text = f"v{APP_VERSION}"
     painter = QPainter(pixmap)
     try:
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        # 用 100px 探针测量文字宽度，再按图片宽度等比换算实际字号。
+        probe_font = QFont()
+        probe_font.setBold(True)
+        probe_font.setPixelSize(100)
+        measured_width = QFontMetricsF(probe_font).horizontalAdvance(text)
+        pixel_size = _splash_version_pixel_size(measured_width, pixmap.width() / 3.0)
         font = QFont()
-        font.setPointSize(max(8, size))
         font.setBold(True)
+        font.setPixelSize(pixel_size)
         painter.setFont(font)
-        rect = pixmap.rect().adjusted(12, 12, -16, -14)
+        margin = max(1, int(round(min(pixmap.width(), pixmap.height()) * 0.03)))
+        metrics = QFontMetricsF(font)
+        # 直接按基线定位，避免 Qt 的 Bottom 对齐额外留出字体下降部空白。
+        x = pixmap.width() - margin - metrics.horizontalAdvance(text)
+        baseline = pixmap.height() - margin
+        shadow = max(1, pixel_size // 32)
         painter.setPen(QColor(0, 0, 0, 170))
-        painter.drawText(rect.translated(1, 1), Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom, f"v{APP_VERSION}")
-        painter.setPen(version_color)
-        painter.drawText(rect, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom, f"v{APP_VERSION}")
+        painter.drawText(QPointF(x + shadow, baseline + shadow), text)
+        painter.setPen(QColor("#FFFFFF"))
+        painter.drawText(QPointF(x, baseline), text)
     finally:
         painter.end()
     return pixmap
@@ -1716,7 +1727,7 @@ def main():
             Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.SmoothTransformation,
         )
-        splash_pixmap = _draw_splash_version(splash_pixmap, bootstrap_config)
+        splash_pixmap = _draw_splash_version(splash_pixmap)
         splash = QSplashScreen(splash_pixmap)
         splash.show()
         if geometry is not None:

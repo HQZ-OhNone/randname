@@ -176,3 +176,50 @@ verification results.
 - 离屏计时探针：`QSplashScreen.show` 后约 4 秒才出现 `QMainWindow.show`，随后 `splash.finish`。
 - 启动偏好过滤测试覆盖保留项、忽略项和 `remember_preferences = false`。
 - 仍需在真实 Wayland 桌面确认启动画面完整停留 `duration_ms`。
+
+## 2026-10-18 / 3.8.3
+
+### 已完成 / Completed
+
+- 启动画面版本号改为按图片宽度自动缩放：以 100px 探针字体测量 `v3.8.3` 宽度，再按图片宽度的三分之一反推像素字号。
+- 新增 `_splash_version_pixel_size()`；无固定最小字号跳变，非法输入回退为 1px。
+- 版本号文字固定为纯白色 `#FFFFFF`，保留黑色半透明阴影以增强对比度。
+- 改为按基线定位，版本号紧贴右下角；边距和阴影偏移按图片尺寸等比缩放。
+- 移除 `[splash].version_font_size` 和 `[splash].version_color`；旧配置中的这两个键会被忽略。
+- `tests/test_config.py` 增加字号换算与非法值测试。
+- 版本号更新为 `3.8.3`，同步 README 与三语言业务逻辑文档。
+- 新增 `AGENTS.md`；删除已不再使用的开发检查脚本 `checks/verify_fixes.py`。
+
+### English summary
+
+- The splash version now scales from the image width: a 100px probe font
+  measures `v3.8.3`, then the pixel size is derived from one third of the image
+  width.
+- Added `_splash_version_pixel_size()`; there is no fixed minimum-size jump,
+  and invalid input falls back to 1px.
+- The version text is always pure white `#FFFFFF`; the translucent black shadow
+  remains for contrast.
+- Baseline positioning keeps the version tight to the bottom-right corner;
+  margins and shadow offset scale with the image.
+- Removed `[splash].version_font_size` and `[splash].version_color`; older
+  configuration keys are ignored.
+- Added font-size conversion tests to `tests/test_config.py`.
+- Bumped the version to `3.8.3` and updated README plus all three logic docs.
+- Added `AGENTS.md`; removed the unused development check script
+  `checks/verify_fixes.py`.
+
+### 发现但未解决 / Found but unresolved
+
+- 字号按字体度量换算，不同平台字体渲染可能存在 1-2px 的可见宽度差异；仍需在 Windows 与真实高分屏确认。
+- 旧 `doc/memory.json` 仍保留 `version_font_size`、`version_color` 键，按运行期文件处理，不主动清除。
+- 移除固定字号/颜色配置后，用户无法再通过配置微调版本号外观；这是本次需求的有意取舍。
+- `checks/verify_fixes.py` 删除后，旧的开发回归脚本不可用；常规回归统一使用 `tests/`。
+
+### 验证 / Verification
+
+- `python -m compileall main.py lib tests` 通过。
+- `QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests`：24 项通过。
+- 离屏渲染 1000×500、480×240、250×125 启动图：文字宽度比例分别为
+  0.338、0.338、0.340；右边距 9/4/1px，底边距 9/4/2px。
+- 1000×500 预览图中版本号为纯白，位于右下角且未裁切。
+- 仍需在真实 Windows/Linux 高分屏确认字体渲染与视觉比例。

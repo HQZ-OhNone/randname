@@ -9,7 +9,7 @@ version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
 This document records the actual behaviour, hidden mechanisms, and edge cases
-of randname 3.8.2. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
+of randname 3.8.3. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 `logic_zh_TW.md`.
 
 ## 1. Terms and modes
@@ -34,7 +34,7 @@ of randname 3.8.2. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 | Path | Responsibility |
 | --- | --- |
 | `main.py` | Startup, main window, menus, status bar, page switching, memory restore |
-| `lib/version.py` | `APP_VERSION = "3.8.2"` |
+| `lib/version.py` | `APP_VERSION = "3.8.3"` |
 | `lib/Multi.py` | Multi draw algorithm |
 | `lib/Lift.py` | Elimination draw algorithm |
 | `lib/ScrollMulti.py` | Rolling Multi controller |
@@ -59,9 +59,9 @@ of randname 3.8.2. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
    `.config.default.toml`, then the built-in configuration.
 4. Load the icon and create the splash screen.
 5. Scale the splash according to `[splash]`, keeping the image aspect ratio.
-6. `_draw_splash_version()` draws `v3.8.2` in the bottom-right corner.
-   `version_font_size = 0` selects an automatic size; `version_color` controls
-   the text colour.
+6. `_draw_splash_version()` draws `v3.8.3` in the bottom-right corner. The
+   font size always scales with the image width to one third of that width;
+   the text is always pure white and has no size or colour configuration.
 7. `_startup_file_check()` collects recoverable-file warnings. `required` is
    currently always empty, so the fatal startup-check branch is unreachable.
 8. Import `lib` modules.
@@ -455,7 +455,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
    `.config.default.toml`, `.name.default.toml`, `config/`, and `doc/`.
 3. Removed files: `WidgetScrollSingle.ui`, `ui_widgetscrollsingle.py`,
    `ScrollSingle.py`, `randname-start_v3.6.png`, `randname-start_v3.7.png`.
-4. Version lives in `lib/version.py`; use `3.8.2[upgrade]_...` in the commit
+4. Version lives in `lib/version.py`; use `3.8.3[upgrade]_...` in the commit
    message to trigger the release workflow.
 
 ## 18. Hidden mechanisms and edge cases
@@ -521,15 +521,16 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - `tests/test_output_fit.py`
 - `tests/test_memory.py`
 - `tests/test_scroll_lift.py`
-- `tests/test_config.py` (including splash wait and preference filtering)
+- `tests/test_config.py` (including splash wait, version font sizing, and
+  preference filtering)
 
 Run: `QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests`.
 
 ## 20. Version
 
-Current version: **3.8.2**.
+Current version: **3.8.3**.
 
-Main changes in this release:
+Main changes in the 3.8.x series:
 
 - Fixed rolling-multi window flicker.
 - Fixed memory-import window widening and raw dictionary output.
@@ -543,6 +544,7 @@ Main changes in this release:
 - New splash image with dynamic version.
 - Documented, simplified configuration.
 - Multilingual business-logic documentation.
+- Splash version scaled to one third of the image width and rendered pure white.
 
 ## 21. 3.8.1 additions
 
@@ -581,3 +583,20 @@ Main changes in this release:
 - Old `language`, `mode`, and `quantities` keys remain in the memory file but
   are ignored.
 - Version is now `3.8.2`.
+
+## 23. 3.8.3 additions
+
+- `_draw_splash_version()` now scales automatically from the image width: a
+  100px probe font measures the width of `v3.8.3`, then the actual pixel size
+  is derived from the target width (one third of the image width).
+  `_splash_version_pixel_size()` performs the conversion and falls back to 1px
+  for invalid input.
+- The font size now follows the splash scale exactly, with no fixed size and no
+  minimum-size jump.
+- The version text is always pure white `#FFFFFF`; the translucent black shadow
+  remains for contrast.
+- Removed `[splash].version_font_size` and `[splash].version_color`; those keys
+  are ignored in older configuration files.
+- Margins and shadow offset scale with the image to keep placement consistent
+  at different resolutions.
+- Version is now `3.8.3`.
