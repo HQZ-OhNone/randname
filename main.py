@@ -35,7 +35,7 @@ import sys
 import tomllib
 from pathlib import Path
 
-from PySide6.QtCore import QElapsedTimer, QEvent, QPointF, QTimer, QUrl, Qt
+from PySide6.QtCore import QElapsedTimer, QPointF, QTimer, QUrl, Qt
 from PySide6.QtGui import (
     QAction,
     QActionGroup,
@@ -128,26 +128,6 @@ def _configured_size(section: dict, screen_width: int, screen_height: int, *, sp
     return max(1, int(width)), max(1, int(height))
 
 
-# 记忆偏好中允许跨启动保留的应用项；窗口尺寸由 [window].remember_size 单独控制。
-REMEMBERED_APP_PREFERENCES = ("theme", "roster", "log_level")
-
-
-def _startup_preferences(all_preferences: dict, remember: bool = True) -> dict:
-    """只回填需要记住的偏好，其余项留给配置文件与独立配置档。"""
-    if not isinstance(all_preferences, dict):
-        return {}
-    preferences = {}
-    window = all_preferences.get("window")
-    if isinstance(window, dict):
-        preferences["window"] = window
-    if remember:
-        for key in REMEMBERED_APP_PREFERENCES:
-            value = all_preferences.get(key)
-            if isinstance(value, str) and value:
-                preferences[key] = value
-    return preferences
-
-
 def _splash_wait_ms(mode, duration_ms, elapsed_ms) -> int:
     """返回 mode=1 时启动画面还需显示的毫秒数；其他模式立即关闭。"""
     if mode not in (1, "fixed"):
@@ -233,7 +213,6 @@ class MainWindow(QMainWindow):
         rosters=None,
         selected_roster="",
         startup_warnings=None,
-        preferences=None,
         startup_mode=None,
     ):
         super().__init__()
@@ -248,14 +227,10 @@ class MainWindow(QMainWindow):
         self.current_roster = selected_roster or importnames.active_roster
         self.startup_warnings = startup_warnings or []
         self.names = self._load_names()
-        self.preferences = preferences if isinstance(preferences, dict) else {}
-        quantities = self.preferences.get("quantities", {})
-        if not isinstance(quantities, dict):
-            quantities = {}
-        self.multi_quantity = self._quantity_from(quantities, "multi")
-        self.lift_quantity = self._quantity_from(quantities, "lift")
-        self.scroll_multi_quantity = self._quantity_from(quantities, "scroll_multi")
-        self.scroll_lift_quantity = self._quantity_from(quantities, "scroll_lift")
+        self.multi_quantity = 1
+        self.lift_quantity = 1
+        self.scroll_multi_quantity = 1
+        self.scroll_lift_quantity = 1
         self.startup_mode = startup_mode
         self.current_mode = "Multi"
         self.lift_current_dict = None  # 保存当前减量抽的字典
@@ -321,13 +296,7 @@ class MainWindow(QMainWindow):
         self.status_container = None
         self.status_message_label = None
         self.viewer_dialogs = {}
-        self._ready = False
         self._resizable = True
-        self._start_maximized = False
-        self._save_timer = QTimer(self)
-        self._save_timer.setSingleShot(True)
-        self._save_timer.setInterval(450)
-        self._save_timer.timeout.connect(self._save_window_preference)
 
         self._build_ui()
         self._apply_config_window()
@@ -337,16 +306,8 @@ class MainWindow(QMainWindow):
             self._show_status_message(
                 self._t("state.startup_warning", files=", ".join(self.startup_warnings)), 0
             )
-        self._ready = True
 
     # ------------------------------------------------------------------ helpers
-    @staticmethod
-    def _quantity_from(values, key):
-        try:
-            return max(1, int(values.get(key, 1)))
-        except (TypeError, ValueError):
-            return 1
-
     def _t(self, key, **values):
         return LanguageManager.translate(self.languages, self.current_language, key, **values)
 
@@ -371,17 +332,9 @@ class MainWindow(QMainWindow):
         status = config.get("statusbar", {})
         return status if isinstance(status, dict) else {}
 
-    def _remember_app_preferences(self):
-        app_config = self._app_config().get("app", {})
-        return not (isinstance(app_config, dict) and app_config.get("remember_preferences") is False)
-
-    def _remember_window_size(self):
-        window = self._app_config().get("window", {})
-        return not (isinstance(window, dict) and window.get("remember_size") is False)
-
     # ------------------------------------------------------------------ window
     def _apply_config_window(self):
-        """Apply remembered size or configured startup geometry."""
+        """每次启动都使用配置文件中的初始窗口尺寸。"""
         window = self._app_config().get("window", {})
         if not isinstance(window, dict):
             window = {}
@@ -391,17 +344,6 @@ class MainWindow(QMainWindow):
         screen_height = geometry.height() if geometry is not None else 800
         width, height = _configured_size(window, screen_width, screen_height)
         self._resizable = window.get("resizable", True) is not False
-        remembered = self.preferences.get("window") if isinstance(self.preferences, dict) else None
-        if self._resizable and self._remember_window_size() and isinstance(remembered, dict):
-            try:
-                remembered_width = int(remembered.get("width"))
-                remembered_height = int(remembered.get("height"))
-            except (TypeError, ValueError):
-                remembered_width = remembered_height = 0
-            if remembered_width > 0 and remembered_height > 0:
-                width = min(remembered_width, screen_width)
-                height = min(remembered_height, screen_height)
-                self._start_maximized = remembered.get("maximized") is True
         self.resize(width, height)
         if self._resizable:
             self.setMinimumSize(640, 480)
@@ -414,39 +356,7 @@ class MainWindow(QMainWindow):
                 geometry.center().y() - self.height() // 2,
             )
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        if self._ready and self._resizable and not self.isMaximized() and not self.isFullScreen():
-            self._save_timer.start()
-
-    def changeEvent(self, event):
-        super().changeEvent(event)
-        if self._ready and self._resizable and event.type() == QEvent.Type.WindowStateChange:
-            self._save_timer.start()
-
-    def _save_window_preference(self):
-        if not self._ready or not self._resizable or not self._remember_window_size():
-            return
-        try:
-            if self.isMaximized():
-                normal = self.normalGeometry().size()
-                width = normal.width() if normal.width() > 0 else self.width()
-                height = normal.height() if normal.height() > 0 else self.height()
-            else:
-                width, height = self.width(), self.height()
-            width, height = max(1, width), max(1, height)
-            StateManager.save_preferences({
-                "window": {
-                    "width": int(width),
-                    "height": int(height),
-                    "maximized": bool(self.isMaximized()),
-                }
-            })
-        except Exception:
-            logging.exception("保存窗口尺寸失败")
-
     def closeEvent(self, event):
-        self._save_window_preference()
         for dialog in list(self.viewer_dialogs.values()):
             try:
                 dialog.close()
@@ -719,7 +629,6 @@ class MainWindow(QMainWindow):
         StateManager.log(selected, "log_level_changed", result=selected)
         self._show_status_message(self._t("state.log_level_changed", level=self._t(f"log.{selected}")))
         self._update_status_info()
-        self._save_app_preferences()
 
     def _select_language(self, code):
         self.current_language = LanguageManager.resolve_language(code, self.languages)
@@ -732,7 +641,6 @@ class MainWindow(QMainWindow):
             self._t("state.language_changed", name=self.languages[self.current_language]["display_name"])
         )
         self._update_status_info()
-        self._save_app_preferences()
 
     def _select_roster(self, key):
         self.names = importnames.select_roster(key)
@@ -763,7 +671,6 @@ class MainWindow(QMainWindow):
         ) or key
         self._show_status_message(self._t("state.roster_changed", name=display_name))
         self._update_status_info()
-        self._save_app_preferences()
 
     def _retranslate(self):
         self.ui_main.menu_file.setTitle(self._t("menu.file"))
@@ -846,7 +753,6 @@ class MainWindow(QMainWindow):
             ) or self.selected_theme
             self._show_status_message(self._t("state.theme_changed", name=theme_name))
             self._update_status_info()
-            self._save_app_preferences()
         except (OSError, ValueError, KeyError) as exc:
             StateManager.log("ERROR", "theme", error=str(exc))
             self._show_error(self._t("menu.theme"), self._t("error.theme_failed", error=str(exc)))
@@ -892,9 +798,7 @@ class MainWindow(QMainWindow):
 
         app_config = self._app_config().get("app", {})
         configured_mode = app_config.get("default_mode", "Multi") if isinstance(app_config, dict) else "Multi"
-        mode = self.startup_mode or (
-            self.preferences.get("mode") if isinstance(self.preferences, dict) else None
-        ) or configured_mode
+        mode = self.startup_mode or configured_mode
         normalized, quantity = self._normalize_mode(mode)
         if quantity is not None:
             if normalized == "Multi":
@@ -959,7 +863,7 @@ class MainWindow(QMainWindow):
             self.scroll_multi_quantity_label = getattr(self.ui_scrollmulti, "label_ScrollMultiQuantity", None)
             output = getattr(self.ui_scrollmulti, "label_ScrollMultiOutput", None)
             if output is not None:
-                self.scroll_multi_view = OutputView(output, config, 30)
+                self.scroll_multi_view = SlotOutputView(output, config, 30)
             self.scroll_multi_up_button = getattr(self.ui_scrollmulti, "pushButton_ScrollMultiQuantityUp", None)
             self.scroll_multi_down_button = getattr(self.ui_scrollmulti, "pushButton_ScrollMultiQuantityDown", None)
             self._set_quantity_label(self.scroll_multi_quantity_label, self.scroll_multi_quantity)
@@ -989,7 +893,7 @@ class MainWindow(QMainWindow):
             self.scroll_lift_quantity_label = getattr(self.ui_scrolllift, "label_ScrollLiftQuantity", None)
             output = getattr(self.ui_scrolllift, "label_ScrollLiftOutput", None)
             if output is not None:
-                self.scroll_lift_view = OutputView(output, config, 30)
+                self.scroll_lift_view = SlotOutputView(output, config, 30)
             self.scroll_lift_up_button = getattr(self.ui_scrolllift, "pushButton_ScrollLiftQuantityUp", None)
             self.scroll_lift_down_button = getattr(self.ui_scrolllift, "pushButton_ScrollLiftQuantityDown", None)
             self.scroll_lift_renew_button = getattr(self.ui_scrolllift, "pushButton_ScrollLiftRenew", None)
@@ -1021,7 +925,6 @@ class MainWindow(QMainWindow):
             self.stacked_widget.setCurrentWidget(self.page_multi)
         self.current_mode = "Multi"
         self._update_status_info()
-        self._save_app_preferences()
 
     def _show_single_page(self):
         self.multi_quantity = 1
@@ -1033,7 +936,6 @@ class MainWindow(QMainWindow):
             self.stacked_widget.setCurrentWidget(self.page_lift)
         self.current_mode = "Lift"
         self._update_status_info()
-        self._save_app_preferences()
 
     def _show_scrollsingle_page(self):
         self.scroll_multi_quantity = 1
@@ -1047,14 +949,12 @@ class MainWindow(QMainWindow):
             self.stacked_widget.setCurrentWidget(self.page_scrollmulti)
         self.current_mode = "ScrollMulti"
         self._update_status_info()
-        self._save_app_preferences()
 
     def _show_scrolllift_page(self):
         if self.stacked_widget is not None:
             self.stacked_widget.setCurrentWidget(self.page_scrolllift)
         self.current_mode = "ScrollLift"
         self._update_status_info()
-        self._save_app_preferences()
 
     # ------------------------------------------------------------------ status bar
     def _current_quantity(self):
@@ -1098,22 +998,6 @@ class MainWindow(QMainWindow):
             label.setText(values.get(key, ""))
 
     # ------------------------------------------------------------------ memory
-    def _current_preferences(self):
-        # 只保存跨启动需要保留的偏好；模式、语言和数量每次启动回配置默认。
-        return {
-            "theme": self.selected_theme,
-            "roster": self.current_roster,
-            "log_level": StateManager.CURRENT_LOG_LEVEL,
-        }
-
-    def _save_app_preferences(self):
-        if not self._ready or not self._remember_app_preferences():
-            return
-        try:
-            self.preferences = StateManager.save_preferences(self._current_preferences())
-        except Exception:
-            logging.exception("保存记忆偏好失败")
-
     @staticmethod
     def _remembered_result(entry):
         if entry is None:
@@ -1198,7 +1082,6 @@ class MainWindow(QMainWindow):
             self._update_status_info()
             try:
                 state = StateManager.load_memory()
-                state["loaded_config"] = getattr(importnames, 'loaded_config', None)
                 state.setdefault("last_results", {})["Multi"] = {
                     "result": result, "time": StateManager._now_iso()
                 }
@@ -1239,7 +1122,6 @@ class MainWindow(QMainWindow):
             self._update_status_info()
             try:
                 state = StateManager.load_memory()
-                state["loaded_config"] = getattr(importnames, 'loaded_config', None)
                 state.setdefault("last_results", {})["Lift"] = {
                     "result": result, "time": StateManager._now_iso()
                 }
@@ -1272,7 +1154,6 @@ class MainWindow(QMainWindow):
             )
             self._update_status_info()
             state = StateManager.load_memory()
-            state["loaded_config"] = getattr(importnames, 'loaded_config', None)
             state.setdefault("last_results", {})["ScrollMulti"] = {"result": result, "meta": meta}
             StateManager.save_memory(state)
             StateManager.log("INFO", "ScrollMulti", result=result)
@@ -1296,7 +1177,6 @@ class MainWindow(QMainWindow):
             )
             self._update_status_info()
             state = StateManager.load_memory()
-            state["loaded_config"] = getattr(importnames, 'loaded_config', None)
             state.setdefault("last_results", {})["ScrollLift"] = {"result": result, "meta": meta}
             StateManager.save_memory(state)
             StateManager.log("INFO", "ScrollLift", result=result)
@@ -1345,7 +1225,6 @@ class MainWindow(QMainWindow):
                 self.scroll_lift_controller.set_quantity(self.scroll_lift_quantity)
             logging.info("更新滚动减量抽数量=%s", self.scroll_lift_quantity)
         self._update_status_info()
-        self._save_app_preferences()
 
     def _reset_lift_page(self):
         self.lift_current_dict = None
@@ -1387,7 +1266,6 @@ class MainWindow(QMainWindow):
             StateManager.import_memory(
                 Path(fname),
                 apply_callback=self._apply_memory_import,
-                preferences=self._current_preferences() if self._remember_app_preferences() else None,
             )
             QMessageBox.information(
                 self, self._t("dialog.import_title"), self._t("dialog.import_success", path=fname)
@@ -1507,7 +1385,6 @@ class MainWindow(QMainWindow):
             else:
                 self._show_status_message(previous_status)
             self._update_status_info()
-            self._save_app_preferences()
         except Exception as exc:
             logging.exception("重新加载配置失败: %s", exc)
             QMessageBox.warning(
@@ -1682,7 +1559,7 @@ def _draw_splash_version(pixmap: QPixmap) -> QPixmap:
 
 def main():
     global lift_module, multi_module, ScrollMulti, ScrollLift
-    global StateManager, ThemeManager, importnames, OutputView, TextViewerDialog
+    global StateManager, ThemeManager, importnames, OutputView, SlotOutputView, TextViewerDialog
     global LanguageManager
     global ui_main, ui_widgetlift, ui_widgetmulti, ui_widgetscrollmulti, ui_widgetscrolllift
 
@@ -1762,7 +1639,7 @@ def main():
         from lib import ScrollLift
         from lib import ThemeManager
         from lib import LanguageManager
-        from lib.OutputView import OutputView
+        from lib.OutputView import OutputView, SlotOutputView
         from lib.TextViewer import TextViewerDialog
         from lib import ui_main
         from lib import ui_widgetmulti
@@ -1781,48 +1658,30 @@ def main():
 
     config = getattr(importnames, "loaded_config", {})
     StateManager.configure_paths(config)
+    try:
+        # 启动时规范化记忆文件，移除旧版偏好与窗口尺寸。
+        StateManager.load_memory()
+    except Exception:
+        logging.exception("规范化记忆文件失败")
     app_config = config.get("app", {}) if isinstance(config, dict) else {}
     if not isinstance(app_config, dict):
         app_config = {}
-    remember_preferences = app_config.get("remember_preferences", True) is not False
-    all_preferences = StateManager.load_preferences()
-    preferences = _startup_preferences(all_preferences, remember_preferences)
-    if not isinstance(preferences, dict):
-        preferences = {}
-
     logging_config = config.get("logging", {}) if isinstance(config, dict) else {}
     if not isinstance(logging_config, dict):
         logging_config = {}
-    remembered_level = preferences.get("log_level")
-    log_level = remembered_level if isinstance(remembered_level, str) else logging_config.get("level", "INFO")
+    log_level = logging_config.get("level", "INFO")
     StateManager.configure_logging(log_level)
 
     themes = ThemeManager.discover_themes()
     languages, preferred_language, language_warning = LanguageManager.load_languages()
-    remembered_theme = preferences.get("theme")
-    if isinstance(remembered_theme, str) and remembered_theme in themes:
-        selected_theme = remembered_theme
-    else:
-        selected_theme = ThemeManager.resolve_startup_theme(
-            themes, app_config.get("theme", "")
-        )
-    requested_language = preferences.get("language")
-    if not isinstance(requested_language, str) or requested_language not in languages:
-        requested_language = None
-    selected_language = (
-        requested_language
-        if requested_language is not None
-        else LanguageManager.resolve_startup_language(
-            languages, preferred_language, app_config.get("language", "")
-        )
+    selected_theme = ThemeManager.resolve_startup_theme(
+        themes, app_config.get("theme", "")
     )
-    remembered_roster = preferences.get("roster")
-    if isinstance(remembered_roster, str) and remembered_roster in importnames.rosters:
-        selected_roster = remembered_roster
-        importnames.select_roster(selected_roster)
-    else:
-        selected_roster = importnames.active_roster
-    startup_mode = preferences.get("mode") if isinstance(preferences.get("mode"), str) else app_config.get("default_mode")
+    selected_language = LanguageManager.resolve_startup_language(
+        languages, preferred_language, app_config.get("language", "")
+    )
+    selected_roster = importnames.active_roster
+    startup_mode = app_config.get("default_mode")
     startup_warnings = list(dict.fromkeys(bootstrap_warnings + StateManager.CONFIG_WARNINGS))
     if importnames.ROSTER_FALLBACK_USED:
         startup_warnings.append("config/name.toml")
@@ -1844,7 +1703,6 @@ def main():
         importnames.rosters,
         selected_roster,
         startup_warnings,
-        preferences=preferences,
         startup_mode=startup_mode,
     )
     try:
@@ -1854,8 +1712,6 @@ def main():
         StateManager.log("ERROR", "startup_theme", error=str(exc))
     def reveal_window():
         window.show()
-        if window._start_maximized:
-            window.showMaximized()
         if splash is not None:
             splash.finish(window)
 

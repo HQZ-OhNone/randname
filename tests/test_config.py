@@ -68,32 +68,6 @@ class ConfigHelperTests(unittest.TestCase):
         self.assertEqual(main._splash_version_pixel_size(300, 0), 1)
         self.assertEqual(main._splash_version_pixel_size(-1, 333), 1)
 
-    def test_startup_preferences_keep_only_remembered_items(self):
-        all_preferences = {
-            "theme": "randname-dark",
-            "language": "zh_CN",
-            "roster": "class_1",
-            "mode": "Lift",
-            "log_level": "DEBUG",
-            "quantities": {"multi": 4},
-            "window": {"width": 1000, "height": 700, "maximized": False},
-        }
-        preferences = main._startup_preferences(all_preferences, True)
-        self.assertEqual(preferences["theme"], "randname-dark")
-        self.assertEqual(preferences["roster"], "class_1")
-        self.assertEqual(preferences["log_level"], "DEBUG")
-        self.assertEqual(preferences["window"]["width"], 1000)
-        self.assertNotIn("language", preferences)
-        self.assertNotIn("mode", preferences)
-        self.assertNotIn("quantities", preferences)
-
-    def test_startup_preferences_master_switch(self):
-        preferences = main._startup_preferences(
-            {"theme": "randname-dark", "window": {"width": 1, "height": 1}}, False
-        )
-        self.assertNotIn("theme", preferences)
-        self.assertIn("window", preferences)
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -15,17 +15,12 @@
 #   "ScrollSingle"    滚动单抽（等于滚动多抽数量 1）
 #   "ScrollMulti"     滚动多抽
 #   "ScrollLift"      滚动减量抽
-# 记忆文件中保存的有效模式优先于这里。
+# 每次启动都使用这里设置的模式。
 default_mode = "ScrollMulti"
 
 # 默认名单键名。必须存在于 config/name.toml 的 [rosters.<键名>] 中。
-# 记忆文件中保存的有效名单优先于这里。
+# 每次启动都使用这里设置的名单。
 roster = "class_1"
-
-# 是否记住上次使用的主题、名单和日志等级。
-# true = 下次启动沿用这三项；false = 每次都从配置文件与独立配置档读取。
-# 窗口尺寸由 [window].remember_size 单独控制；模式、语言和数量每次启动都读取配置默认值。
-remember_preferences = true
 
 [assets]
 # 应用程序和窗口图标。建议使用 PNG；路径相对程序目录。
@@ -44,14 +39,14 @@ help_directory = "doc"
 # 程序日志文件。日志查看器会实时读取这个文件，可一边运行程序一边查看。
 log_file = "doc/log.log"
 
-# 运行记忆文件。保存最近结果、界面偏好和窗口尺寸；不会写入 config/ 下的配置。
+# 运行记忆文件。只保存各模式的最近结果，用于导出/导入；不会写入 config/ 下的配置。
 memory_file = "doc/memory.json"
 
 [window]
 # 初始窗口尺寸模式：
 #   "screen_ratio" = 按可用屏幕比例计算初始尺寸
 #   "fixed"        = 使用下面的 width/height
-# 用户拉伸窗口后，若 remember_size = true，下次启动会使用记忆尺寸，而不是这里的初始值。
+# 每次启动都使用这里定义的初始尺寸；程序不会记住上次拉伸后的尺寸。
 size_mode = "screen_ratio"
 
 # screen_ratio 模式下的初始窗口占可用屏幕的比例，范围 0.05 到 1.0。
@@ -70,10 +65,6 @@ height = 600
 # 是否允许用户拖动窗口边缘拉伸。
 # true = 可拉伸；false = 窗口尺寸固定。
 resizable = true
-
-# 是否记住用户拉伸后的窗口尺寸，并在下次启动恢复。
-# true = 写入记忆文件；false = 每次使用上面的初始尺寸。
-remember_size = true
 
 [ui]
 # 输出框字体。留空字符串表示使用界面默认字体。

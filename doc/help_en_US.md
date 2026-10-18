@@ -8,10 +8,10 @@ randname is a desktop app for classroom roll calls. The Mode menu contains Singl
 - **Multi:** Set the quantity with the increase/decrease buttons, then select Draw. A draw contains no duplicate names; later draws start from the full roster again.
 - **Elimination:** Each draw removes selected people from the remaining pool for the current run. Reset restores the active roster. Changing rosters or refreshing changed roster data also resets the remaining pool.
 - **Rolling Single:** A shortcut that opens Rolling Multi and sets the quantity to `1`.
-- **Rolling Multi:** Set the quantity, then select Draw to show that many reels cycling at once. The button becomes "Stop (x/n)"; each press stops the frontmost reel and fixes its name. Names fixed this round never appear again in the same round. The cycle rate is controlled by `scroll.rate`.
-- **Rolling Elimination:** The rolling behaviour is the same as Rolling Multi, but names drawn this round are removed from the remaining pool. The Reset button restores the full roster. The rate is also controlled by `scroll.rate`.
+- **Rolling Multi:** Set the quantity, then select Draw to show that many fixed slots cycling at once. Slot positions are decided on the first draw (for example six names form a centred 3×2 grid), and each press of Stop fixes one name without moving names already fixed. If a name is too long, randname adjusts the grid or font size and locks it again; the next draw or a quantity change resets the layout. Names fixed this round never appear again in the same round. The cycle rate is controlled by `scroll.rate`.
+- **Rolling Elimination:** The rolling and fixed-slot layout is the same as Rolling Multi, but names drawn this round are removed from the remaining pool. The Reset button restores the full roster. The rate is also controlled by `scroll.rate`.
 
-The output box never changes the window size. Names are shown on one line when possible, wrapped onto multiple lines when there is enough height, and the font is reduced for the current draw when the box is already full. Every mode uses this rule.
+The output box never changes the window size. In non-rolling modes, names are shown on one line when possible, wrapped onto multiple lines when there is enough height, and the font is reduced for the current draw when the box is already full. Rolling modes keep every name in a fixed slot and reduce the font only when a name cannot fit its slot.
 
 ## Rosters
 
@@ -36,11 +36,11 @@ Select a language from Language. Available language packs are listed in `config/
 
 Themes are stored in `config/theme.toml`. Its `default` key selects the fallback theme. Theme names use the same current-language, system-language, English, key fallback order as roster names.
 
-The memory file keeps only the theme, roster, log level, and window size from the last session; mode, language, and quantities return to the configuration defaults on every startup. Set `app.remember_preferences = false` in `config/config.toml` to stop remembering even the theme, roster, and log level (window size remains controlled by `[window].remember_size`).
+randname does not remember the theme, roster, log level, mode, language, quantity, or window size from the last session. Every startup reads the configuration and dedicated theme/language files so the interface state is consistent. The memory file is used only to store and import/export recent results.
 
 ## Window and Status Bar
 
-The main window can be resized by dragging its edges. The resulting size is written to `doc/memory.json` and restored on the next startup; set `[window].remember_size = false` to disable this. Long names and memory imports never change the window size.
+The main window can be resized by dragging its edges, but the next startup still uses the initial size configured in `[window]`; the last resized size is not remembered. Long names and memory imports never change the window size.
 
 The left side of the status bar shows temporary messages such as "Multi complete"; the right side shows the current mode, roster, quantity, theme, language, log level, and version. Each item can be hidden in `[statusbar]`.
 
@@ -56,7 +56,6 @@ aspect_ratio = 1.5
 width = 1000
 height = 600
 resizable = true
-remember_size = true
 
 [scroll]
 rate = 30
@@ -76,7 +75,7 @@ Use **File > Refresh application data** after editing configuration, rosters, la
 
 Choose a threshold under **About > Log level**: Debug, Information, Warning, Error, or Critical. Records below the selected level are omitted. **About > Program log** opens `doc/log.log` read-only and refreshes automatically as the file changes, so it can be watched while the program runs.
 
-File > Import memory and File > Export memory exchange recent results as JSON. They do not replace configuration or roster files. The runtime memory file is `doc/memory.json`.
+File > Import memory and File > Export memory exchange recent results as JSON. They do not replace configuration, roster, or interface state. The runtime memory file is `doc/memory.json` and stores only each mode's most recent result.
 
 Help, the license, and the program log all use randname's own read-only viewer. The viewer is clamped to the available desktop area so the taskbar remains accessible; it supports touch-drag scrolling, and its font size and refresh interval can be adjusted in `[viewer]`.
 

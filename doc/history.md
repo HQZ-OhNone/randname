@@ -223,3 +223,47 @@ verification results.
   0.338、0.338、0.340；右边距 9/4/1px，底边距 9/4/2px。
 - 1000×500 预览图中版本号为纯白，位于右下角且未裁切。
 - 仍需在真实 Windows/Linux 高分屏确认字体渲染与视觉比例。
+
+## 2026-10-18 / 3.8.4
+
+### 已完成 / Completed
+
+- 删除记忆配置功能：启动时不再从 `doc/memory.json` 恢复主题、名单、日志等级、模式、语言、数量或窗口尺寸。
+- 启动界面统一按配置档读取：主题取 `theme.toml` 的 `default`，语言取 `language.toml` 的 `preferred`，名单、模式、日志等级和窗口尺寸取 `config.toml`，数量从 1 开始。
+- 移除 `[app].remember_preferences`、`[window].remember_size`，以及窗口尺寸防抖保存、关闭保存和启动恢复。
+- 记忆文件只保存 `last_results`；旧档中的 `preferences`、`loaded_config` 在读取和导入时被忽略，导出也不再包含。
+- 保留“文件 > 导入记忆...”与“导出记忆...”的结果导入/导出能力。
+- 新增 `SlotOutputView`、`_SlotGrid`、`choose_slot_layout()`：滚动多抽与滚动减量抽使用固定格子。
+- 第一次抽取按人数与输出框比例确定格子位置；6 人宽框通常为 2 列 × 3 栏，文字居中。
+- 锁定后滚动 tick 只更新文字，已固定名字不移动；名字过长时自动重排列数/行数/字号并重新锁定。
+- 下一轮抽取、更改数量、重置或导入结果时清除布局锁定。
+- 更新记忆、配置、输出框测试；全部 28 项测试通过。
+- 更新三语言帮助、三语言业务逻辑文档和 README。
+- 版本号更新为 `3.8.4`。
+
+### 发现但未解决 / Found but unresolved
+
+- 固定格子的“过长”判断按当前滚动帧进行：临时滚过的长名字也可能触发一次全盘重排，之后保持锁定。
+- 极长姓名在最小字号下仍可能在格子内换行，格子高度不足时可能被裁切，需要在真实字体与窗口尺寸下继续验证。
+- 未在真实触摸屏上验证固定格子刷新时的视觉稳定性。
+
+### English summary
+
+- Removed memory-based configuration. Startup now reads theme from `theme.toml`,
+  language from `language.toml`, and roster/mode/log level/window size from
+  `config.toml`; quantities always start at 1.
+- Removed `[app].remember_preferences`, `[window].remember_size`, window-size
+  debounce/close saving, and startup restore.
+- The memory file now stores only `last_results`. Legacy `preferences` and
+  `loaded_config` are ignored on load/import and omitted from exports. Result
+  import/export is retained.
+- Added fixed-slot `SlotOutputView` for Rolling Multi and Rolling Elimination.
+  The first draw decides positions, ticks only change text, and an overlong
+  name triggers a re-layout that is then locked.
+- The next draw, quantity change, reset, or result import clears the layout
+  lock.
+- Updated tests, all three help files, all three logic documents, README, and
+  bumped the version to `3.8.4`.
+- Unresolved: transient long rolling names can trigger one global re-layout;
+  extreme names may still wrap or clip inside a slot; real-device touch
+  stability was not tested.

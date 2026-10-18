@@ -9,7 +9,7 @@ version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
 This document records the actual behaviour, hidden mechanisms, and edge cases
-of randname 3.8.3. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
+of randname 3.8.4. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 `logic_zh_TW.md`.
 
 ## 1. Terms and modes
@@ -34,21 +34,21 @@ of randname 3.8.3. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 | Path | Responsibility |
 | --- | --- |
 | `main.py` | Startup, main window, menus, status bar, page switching, memory restore |
-| `lib/version.py` | `APP_VERSION = "3.8.3"` |
+| `lib/version.py` | `APP_VERSION = "3.8.4"` |
 | `lib/Multi.py` | Multi draw algorithm |
 | `lib/Lift.py` | Elimination draw algorithm |
 | `lib/ScrollMulti.py` | Rolling Multi controller |
 | `lib/ScrollLift.py` | Rolling Elimination controller (extends ScrollMultiController) |
-| `lib/OutputView.py` | Single-line / multi-line / shrink-to-fit output |
+| `lib/OutputView.py` | Auto-fit output; fixed-slot `SlotOutputView` for rolling modes |
 | `lib/TextViewer.py` | Read-only live viewer for help, license, and logs |
-| `lib/StateManager.py` | Configuration, memory, preferences, logging |
+| `lib/StateManager.py` | Configuration, memory results, logging |
 | `lib/importnames.py` | Roster loading |
 | `lib/ThemeManager.py` | Theme loading and QSS |
 | `lib/LanguageManager.py` | Language packs and fallbacks |
 | `ui/*.ui` | Qt Designer sources |
 | `lib/ui_*.py` | `pyside6-uic` output; regenerated before builds |
 | `config/*.toml` | Configuration, roster, theme, language |
-| `doc/memory.json` | Preferences, window size, recent results |
+| `doc/memory.json` | Recent results per mode (export/import only) |
 | `doc/log.log` | Persistent log |
 
 ## 3. Startup
@@ -59,23 +59,22 @@ of randname 3.8.3. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
    `.config.default.toml`, then the built-in configuration.
 4. Load the icon and create the splash screen.
 5. Scale the splash according to `[splash]`, keeping the image aspect ratio.
-6. `_draw_splash_version()` draws `v3.8.3` in the bottom-right corner. The
+6. `_draw_splash_version()` draws `v3.8.4` in the bottom-right corner. The
    font size always scales with the image width to one third of that width;
    the text is always pure white and has no size or colour configuration.
 7. `_startup_file_check()` collects recoverable-file warnings. `required` is
    currently always empty, so the fatal startup-check branch is unreachable.
 8. Import `lib` modules.
 9. `StateManager.configure_paths()` applies `[paths]`.
-10. Read the remembered theme, roster, and log level unless
-    `[app].remember_preferences = false`. Window size is controlled separately
-    by `[window].remember_size`.
-11. Log level: remembered valid value > `[logging].level` > `INFO`.
-12. Theme: remembered valid value > `theme.toml` `default` >
-    `config.toml` `app.theme` > first theme.
-13. Language: `language.toml` `preferred` > `config.toml` `app.language` >
-    system language > `en_US`.
-14. Roster: remembered valid value > `config.toml` `app.roster` > first roster.
-15. Mode: `config.toml` `app.default_mode` > `Multi`.
+10. Memory preferences are not read; every startup reads the configuration and
+    dedicated theme/language files.
+11. Log level: `[logging].level` > `INFO`.
+12. Theme: `theme.toml` `default` > `config.toml` `app.theme` (legacy) >
+    first theme.
+13. Language: `language.toml` `preferred` > `config.toml` `app.language`
+    (legacy) > system language > `en_US`.
+14. Roster: `config.toml` `app.roster` > first roster.
+15. Mode: `config.toml` `app.default_mode` > `Multi`; quantities start at 1.
 16. Create `MainWindow` and apply the theme; whether the window is shown
     immediately depends on `[splash].mode`.
 17. With `[splash].mode = 1`, only the splash is shown until the remaining time
@@ -87,8 +86,7 @@ of randname 3.8.3. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 Theme:
 
 ```
-memory preferences.theme (valid)
-  > theme.toml default (valid)
+theme.toml default (valid)
   > config.toml [app].theme (legacy)
   > first theme
 ```
@@ -104,18 +102,15 @@ language.toml preferred (valid)
 
 Other values:
 
-- Roster: memory `preferences.roster` > `[app].roster` > first roster.
-- Mode: `[app].default_mode` > `Multi` (memory is not read).
-- Log level: memory `preferences.log_level` > `[logging].level` > `INFO`.
-- Quantities: always start from 1 (memory is not read).
-- Window: `[window]` computes the initial size; a valid remembered size
-  overrides it when `remember_size = true`.
+- Roster: `[app].roster` > first roster.
+- Mode: `[app].default_mode` > `Multi`.
+- Log level: `[logging].level` > `INFO`.
+- Quantities: always start from 1.
+- Window: `[window]` computes the initial size on every startup; no remembered
+  size is read.
 
-`[app].remember_preferences = false` ignores the remembered theme, roster, and
-log level, but does not affect `[window].remember_size`.
-
-`[app].remember_preferences = false` ignores application preferences at
-startup. `[window].remember_size` is independent.
+Startup never restores the theme, roster, log level, mode, language, quantity,
+or window size from the memory file.
 
 ## 5. Window and status bar
 
@@ -151,13 +146,8 @@ The splash uses the same algorithm with `screen_ratio = 0.25` and
 - `resizable = true` allows edge dragging; minimum size is 640×480.
 - `resizable = false` uses `setFixedSize()`.
 - Content changes never resize the window.
-- `resizeEvent` starts a 450 ms single-shot save timer.
-- Window state changes (maximize/restore) also save.
-- Closing the window saves again.
-- When maximized, `normalGeometry()` is stored together with
-  `maximized: true`; otherwise the current size and `maximized: false` are
-  stored.
-- Remembered sizes are clamped to the current available screen.
+- The resized size is not saved; the next startup uses the configured initial
+  size again.
 - Refresh application data keeps the current window size.
 
 ### Status bar
@@ -170,7 +160,9 @@ The splash uses the same algorithm with `screen_ratio = 0.25` and
   log-level, or configuration changes.
 - The version comes from `lib/version.py`.
 
-## 6. Output auto-fit (all modes)
+## 6. Output auto-fit
+
+### 6.1 Non-rolling modes (OutputView)
 
 `lib/OutputView.py` wraps a `QLabel`:
 
@@ -185,14 +177,30 @@ The splash uses the same algorithm with `screen_ratio = 0.25` and
    height, wrap to multiple lines; if it still does not fit, reduce the font.
 5. If even the minimum font cannot fit one extreme name, Qt may wrap inside
    the name so that content remains visible.
-6. Rolling modes call `begin_round(pool_names, quantity)`:
-   - measure the `quantity` widest names in the pool;
-   - compute and lock a font size that fits the worst case;
-   - reuse the locked size for every tick in the round;
-   - restore automatic sizing after the result/reset.
-7. `set_message()` is used for "Ready", "No result", etc. and always uses the
+6. `set_message()` is used for "Ready", "No result", etc. and always uses the
    base font.
-8. `resizeEvent` re-runs layout, so user resizing is handled.
+7. `resizeEvent` re-runs layout, so user resizing is handled.
+
+### 6.2 Rolling modes (SlotOutputView)
+
+`SlotOutputView` reuses the original output `QLabel` as a background container
+and places child `QLabel`s with `_SlotGrid`:
+
+1. `begin_round(pool, quantity)` creates `quantity` fixed slots.
+2. The first `set_names()` computes and locks the layout. The target row count
+   is estimated as `round(sqrt(N * H / W))`; every column count is compared,
+   preferring the largest font and, on a tie, the layout closest to the target
+   row count. Six names in a wide box usually become 2 rows × 3 columns.
+3. Cells are equal-sized and centre their text horizontally and vertically;
+   an incomplete last row is centred as a row.
+4. After locking, every tick only changes text. Slot geometry is stable, so
+   names already fixed do not move.
+5. If a current name cannot fit its locked slot, the column/row/font
+   calculation runs again and the new layout is locked.
+6. `clear_round()`, the next `start()`, a quantity change, reset, or result
+   import clears the lock so the next draw re-lays out.
+7. Imported results create slots from the result count and lock one layout.
+8. ScrollMulti and ScrollLift share this view.
 
 ## 7. Multi
 
@@ -251,7 +259,8 @@ Result:
      larger.
   3. `pool = dict(names)` for this round.
   4. Create `total` reels, each with its own random order and index.
-  5. Call `view.begin_round(pool.values(), total)`.
+  5. Call `view.begin_round(pool.values(), total)` to create fixed slots; the
+     first tick locks this round's layout and font size.
   6. Tick immediately, then start the timer.
 - `_tick()` advances each active reel, reshuffles exhausted orders, and
   guards against stale keys that were already fixed by an earlier stop.
@@ -272,7 +281,8 @@ Result:
   keyed by stop order. Codes are unique within the round.
 - `show_result()` restores a remembered result without rolling.
 - `update_names()` resets on roster changes; `update_rate()` only changes the
-  interval.
+  timer interval; `set_quantity()` clears the layout lock while idle so the
+  next round re-lays out.
 
 ## 10. Rolling Elimination
 
@@ -308,10 +318,9 @@ remaining pool:
 ## 11. Single and Rolling Single aliases
 
 - Mode > Single calls `_show_single_page()`: set Multi quantity to 1, update
-  the label, switch to the Multi page, save mode `Multi`.
+  the label, and switch to the Multi page.
 - Mode > Rolling Single calls `_show_scrollsingle_page()`: set Rolling Multi
-  quantity to 1, update the controller, switch to the Rolling Multi page, save
-  mode `ScrollMulti`.
+  quantity to 1, update the controller, and switch to the Rolling Multi page.
 - `default_mode` compatibility: `Single` → Multi quantity 1;
   `ScrollSingle` → Rolling Multi quantity 1; any invalid value → Multi.
 - No `Single.py`, `ScrollSingle.py`, `WidgetScrollSingle.ui`, or separate page
@@ -321,52 +330,33 @@ remaining pool:
 
 ```json
 {
-  "preferences": {
-    "theme": "randname-dark",
-    "language": "en_US",
-    "roster": "class_1",
-    "mode": "ScrollMulti",
-    "log_level": "INFO",
-    "quantities": {
-      "multi": 1,
-      "lift": 1,
-      "scroll_multi": 3,
-      "scroll_lift": 1
-    },
-    "window": {"width": 1200, "height": 760, "maximized": false}
-  },
   "last_results": {
     "Multi": null,
     "Lift": null,
     "ScrollMulti": null,
     "ScrollLift": null
-  },
-  "loaded_config": null
+  }
 }
 ```
 
+- The memory file stores only each mode's most recent result. It no longer
+  stores theme, roster, mode, language, log level, quantities, or window size.
 - Runtime result entries are usually `{"result": ..., "meta": ...}`; Multi and
   Elimination use `{"result": ..., "time": ...}`.
 - JSON is written as UTF-8 with `ensure_ascii=False, indent=2`.
 - `save_memory()` writes a `.tmp` file and replaces the target atomically.
-- `_normalize_memory()` fills missing fields, discards invalid values, and
-  supports the legacy `loaded_config`.
+- `_normalize_memory()` keeps only `last_results` and drops legacy
+  `preferences` and `loaded_config`.
 - Legacy `ScrollSingle` entries are ignored.
-- Startup uses only `preferences.theme`, `preferences.roster`,
-  `preferences.log_level`, and `preferences.window`; `language`, `mode`, and
-  `quantities` are ignored even if an old memory file still contains them, and
-  the program no longer updates those keys.
-- Preferences are saved immediately after theme, roster, or log-level changes.
-- Language, mode, and quantity changes are no longer persisted; the next
-  startup uses `language.toml`, `[app].default_mode`, and 1 respectively.
-- Window size is saved after a 450 ms debounce, on close, and on
-  maximize/restore.
 - Draw results are saved after each completed draw/round.
-- Import/export never writes to `config/`.
-- Import without `preferences` keeps the current preferences; imported
-  preferences take effect on the next startup, not immediately.
-- `remember_preferences = false` disables remembered theme, roster, and log
-  level, but `remember_size` still works independently.
+- Theme, roster, language, log-level, mode, quantity, and window-size changes
+  are never written to the memory file.
+- Import/export never writes to `config/` or changes the current interface
+  state.
+- Importing an old memory file restores only `last_results`; its `preferences`
+  and `loaded_config` are ignored.
+- A corrupt memory file falls back to the result-only default structure and
+  does not block startup.
 
 ## 13. Logging
 
@@ -422,8 +412,8 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ### Languages
 
-- `language.toml` `preferred` is the first-startup language; memory preferences
-  win.
+- `language.toml` `preferred` is the first-startup language; legacy
+  `app.language` is only a fallback.
 - `LanguageManager.ENGLISH` is the built-in fallback.
 - Missing translation keys fall back to English, then the key itself.
 - Placeholders such as `{count}` and `{name}` must be preserved.
@@ -455,7 +445,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
    `.config.default.toml`, `.name.default.toml`, `config/`, and `doc/`.
 3. Removed files: `WidgetScrollSingle.ui`, `ui_widgetscrollsingle.py`,
    `ScrollSingle.py`, `randname-start_v3.6.png`, `randname-start_v3.7.png`.
-4. Version lives in `lib/version.py`; use `3.8.3[upgrade]_...` in the commit
+4. Version lives in `lib/version.py`; use `3.8.4[upgrade]_...` in the commit
    message to trigger the release workflow.
 
 ## 18. Hidden mechanisms and edge cases
@@ -493,11 +483,11 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ### Memory
 
-- `loaded_config` is a legacy configuration snapshot; new preferences use
-  `preferences`.
-- Import never writes `config/`, never changes the roster, and does not switch
-  the current theme/language.
-- Corrupt memory falls back to the default structure without blocking startup.
+- The memory file stores only `last_results`; legacy `preferences` and
+  `loaded_config` are dropped on load.
+- Import never writes `config/`, never changes the roster, and does not change
+  the current interface state.
+- Corrupt memory falls back to a result-only default without blocking startup.
 - `save_memory()` uses atomic replacement; do not write `memory.json` directly.
 - Legacy `ScrollSingle` entries are ignored.
 
@@ -518,26 +508,28 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 19. Tests
 
-- `tests/test_output_fit.py`
-- `tests/test_memory.py`
-- `tests/test_scroll_lift.py`
-- `tests/test_config.py` (including splash wait, version font sizing, and
-  preference filtering)
+- `tests/test_output_fit.py`: non-rolling wrapping/shrinking; fixed rolling
+  slots, stable geometry, long-name re-layout, and layout reset.
+- `tests/test_memory.py`: result-only storage, legacy preference removal, and
+  import/export.
+- `tests/test_scroll_lift.py`: remaining pool, one-by-one stops, reset, and
+  quantity clamping.
+- `tests/test_config.py`: configuration compatibility, invalid-value fallback,
+  splash wait, and version font sizing.
 
 Run: `QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests`.
 
 ## 20. Version
 
-Current version: **3.8.3**.
+Current version: **3.8.4**.
 
 Main changes in the 3.8.x series:
 
 - Fixed rolling-multi window flicker.
 - Fixed memory-import window widening and raw dictionary output.
 - Shared auto-fit output across all modes.
-- Resizable, persisted window size.
+- Resizable window with a configured startup size.
 - Expanded status bar.
-- Memory preferences and window size.
 - Single / Rolling Single aliases.
 - New Rolling Elimination mode.
 - Live read-only text viewer.
@@ -575,13 +567,8 @@ Main changes in the 3.8.x series:
   main window and appearing to "flash by" on Wayland.
 - Added `_splash_wait_ms()` to compute the remaining splash time; `mode = 0`
   and other modes return 0 and keep the close-as-soon-as-ready behaviour.
-- Memory preferences now keep only theme, roster, log level, and window size.
-  `_startup_preferences()` filters old memory on startup, and
-  `_current_preferences()` no longer writes language, mode, or quantities.
 - Startup language comes from `language.toml` `preferred`, mode from
   `[app].default_mode`, and quantities start at 1.
-- Old `language`, `mode`, and `quantities` keys remain in the memory file but
-  are ignored.
 - Version is now `3.8.2`.
 
 ## 23. 3.8.3 additions
@@ -600,3 +587,25 @@ Main changes in the 3.8.x series:
 - Margins and shadow offset scale with the image to keep placement consistent
   at different resolutions.
 - Version is now `3.8.3`.
+
+## 24. 3.8.4 additions
+
+- Removed memory-based configuration: startup no longer reads remembered
+  theme, roster, log level, mode, language, quantity, or window size.
+- Theme comes from `theme.toml` `default`; language from `language.toml`
+  `preferred`; roster, mode, log level, and window size from `config.toml`;
+  quantities start at 1.
+- Removed `[app].remember_preferences` and `[window].remember_size`, including
+  debounced window-size saving, close-time saving, and startup restore.
+- The memory file now stores only `last_results`; legacy `preferences` and
+  `loaded_config` are ignored on load/import and omitted from exports.
+- Added `SlotOutputView`, `_SlotGrid`, and `choose_slot_layout()` to
+  `lib/OutputView.py`.
+- ScrollMulti and ScrollLift now use fixed slots. The first draw decides the
+  positions; ticks only change text; an overlong name re-lays out and locks the
+  new layout.
+- The next draw, a quantity change, reset, or result import clears the layout
+  lock.
+- Added tests for fixed-slot layout, stable positions, long-name re-layout, and
+  result-only memory import/export.
+- Version is now `3.8.4`.

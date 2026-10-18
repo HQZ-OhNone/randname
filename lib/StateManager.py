@@ -49,26 +49,10 @@ LOG_LEVELS = {
 LOG_LEVEL_CHOICES = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 CURRENT_LOG_LEVEL = "INFO"
 SESSION_LOG_RECORDS: list[str] = []
-DEFAULT_QUANTITIES = {
-    "multi": 1,
-    "lift": 1,
-    "scroll_multi": 1,
-    "scroll_lift": 1,
-}
-DEFAULT_PREFERENCES = {
-    "theme": None,
-    "language": None,
-    "roster": None,
-    "mode": None,
-    "log_level": None,
-    "quantities": dict(DEFAULT_QUANTITIES),
-    "window": None,
-}
 BUILTIN_CONFIG = {
     "app": {
         "default_mode": "Multi",
         "roster": "class_1",
-        "remember_preferences": True,
     },
     "assets": {
         "icon": "ui/randname1.png",
@@ -96,7 +80,6 @@ BUILTIN_CONFIG = {
         "width": 1000,
         "height": 600,
         "resizable": True,
-        "remember_size": True,
     },
     "ui": {
         "font_family": "",
@@ -192,80 +175,24 @@ def session_log_text() -> str:
 
 def _default_memory() -> dict:
     return {
-        "preferences": copy.deepcopy(DEFAULT_PREFERENCES),
         "last_results": {
             "Multi": None,
             "Lift": None,
             "ScrollMulti": None,
             "ScrollLift": None,
         },
-        "loaded_config": None,
     }
 
 
-def _normalize_preferences(preferences: Any) -> dict:
-    result = copy.deepcopy(DEFAULT_PREFERENCES)
-    if not isinstance(preferences, dict):
-        return result
-    for key in ("theme", "language", "roster", "mode", "log_level"):
-        value = preferences.get(key)
-        if isinstance(value, str) and value:
-            result[key] = value
-    quantities = preferences.get("quantities")
-    if isinstance(quantities, dict):
-        for key in DEFAULT_QUANTITIES:
-            try:
-                value = int(quantities.get(key, result["quantities"][key]))
-            except (TypeError, ValueError):
-                continue
-            result["quantities"][key] = max(1, value)
-    window = preferences.get("window")
-    if isinstance(window, dict):
-        try:
-            width = int(window.get("width"))
-            height = int(window.get("height"))
-        except (TypeError, ValueError):
-            width = height = 0
-        if width > 0 and height > 0:
-            result["window"] = {
-                "width": width,
-                "height": height,
-                "maximized": window.get("maximized") is True,
-            }
-    return result
-
-
-def _legacy_preferences(memory: dict) -> dict:
-    """从旧版 memory 的 loaded_config 中恢复可沿用的基础配置。"""
-    result = copy.deepcopy(DEFAULT_PREFERENCES)
-    loaded = memory.get("loaded_config") if isinstance(memory, dict) else None
-    app = loaded.get("app", {}) if isinstance(loaded, dict) else {}
-    if isinstance(app, dict):
-        for key in ("theme", "language", "roster", "mode", "default_mode"):
-            value = app.get(key)
-            if isinstance(value, str) and value:
-                target = "mode" if key == "default_mode" else key
-                result[target] = value
-    return result
-
-
 def _normalize_memory(memory: Any) -> dict:
+    """只保留最近结果；旧记忆中的偏好与配置快照会被忽略。"""
     default = _default_memory()
     if not isinstance(memory, dict):
         return default
-    legacy = _legacy_preferences(memory)
-    preferences = memory.get("preferences")
-    normalized = _normalize_preferences(preferences if isinstance(preferences, dict) else legacy)
-    # 旧格式没有 preferences、或新 preferences 缺少某些字段时，loaded_config 作为后备。
-    for key in ("theme", "language", "roster", "mode", "log_level"):
-        if normalized[key] is None and legacy[key] is not None:
-            normalized[key] = legacy[key]
     last_results = memory.get("last_results")
     if isinstance(last_results, dict):
         for key in default["last_results"]:
             default["last_results"][key] = last_results.get(key)
-    default["preferences"] = normalized
-    default["loaded_config"] = memory.get("loaded_config")
     return default
 
 
@@ -328,70 +255,27 @@ def save_memory(state: dict) -> None:
     tmp_path.replace(MEMORY_PATH)
 
 
-def load_preferences() -> dict:
-    return copy.deepcopy(load_memory().get("preferences", DEFAULT_PREFERENCES))
-
-
-def save_preferences(preferences: dict) -> dict:
-    """合并并保存偏好；window / quantities 等嵌套表按字段合并。"""
-    state = load_memory()
-    current = state.get("preferences")
-    if not isinstance(current, dict):
-        current = copy.deepcopy(DEFAULT_PREFERENCES)
-    if isinstance(preferences, dict):
-        for key, value in preferences.items():
-            if key in ("quantities", "window") and isinstance(value, dict):
-                merged = current.get(key)
-                if not isinstance(merged, dict):
-                    merged = {}
-                merged.update(value)
-                current[key] = merged
-            elif value is not None:
-                current[key] = value
-    state["preferences"] = _normalize_preferences(current)
-    save_memory(state)
-    return state["preferences"]
-
-
 def export_memory(path: Optional[Path] = None) -> Path:
     destination = path or MEMORY_PATH
-    source = MEMORY_PATH.read_text(encoding="utf-8") if MEMORY_PATH.exists() else "{}"
-    destination.write_text(source, encoding="utf-8")
+    state = load_memory()
+    destination.write_text(
+        json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     log("INFO", "export_memory", result=str(destination))
     return destination
 
 
-def import_memory(path: Path, apply_callback: Optional[Callable[[dict], None]] = None,
-                  preferences: Optional[dict] = None) -> dict:
-    """Import memory without ever writing to the read-only config file."""
+def import_memory(path: Path, apply_callback: Optional[Callable[[dict], None]] = None) -> dict:
+    """导入最近结果；不会写入 config/ 下的配置，也不会恢复旧版界面偏好。"""
     content = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(content, dict):
         raise ValueError("Memory file must contain an object")
-    # 兼容旧格式；导入文件没有偏好时保留当前会话的偏好。
     normalized = _normalize_memory(content)
-    if isinstance(content.get("preferences"), dict):
-        normalized["preferences"] = _normalize_preferences(content["preferences"])
-        if isinstance(preferences, dict):
-            current = _normalize_preferences(preferences)
-            for key, value in current.items():
-                if key in ("quantities", "window"):
-                    imported = normalized["preferences"].get(key)
-                    if not isinstance(imported, dict):
-                        normalized["preferences"][key] = value
-                    else:
-                        for nested_key, nested_value in value.items():
-                            imported.setdefault(nested_key, nested_value)
-                elif normalized["preferences"].get(key) is None:
-                    normalized["preferences"][key] = value
-    elif isinstance(preferences, dict):
-        normalized["preferences"] = _normalize_preferences(preferences)
-    write_state = dict(normalized)
-    write_state["loaded_config"] = content.get("loaded_config", normalized.get("loaded_config"))
-    save_memory(write_state)
+    save_memory(normalized)
     if apply_callback is not None:
-        apply_callback(write_state)
+        apply_callback(normalized)
     log("INFO", "import_memory", result=str(path))
-    return write_state
+    return normalized
 
 
 def load_config() -> dict:

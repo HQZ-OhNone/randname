@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文记录 randname 3.8.3 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
+本文记录 randname 3.8.4 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
 `logic_en_US.md`，正體中文版见 `logic_zh_TW.md`。
 
 ## 1. 术语与模式
@@ -31,14 +31,14 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路径 | 职责 |
 | --- | --- |
 | `main.py` | 启动、主窗口、菜单、状态栏、页面切换、记忆回填、查看器入口 |
-| `lib/version.py` | `APP_VERSION = "3.8.3"` |
+| `lib/version.py` | `APP_VERSION = "3.8.4"` |
 | `lib/Multi.py` | 多抽算法 |
 | `lib/Lift.py` | 减量抽算法 |
 | `lib/ScrollMulti.py` | 滚动多抽控制器 |
 | `lib/ScrollLift.py` | 滚动减量抽控制器（继承 ScrollMultiController） |
-| `lib/OutputView.py` | 输出框单行/多行/缩字号自适应 |
+| `lib/OutputView.py` | 非滚动输出框自适应；滚动模式固定格子 `SlotOutputView` |
 | `lib/TextViewer.py` | 只读、实时刷新的帮助/许可证/日志查看器 |
-| `lib/StateManager.py` | 配置、记忆、偏好、日志 |
+| `lib/StateManager.py` | 配置、记忆结果、日志 |
 | `lib/importnames.py` | 启动时加载名单 |
 | `lib/ThemeManager.py` | 主题读取、样式表 |
 | `lib/LanguageManager.py` | 语言包、翻译、回退 |
@@ -48,7 +48,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | `config/name.toml` | 名单 |
 | `config/theme.toml` | 主题 |
 | `config/language.toml` | 语言包 |
-| `doc/memory.json` | 偏好、窗口尺寸、最近结果 |
+| `doc/memory.json` | 各模式最近结果（仅用于导出/导入） |
 | `doc/log.log` | 持久日志 |
 | `doc/logic_*.md` | 本业务逻辑文档 |
 
@@ -59,16 +59,16 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 3. `_bootstrap_config()` 读取 `config/config.toml`；失败时读取 `.config.default.toml`，再失败使用内建配置。
 4. 读取图标；创建启动画面。
 5. 启动画面按 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 缩放，保持宽高比。
-6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.8.3`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
+6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.8.4`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
 7. `_startup_file_check()` 检查可恢复文件；缺失项加入启动警告。`required` 当前恒为空，因此“启动检查失败”分支不可达。
 8. 导入 `lib` 模块。
 9. `StateManager.configure_paths()` 应用 `[paths]` 的日志/记忆路径。
-10. 读取记忆中保留的主题、名单和日志等级；`[app].remember_preferences = false` 时全部忽略。窗口尺寸由 `[window].remember_size` 单独决定。
-11. 日志等级：记忆中的有效值 > `[logging].level` > `INFO`。
-12. 主题：记忆中的有效值 > `theme.toml` 的 `default` > `config.toml` `app.theme` > 主题目录第一项。
-13. 语言：`language.toml` 的 `preferred` > `config.toml` `app.language` > 系统语言 > `en_US`。
-14. 名单：记忆中的有效名单 > `config.toml` 的 `app.roster` > 名单目录第一项。
-15. 模式：`config.toml` 的 `app.default_mode` > `Multi`。
+10. 不读取记忆偏好；每次启动都从配置档与独立配置档读取界面状态。
+11. 日志等级：`[logging].level` > `INFO`。
+12. 主题：`theme.toml` 的 `default` > `config.toml` `app.theme`（旧键，兼容） > 主题目录第一项。
+13. 语言：`language.toml` 的 `preferred` > `config.toml` `app.language`（旧键，兼容） > 系统语言 > `en_US`。
+14. 名单：`config.toml` 的 `app.roster` > 名单目录第一项。
+15. 模式：`config.toml` 的 `app.default_mode` > `Multi`；数量固定从 1 开始。
 16. 创建 `MainWindow`，应用主题；主窗口是否立即显示取决于 `[splash].mode`。
 17. `[splash].mode = 1` 时先只显示启动画面，剩余时间到后才显示主窗口并关闭启动画面；其他模式在主窗口准备好后立即显示并关闭启动画面。
 
@@ -77,8 +77,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 ### 4.1 主题
 
 ```
-记忆 preferences.theme（有效）
-  > theme.toml 的 default（有效）
+theme.toml 的 default（有效）
   > config.toml [app].theme（旧键，兼容）
   > 主题目录第一项
 ```
@@ -94,13 +93,13 @@ language.toml 的 preferred（有效）
 
 ### 4.3 其他
 
-- 名单：记忆 `preferences.roster` > `config.toml [app].roster` > 第一组名单。
-- 模式：`config.toml [app].default_mode` > `Multi`（不读取记忆）。
-- 日志等级：记忆 `preferences.log_level` > `config.toml [logging].level` > `INFO`。
-- 数量：固定从 1 开始（不读取记忆）。
-- 窗口：`config.toml [window]` 计算初始尺寸；若 `remember_size = true` 且记忆尺寸有效，则记忆尺寸覆盖初始尺寸。
+- 名单：`config.toml [app].roster` > 第一组名单。
+- 模式：`config.toml [app].default_mode` > `Multi`。
+- 日志等级：`config.toml [logging].level` > `INFO`。
+- 数量：固定从 1 开始。
+- 窗口：每次启动都由 `config.toml [window]` 计算初始尺寸，不读取记忆尺寸。
 
-`[app].remember_preferences = false` 会忽略启动时的主题、名单和日志等级，但不影响 `[window].remember_size`。
+启动时不会从记忆文件恢复主题、名单、日志等级、模式、语言、数量或窗口尺寸。
 
 ## 5. 窗口尺寸与状态栏
 
@@ -144,7 +143,9 @@ language.toml 的 preferred（有效）
 - 切换模式、名单、数量、主题、语言、日志等级、刷新配置后调用 `_update_status_info()`。
 - 版本来自 `lib/version.py`。
 
-## 6. 输出框自适应（所有模式共用）
+## 6. 输出框自适应
+
+### 6.1 非滚动模式（OutputView）
 
 `lib/OutputView.py` 包装一个 `QLabel`：
 
@@ -153,13 +154,21 @@ language.toml 的 preferred（有效）
 3. 显示姓名列表时按显示宽度贪婪分行，姓名之间两个空格，不会从姓名中间断开。
 4. 先用基准字号尝试单行；单行放不下且高度足够时改为多行；仍放不下则逐步缩小字号。
 5. 极端情况下单个姓名仍比结果框宽时，允许 Qt 在字符间换行，避免内容完全不可见。
-6. 滚动模式在每轮开始时调用 `begin_round(pool_names, quantity)`：
-   - 按基准字号测量池中最宽的 `quantity` 个姓名；
-   - 计算一个能容纳最坏情况的字号并锁定；
-   - 本轮 tick 更新时沿用锁定字号，避免字号抖动；
-   - 结果/重置后恢复自动字号。
-7. `set_message()` 用于“等待输入”“暂无结果”等占位文案，始终使用基准字号。
-8. `resizeEvent` 触发重新排版；用户拉伸窗口后自动重新选择单行/多行/字号。
+6. `set_message()` 用于“等待输入”“暂无结果”等占位文案，始终使用基准字号。
+7. `resizeEvent` 触发重新排版；用户拉伸窗口后自动重新选择单行/多行/字号。
+
+### 6.2 滚动模式（SlotOutputView）
+
+`SlotOutputView` 复用原输出 `QLabel` 作为背景容器，内部用 `_SlotGrid` 手动摆放子 `QLabel`：
+
+1. `begin_round(pool, quantity)` 创建 `quantity` 个固定格子。
+2. 第一次 `set_names()` 时计算布局并锁定：目标行数按 `round(sqrt(N * H / W))` 估算；比较所有栏数组合，优先字号最大，字号相同时选择最接近目标行数的配置。6 人、宽输出框通常为 2 行 × 3 列。
+3. 每个格子等宽等高，文字水平/垂直居中；最后一行不足时整行居中。
+4. 锁定后每次 tick 只更新格子文字，格子几何不变，已停止的名字不会移动。
+5. 若当前姓名无法放进锁定格子，重新计算列数/行数/字号并再次锁定；这是布局唯一的变动时机。
+6. `clear_round()`、下一轮 `start()`、更改数量、重置时清除锁定，下次抽取重新布局。
+7. `set_message()` 显示占位文案；导入历史结果时按结果人数建立格子并计算一次布局。
+8. ScrollMulti 与 ScrollLift 共用该视图。
 
 ## 7. 多抽（Multi）
 
@@ -211,7 +220,7 @@ language.toml 的 preferred（有效）
   2. `total = min(quantity, len(names))`；请求数超过名单时警告。
   3. `pool = dict(names)`，为本轮建立共享池。
   4. 创建 `total` 个 reel，每个 reel 有独立随机顺序、当前索引、当前键/姓名。
-  5. 调用 `view.begin_round(pool.values(), total)` 锁定本轮字号。
+  5. 调用 `view.begin_round(pool.values(), total)` 建立固定格子；第一次 tick 时锁定本轮布局与字号。
   6. 立即 `_tick()` 显示第一帧，再启动定时器。
 - `_tick()`：
   - 对每个 active reel 取顺序中的下一个键；
@@ -236,7 +245,7 @@ language.toml 的 preferred（有效）
   - `outdict` 按停止顺序 `"0"`, `"1"`, ...，每项 `{"code", "name"}`；
   - 同一轮 code 不重复。
 - `show_result(result)`：从记忆恢复显示，不启动滚动；`outdict` 支持 `{"name","code"}` 和单键包裹两种旧格式。
-- `update_names()`：名单变化时更新并重置；`update_rate()` 只改间隔。
+- `update_names()`：名单变化时更新并重置；`update_rate()` 只改间隔；`set_quantity()` 在空闲时清除布局锁定，下一轮重新布局。
 
 ## 10. 滚动减量抽（ScrollLift）
 
@@ -270,13 +279,11 @@ language.toml 的 preferred（有效）
 - 菜单“单抽” → `_show_single_page()`：
   - `multi_quantity = 1`；
   - 更新数量标签；
-  - 切到多抽页面；
-  - 保存模式偏好为 `Multi`。
+  - 切到多抽页面。
 - 菜单“滚动单抽” → `_show_scrollsingle_page()`：
   - `scroll_multi_quantity = 1`；
   - 更新控制器数量；
-  - 切到滚动多抽页面；
-  - 保存模式偏好为 `ScrollMulti`。
+  - 切到滚动多抽页面。
 - `default_mode` 兼容：
   - `"Single"` → Multi 数量 1；
   - `"ScrollSingle"` → ScrollMulti 数量 1；
@@ -289,50 +296,29 @@ language.toml 的 preferred（有效）
 
 ```json
 {
-  "preferences": {
-    "theme": "randname-dark",
-    "language": "zh_CN",
-    "roster": "class_1",
-    "mode": "ScrollMulti",
-    "log_level": "INFO",
-    "quantities": {
-      "multi": 1,
-      "lift": 1,
-      "scroll_multi": 3,
-      "scroll_lift": 1
-    },
-    "window": {
-      "width": 1200,
-      "height": 760,
-      "maximized": false
-    }
-  },
   "last_results": {
     "Multi": null,
     "Lift": null,
     "ScrollMulti": null,
     "ScrollLift": null
-  },
-  "loaded_config": null
+  }
 }
 ```
 
+- 记忆文件只保存各模式的最近结果，不再保存主题、名单、模式、语言、日志等级、数量或窗口尺寸。
 - `last_results.*` 的运行期条目通常为 `{"result": ..., "meta": ...}`；Multi/Lift 使用 `{"result": ..., "time": ...}`。
 - 写入使用 `json.dumps(..., ensure_ascii=False, indent=2)`，UTF-8。
 - `save_memory()` 先写 `.tmp` 再 `replace()`，避免中断留下半个 JSON。
-- 读取时 `_normalize_memory()` 补齐缺失字段、丢弃非法值、兼容旧 `loaded_config`。
+- 读取时 `_normalize_memory()` 只保留 `last_results`，丢弃旧的 `preferences` 与 `loaded_config`。
 - 旧版 `ScrollSingle` 结果不再单独恢复；旧版 `last_results` 中的其他键会被忽略。
-- 启动时只使用 `preferences.theme`、`preferences.roster`、`preferences.log_level` 和 `preferences.window`；`language`、`mode`、`quantities` 即使仍存在于旧记忆文件也不会生效，程序也不再更新这些键。
 
-### 12.2 偏好保存时机
+### 12.2 保存与导入
 
-- 主题、名单、日志等级变化后立即保存。
-- 语言、模式和数量变化不再写入偏好；下次启动分别回到 `language.toml`、`[app].default_mode` 和 1。
-- 窗口尺寸 450ms 防抖保存 + 关闭时保存 + 最大化状态变化保存。
-- 每次抽取/滚动停止后保存结果，同时更新 `loaded_config` 快照。
-- 导入/导出记忆不会写入 `config/`。
-- 导入时若导入文件没有 `preferences`，保留当前偏好；若有，则导入偏好下次启动生效，当前会话不立即切换主题/语言。
-- `remember_preferences = false` 时不读取/保存主题、名单和日志等级，但 `remember_size` 仍可独立工作。
+- 每次抽取/滚动停止后保存最近结果。
+- 主题、名单、语言、日志等级、模式、数量和窗口尺寸变化都不再写入记忆文件。
+- 导入/导出记忆不会写入 `config/`，也不会改变当前界面状态。
+- 导入旧记忆文件时只恢复 `last_results`；其中的 `preferences`、`loaded_config` 会被忽略。
+- 记忆文件损坏时回退到只含 `last_results` 的默认结构，不阻止程序启动。
 
 ## 13. 日志
 
@@ -386,7 +372,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ### 15.2 语言
 
-- `config/language.toml` 的 `preferred` 是首次启动首选；记忆偏好优先。
+- `config/language.toml` 的 `preferred` 是首次启动首选；旧 `app.language` 仅作为后备。
 - `LanguageManager.ENGLISH` 是内建兜底包；语言文件缺失时仍可用英语。
 - 翻译键缺失时回退到 `ENGLISH`，再回退键名。
 - `{count}`、`{name}` 等占位符必须保留；格式化失败时返回原文。
@@ -424,7 +410,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
    - `config/`
    - `doc/`
 3. 旧文件 `WidgetScrollSingle.ui`、`ui_widgetscrollsingle.py`、`ScrollSingle.py`、`randname-start_v3.6.png`、`randname-start_v3.7.png` 已删除。
-4. 版本号在 `lib/version.py`；提交信息使用 `3.8.3[upgrade]_...` 触发发布流程。
+4. 版本号在 `lib/version.py`；提交信息使用 `3.8.4[upgrade]_...` 触发发布流程。
 5. CI 在提交信息含 `[upgrade]` 时构建 Linux/Windows 包并创建 Release。
 
 ## 18. 隐藏机制与边界
@@ -455,9 +441,9 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ### 18.4 记忆
 
-- `loaded_config` 是抽取时配置快照，仅用于兼容旧记忆；新偏好以 `preferences` 为准。
-- 导入记忆不会写入 `config/`，不会改变名单，不会立即切换主题/语言。
-- 记忆文件损坏时回退默认结构，不阻止程序启动。
+- 记忆文件只保存 `last_results`；旧的 `preferences`、`loaded_config` 读取时会被丢弃。
+- 导入记忆不会写入 `config/`，不会改变名单或当前界面状态。
+- 记忆文件损坏时回退为只含 `last_results` 的默认结构，不阻止程序启动。
 - `save_memory()` 原子替换；不要在别处直接 `write_text()` 写 `memory.json`。
 - 旧版 `ScrollSingle` 记忆条目会被忽略；旧版 `scrollsingle` 小写键也不再生效。
 
@@ -484,24 +470,23 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 19. 测试
 
-- `tests/test_output_fit.py`：单行/多行/缩字号/超长姓名。
-- `tests/test_memory.py`：偏好读写、旧格式兼容、导入结果提取。
+- `tests/test_output_fit.py`：非滚动单行/多行/缩字号；滚动固定格子、位置稳定、超长姓名重排、重置布局。
+- `tests/test_memory.py`：只保留结果、旧偏好丢弃、导入/导出结果。
 - `tests/test_scroll_lift.py`：剩余池、逐个停止、重置、数量越界。
-- `tests/test_config.py`：新旧配置键兼容、非法值回退、启动画面等待时间、版本号字号换算与偏好过滤。
+- `tests/test_config.py`：新旧配置键兼容、非法值回退、启动画面等待时间、版本号字号换算。
 - 运行：`QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests`。
 
 ## 20. 版本
 
-当前版本：**3.8.3**。
+当前版本：**3.8.4**。
 
 3.8.x 主要变化：
 
 - 修复滚动多抽窗口闪动；
 - 修复导入记忆撑宽窗口和打印字典内容；
 - 输出框全模式自适应；
-- 窗口可拉伸并持久化尺寸；
+- 窗口可拉伸，但每次启动使用配置尺寸；
 - 状态栏信息扩展；
-- 记忆偏好与窗口尺寸；
 - 单抽/滚动单抽别名；
 - 新增滚动减量抽；
 - 实时只读文本查看器；
@@ -527,9 +512,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 - 启动画面 `mode = 1` 时不再提前显示主窗口；`reveal_window()` 在剩余时间到后才 `window.show()` 并关闭启动画面，修复 Wayland 下启动画面被主窗口完全遮住、“一闪而过”的问题。
 - 新增 `_splash_wait_ms()` 计算启动画面剩余显示时间；`mode = 0` 和其他模式返回 0，保持“就绪即关闭”。
-- 记忆偏好只保留主题、名单、日志等级和窗口尺寸。新增 `_startup_preferences()` 在启动时过滤旧记忆；`_current_preferences()` 不再写入语言、模式和数量。
 - 启动时语言回到 `language.toml` 的 `preferred`，模式回到 `[app].default_mode`，数量从 1 开始。
-- 旧记忆文件中的 `language`、`mode`、`quantities` 保留但被忽略。
 - 版本号更新为 `3.8.2`。
 
 ## 23. 3.8.3 增补
@@ -540,3 +523,15 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - 移除 `[splash].version_font_size` 和 `[splash].version_color`；旧配置中的这两个键会被忽略。
 - 边距与阴影偏移按图片尺寸等比缩放，避免不同分辨率下位置偏移。
 - 版本号更新为 `3.8.3`。
+
+## 24. 3.8.4 增补
+
+- 删除记忆配置功能：启动时不再读取主题、名单、日志等级、模式、语言、数量或窗口尺寸偏好。
+- 主题取 `theme.toml` 的 `default`；语言取 `language.toml` 的 `preferred`；名单、模式、日志等级与窗口尺寸取 `config.toml`；数量固定从 1 开始。
+- 移除 `[app].remember_preferences`、`[window].remember_size`，并删除窗口尺寸防抖保存、关闭保存和启动恢复。
+- 记忆文件只保留 `last_results`；旧文件中的 `preferences`、`loaded_config` 在读取/导入时被忽略，导出文件也不再包含它们。
+- `lib/OutputView.py` 新增 `SlotOutputView`、`_SlotGrid` 与 `choose_slot_layout()`。
+- ScrollMulti 与 ScrollLift 改用固定格子；第一次抽取确定位置，滚动时只更新文字，超长姓名触发重排并重新锁定。
+- 下一轮抽取、更改数量、重置或导入结果时清除布局锁定。
+- 新增固定格子布局、位置稳定、超长姓名重排与记忆导出导入测试。
+- 版本号更新为 `3.8.4`。

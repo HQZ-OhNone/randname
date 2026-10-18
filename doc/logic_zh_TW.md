@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文記錄 randname 3.8.3 的實際行為、隱藏機制與邊界。簡體中文見
+本文記錄 randname 3.8.4 的實際行為、隱藏機制與邊界。簡體中文見
 `logic_zh_CN.md`，英文見 `logic_en_US.md`。
 
 ## 1. 術語與模式
@@ -32,21 +32,21 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路徑 | 職責 |
 | --- | --- |
 | `main.py` | 啟動、主視窗、選單、狀態列、頁面切換、記憶回填 |
-| `lib/version.py` | `APP_VERSION = "3.8.3"` |
+| `lib/version.py` | `APP_VERSION = "3.8.4"` |
 | `lib/Multi.py` | 多抽演算法 |
 | `lib/Lift.py` | 減量抽演算法 |
 | `lib/ScrollMulti.py` | 滾動多抽控制器 |
 | `lib/ScrollLift.py` | 滾動減量抽控制器（繼承 ScrollMultiController） |
-| `lib/OutputView.py` | 輸出框單行/多行/縮字號 |
+| `lib/OutputView.py` | 非滾動輸出框自適應；滾動模式固定格子 `SlotOutputView` |
 | `lib/TextViewer.py` | 唯讀即時說明/授權/日誌檢視器 |
-| `lib/StateManager.py` | 設定、記憶、偏好、日誌 |
+| `lib/StateManager.py` | 設定、記憶結果、日誌 |
 | `lib/importnames.py` | 名單載入 |
 | `lib/ThemeManager.py` | 主題與 QSS |
 | `lib/LanguageManager.py` | 語言包與回退 |
 | `ui/*.ui` | Qt Designer 原始檔 |
 | `lib/ui_*.py` | `pyside6-uic` 產物，建置前重新產生 |
 | `config/*.toml` | 設定、名單、主題、語言 |
-| `doc/memory.json` | 偏好、視窗尺寸、最近結果 |
+| `doc/memory.json` | 各模式最近結果（僅供匯出/匯入） |
 | `doc/log.log` | 持久日誌 |
 
 ## 3. 啟動流程
@@ -57,18 +57,17 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
    `.config.default.toml`，再失敗使用內建設定。
 4. 載入圖示與啟動畫面。
 5. 依 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 縮放，保持比例。
-6. `_draw_splash_version()` 在右下角繪製 `v3.8.3`；字號始終依圖片寬度的三分之一
+6. `_draw_splash_version()` 在右下角繪製 `v3.8.4`；字號始終依圖片寬度的三分之一
    自動縮放，文字固定為純白色，不提供字號或顏色設定。
 7. `_startup_file_check()` 收集可恢復檔案警告；`required` 目前恆為空。
 8. 匯入 `lib` 模組。
 9. `StateManager.configure_paths()` 套用 `[paths]`。
-10. 讀取記憶中保留的主題、名單和日誌等級；`[app].remember_preferences = false` 時全部忽略。視窗尺寸由 `[window].remember_size` 單獨決定。
-11. 日誌等級：記憶中有效值 > `[logging].level` > `INFO`。
-12. 主題：記憶中有效值 > `theme.toml` 的 `default` > `config.toml`
-    `app.theme` > 第一個主題。
-13. 語言：`language.toml` 的 `preferred` > `config.toml` `app.language` > 系統語言 > `en_US`。
-14. 名單：記憶中有效值 > `[app].roster` > 第一組名單。
-15. 模式：`[app].default_mode` > `Multi`。
+10. 不讀取記憶偏好；每次啟動都從設定檔與獨立設定檔讀取介面狀態。
+11. 日誌等級：`[logging].level` > `INFO`。
+12. 主題：`theme.toml` 的 `default` > `config.toml` `app.theme`（舊鍵） > 第一個主題。
+13. 語言：`language.toml` 的 `preferred` > `config.toml` `app.language`（舊鍵） > 系統語言 > `en_US`。
+14. 名單：`[app].roster` > 第一組名單。
+15. 模式：`[app].default_mode` > `Multi`；數量固定從 1 開始。
 16. 建立 `MainWindow`、套用主題；主視窗是否立即顯示取決於 `[splash].mode`。
 17. `[splash].mode = 1` 時先只顯示啟動畫面，剩餘時間到後才顯示主視窗並關閉啟動畫面；其他模式在主視窗就緒後立即顯示並關閉啟動畫面。
 
@@ -77,8 +76,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 主題：
 
 ```
-記憶 preferences.theme（有效）
-  > theme.toml default（有效）
+theme.toml default（有效）
   > config.toml [app].theme（舊鍵）
   > 第一個主題
 ```
@@ -94,15 +92,13 @@ language.toml preferred（有效）
 
 其他：
 
-- 名單：記憶 `preferences.roster` > `[app].roster` > 第一組。
-- 模式：`[app].default_mode` > `Multi`（不讀取記憶）。
-- 日誌等級：記憶 `preferences.log_level` > `[logging].level` > `INFO`。
-- 數量：固定從 1 開始（不讀取記憶）。
-- 視窗：`[window]` 計算初始尺寸；`remember_size = true` 且記憶尺寸有效時，
-  記憶尺寸覆蓋初始尺寸。
+- 名單：`[app].roster` > 第一組。
+- 模式：`[app].default_mode` > `Multi`。
+- 日誌等級：`[logging].level` > `INFO`。
+- 數量：固定從 1 開始。
+- 視窗：每次啟動都由 `[window]` 計算初始尺寸，不讀取記憶尺寸。
 
-`[app].remember_preferences = false` 只忽略主題、名單和日誌等級，不影響
-`[window].remember_size`。
+啟動時不會從記憶檔還原主題、名單、日誌等級、模式、語言、數量或視窗尺寸。
 
 ## 5. 視窗與狀態列
 
@@ -132,12 +128,7 @@ language.toml preferred（有效）
 - `resizable = true` 允許拖動邊緣，最小尺寸 640×480。
 - `resizable = false` 使用 `setFixedSize()`。
 - 內容變化永遠不會改變視窗尺寸。
-- 拉伸後 `resizeEvent` 啟動 450ms 單次計時器，逾時寫入記憶。
-- 最大化/還原也觸發儲存。
-- 關閉視窗時再儲存一次。
-- 最大化時儲存 `normalGeometry()` 與 `maximized: true`；還原時儲存目前尺寸與
-  `maximized: false`。
-- 啟動時記憶尺寸會夾在目前螢幕可用區域內。
+- 拉伸後尺寸不會寫入記憶；下次啟動仍使用設定檔的初始尺寸。
 - 「檔案 > 重新整理程式狀態」不重設視窗尺寸。
 
 ### 狀態列
@@ -149,7 +140,9 @@ language.toml preferred（有效）
   `_update_status_info()`。
 - 版本來自 `lib/version.py`。
 
-## 6. 輸出框自適應（所有模式）
+## 6. 輸出框自適應
+
+### 6.1 非滾動模式（OutputView）
 
 `lib/OutputView.py` 包裝一個 `QLabel`：
 
@@ -160,13 +153,23 @@ language.toml preferred（有效）
 3. 姓名依顯示寬度貪婪分行，姓名間兩個空格，不會從姓名中間斷開。
 4. 先嘗試基準字號單行；放不下且高度足夠時多行；仍放不下時逐步縮字號。
 5. 極端長姓名在最小字號仍超寬時，允許 Qt 在字元間換行。
-6. 滾動模式在每輪開始呼叫 `begin_round(pool_names, quantity)`：
-   - 量測池中最寬的 `quantity` 個姓名；
-   - 計算並鎖定能容納最壞情況的字號；
-   - 本輪 tick 沿用鎖定字號，避免字號跳動；
-   - 結果/重設後恢復自動字號。
-7. `set_message()` 用於「等待輸入」「暫無結果」，固定使用基準字號。
-8. `resizeEvent` 重新排版，使用者拉伸後自動調整。
+6. `set_message()` 用於「等待輸入」「暫無結果」，固定使用基準字號。
+7. `resizeEvent` 重新排版，使用者拉伸後自動調整。
+
+### 6.2 滾動模式（SlotOutputView）
+
+`SlotOutputView` 沿用原輸出 `QLabel` 作為背景容器，內部用 `_SlotGrid` 手動擺放子 `QLabel`：
+
+1. `begin_round(pool, quantity)` 建立 `quantity` 個固定格子。
+2. 第一次 `set_names()` 時計算並鎖定佈局：目標列數以
+   `round(sqrt(N * H / W))` 估算；比較所有欄數組合，優先字號最大，字號相同時
+   選擇最接近目標列數者。6 人、寬輸出框通常為 2 列 × 3 欄。
+3. 每格等寬等高，文字水平/垂直置中；最後一列不足時整列置中。
+4. 鎖定後每次 tick 只更新文字，格子幾何不變，已停止的名字不會移動。
+5. 目前姓名放不進鎖定格時，重新計算欄數/列數/字號並再次鎖定。
+6. `clear_round()`、下一輪 `start()`、更改數量、重設時清除鎖定，下次抽取重新佈局。
+7. 匯入歷史結果時依結果人數建立格子並計算一次佈局。
+8. ScrollMulti 與 ScrollLift 共用此視圖。
 
 ## 7. 多抽（Multi）
 
@@ -219,7 +222,7 @@ language.toml preferred（有效）
   2. `total = min(quantity, len(names))`；請求數過大時警告。
   3. `pool = dict(names)` 作為本輪共享池。
   4. 建立 `total` 個 reel，各有隨機順序與索引。
-  5. 呼叫 `view.begin_round(pool.values(), total)` 鎖定字號。
+  5. 呼叫 `view.begin_round(pool.values(), total)` 建立固定格子；第一次 tick 時鎖定本輪佈局與字號。
   6. 立即 `_tick()`，再啟動計時器。
 - `_tick()` 推進每個 active reel；順序用完重新洗牌；若鍵已不在池中則重新洗牌。
 - `stop_next()`：
@@ -237,7 +240,7 @@ language.toml preferred（有效）
   `quantity.total = len(names)`、`quantity.selected = total`、`outdict`
   依停止順序編號，同一輪 code 不重複。
 - `show_result()` 從記憶恢復顯示，不啟動滾動。
-- `update_names()` 名單變更時重置；`update_rate()` 只改間隔。
+- `update_names()` 名單變更時重置；`update_rate()` 只改間隔；`set_quantity()` 在閒置時清除佈局鎖定，下一輪重新佈局。
 
 ## 10. 滾動減量抽（ScrollLift）
 
@@ -268,10 +271,9 @@ language.toml preferred（有效）
 
 ## 11. 單抽與滾動單抽別名
 
-- 選單「單抽」→ `_show_single_page()`：多抽數量設 1、更新標籤、切到多抽頁、
-  儲存模式 `Multi`。
+- 選單「單抽」→ `_show_single_page()`：多抽數量設 1、更新標籤、切到多抽頁。
 - 選單「滾動單抽」→ `_show_scrollsingle_page()`：滾動多抽數量設 1、更新
-  控制器、切到滾動多抽頁、儲存模式 `ScrollMulti`。
+  控制器、切到滾動多抽頁。
 - `default_mode` 相容：`Single` → 多抽數量 1；`ScrollSingle` → 滾動多抽數量 1；
   非法值 → 多抽。
 - 不建立 `Single.py`、`ScrollSingle.py`、`WidgetScrollSingle.ui` 或獨立頁面。
@@ -280,45 +282,27 @@ language.toml preferred（有效）
 
 ```json
 {
-  "preferences": {
-    "theme": "randname-dark",
-    "language": "zh_TW",
-    "roster": "class_1",
-    "mode": "ScrollMulti",
-    "log_level": "INFO",
-    "quantities": {
-      "multi": 1,
-      "lift": 1,
-      "scroll_multi": 3,
-      "scroll_lift": 1
-    },
-    "window": {"width": 1200, "height": 760, "maximized": false}
-  },
   "last_results": {
     "Multi": null,
     "Lift": null,
     "ScrollMulti": null,
     "ScrollLift": null
-  },
-  "loaded_config": null
+  }
 }
 ```
 
+- 記憶檔只保存各模式最近結果，不再保存主題、名單、模式、語言、日誌等級、數量或視窗尺寸。
 - 執行期結果條目通常為 `{"result": ..., "meta": ...}`；Multi/Lift 使用
   `{"result": ..., "time": ...}`。
 - UTF-8、`ensure_ascii=False`、`indent=2`。
 - `save_memory()` 先寫 `.tmp` 再原子替換。
-- `_normalize_memory()` 補齊欄位、丟棄非法值、相容舊 `loaded_config`。
+- `_normalize_memory()` 只保留 `last_results`，丟棄舊 `preferences` 與 `loaded_config`。
 - 舊 `ScrollSingle` 條目會被忽略。
-- 啟動時只使用 `preferences.theme`、`preferences.roster`、`preferences.log_level` 和 `preferences.window`；`language`、`mode`、`quantities` 即使仍存在於舊記憶檔也不會生效，程式也不再更新這些鍵。
-- 主題、名單、日誌等級變更後立即儲存偏好。
-- 語言、模式和數量變更不再寫入偏好；下次啟動分別回到 `language.toml`、`[app].default_mode` 和 1。
-- 視窗尺寸 450ms 防抖 + 關閉 + 最大化/還原時儲存。
 - 每次抽取/滾動完成後儲存結果。
-- 匯入/匯出不寫 `config/`。
-- 匯入檔沒有 `preferences` 時保留目前偏好；有偏好時下次啟動生效，目前工作階段
-  不立即切換。
-- `remember_preferences = false` 關閉主題、名單和日誌等級的記憶，但 `remember_size` 仍獨立運作。
+- 主題、名單、語言、日誌等級、模式、數量和視窗尺寸變化都不再寫入記憶檔。
+- 匯入/匯出不寫 `config/`，也不改變目前介面狀態。
+- 匯入舊記憶檔時只還原 `last_results`；其中的 `preferences`、`loaded_config` 會被忽略。
+- 記憶損壞時回退為只含 `last_results` 的預設結構，不阻止啟動。
 
 ## 13. 日誌
 
@@ -367,7 +351,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ### 語言
 
-- `language.toml` 的 `preferred` 是首次啟動語言；記憶偏好優先。
+- `language.toml` 的 `preferred` 是首次啟動語言；舊 `app.language` 僅作後備。
 - `LanguageManager.ENGLISH` 是內建備援。
 - 缺少翻譯鍵時回退英語，再回退鍵名。
 - `{count}`、`{name}` 等佔位符必須保留。
@@ -395,7 +379,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
    `.config.default.toml`、`.name.default.toml`、`config/`、`doc/`。
 3. 已刪除 `WidgetScrollSingle.ui`、`ui_widgetscrollsingle.py`、
    `ScrollSingle.py`、`randname-start_v3.6.png`、`randname-start_v3.7.png`。
-4. 版本在 `lib/version.py`；提交訊息使用 `3.8.3[upgrade]_...` 觸發發布。
+4. 版本在 `lib/version.py`；提交訊息使用 `3.8.4[upgrade]_...` 觸發發布。
 
 ## 18. 隱藏機制與邊界
 
@@ -426,9 +410,9 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ### 記憶
 
-- `loaded_config` 是舊版設定快照；新偏好以 `preferences` 為準。
-- 匯入不寫 `config/`、不改名單、不立即切換主題/語言。
-- 記憶損壞時回退預設結構，不阻止啟動。
+- 記憶檔只保存 `last_results`；舊 `preferences`、`loaded_config` 讀取時會被丟棄。
+- 匯入不寫 `config/`、不改名單或目前介面狀態。
+- 記憶損壞時回退為只含 `last_results` 的預設結構，不阻止啟動。
 - `save_memory()` 使用原子替換；不要直接寫 `memory.json`。
 - 舊 `ScrollSingle` 條目會被忽略。
 
@@ -448,25 +432,24 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 19. 測試
 
-- `tests/test_output_fit.py`
-- `tests/test_memory.py`
-- `tests/test_scroll_lift.py`
-- `tests/test_config.py`（含啟動畫面等待、版本號字號換算與偏好過濾）
+- `tests/test_output_fit.py`：非滾動單行/多行/縮字號；滾動固定格子、位置穩定、超長姓名重排、重設佈局。
+- `tests/test_memory.py`：只保留結果、舊偏好丟棄、匯入/匯出結果。
+- `tests/test_scroll_lift.py`：剩餘池、逐個停止、重設、數量越界。
+- `tests/test_config.py`：設定相容、非法值回退、啟動畫面等待、版本號字號換算。
 
 執行：`QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests`。
 
 ## 20. 版本
 
-目前版本：**3.8.3**。
+目前版本：**3.8.4**。
 
 3.8.x 主要變更：
 
 - 修正滾動多抽視窗閃動。
 - 修正匯入記憶撐寬視窗與直接顯示字典內容。
 - 所有模式共用輸出框自適應。
-- 視窗可拉伸並持久化尺寸。
+- 視窗可拉伸，但每次啟動使用設定尺寸。
 - 狀態列資訊擴充。
-- 記憶偏好與視窗尺寸。
 - 單抽/滾動單抽別名。
 - 新增滾動減量抽。
 - 即時唯讀文字檢視器。
@@ -496,9 +479,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 - 啟動畫面 `mode = 1` 不再提前顯示主視窗；`reveal_window()` 在剩餘時間到後才 `window.show()` 並關閉啟動畫面，修正 Wayland 下啟動畫面被主視窗完全遮住、「一閃而過」的問題。
 - 新增 `_splash_wait_ms()` 計算啟動畫面剩餘顯示時間；`mode = 0` 和其他模式回傳 0，維持「就緒即關閉」。
-- 記憶偏好只保留主題、名單、日誌等級和視窗尺寸。新增 `_startup_preferences()` 在啟動時過濾舊記憶；`_current_preferences()` 不再寫入語言、模式和數量。
 - 啟動時語言回到 `language.toml` 的 `preferred`，模式回到 `[app].default_mode`，數量從 1 開始。
-- 舊記憶檔中的 `language`、`mode`、`quantities` 保留但被忽略。
 - 版本更新為 `3.8.2`。
 
 ## 23. 3.8.3 增補
@@ -511,3 +492,15 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - 移除 `[splash].version_font_size` 和 `[splash].version_color`；舊設定中的這兩個鍵會被忽略。
 - 邊距與陰影偏移依圖片尺寸等比縮放，避免不同解析度下位置偏移。
 - 版本更新為 `3.8.3`。
+
+## 24. 3.8.4 增補
+
+- 刪除記憶設定功能：啟動時不再讀取主題、名單、日誌等級、模式、語言、數量或視窗尺寸偏好。
+- 主題取 `theme.toml` 的 `default`；語言取 `language.toml` 的 `preferred`；名單、模式、日誌等級與視窗尺寸取 `config.toml`；數量固定從 1 開始。
+- 移除 `[app].remember_preferences`、`[window].remember_size`，並刪除視窗尺寸防抖儲存、關閉儲存與啟動還原。
+- 記憶檔只保留 `last_results`；舊檔中的 `preferences`、`loaded_config` 在讀取/匯入時被忽略，匯出檔也不再包含它們。
+- `lib/OutputView.py` 新增 `SlotOutputView`、`_SlotGrid` 與 `choose_slot_layout()`。
+- ScrollMulti 與 ScrollLift 改用固定格子；第一次抽取確定位置，滾動時只更新文字，超長姓名觸發重排並重新鎖定。
+- 下一輪抽取、更改數量、重設或匯入結果時清除佈局鎖定。
+- 新增固定格子佈局、位置穩定、超長姓名重排與記憶匯出匯入測試。
+- 版本更新為 `3.8.4`。

@@ -141,7 +141,11 @@ class ScrollMultiController:
             value = int(quantity)
         except (TypeError, ValueError):
             value = 1
-        self.quantity = max(1, value)
+        new_quantity = max(1, value)
+        if new_quantity != self.quantity and not self.running and self.view is not None:
+            # 数量变化后，下一轮重新决定格子布局。
+            self.view.clear_round()
+        self.quantity = new_quantity
 
     def update_names(self, new_names: dict) -> None:
         updated = new_names.copy() if isinstance(new_names, dict) else {}

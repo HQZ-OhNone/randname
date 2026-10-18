@@ -22,9 +22,10 @@ import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication, QLabel
 
-from lib.OutputView import OutputView, pack_names
+from lib.OutputView import OutputView, SlotOutputView, choose_slot_layout, pack_names
 
 
 class OutputFitTests(unittest.TestCase):
@@ -79,6 +80,69 @@ class OutputFitTests(unittest.TestCase):
         from PySide6.QtGui import QFontMetrics, QFont
         metrics = QFontMetrics(QFont())
         self.assertEqual(pack_names([], metrics, 100), [""])
+
+    def make_slot_view(self, width=700, height=400):
+        label = QLabel()
+        label.resize(width, height)
+        view = SlotOutputView(label, {"ui": {
+            "display_font_size": 30,
+            "display_min_font_size": 12,
+            "display_font_step": 1,
+            "display_padding": 8,
+            "display_line_spacing": 1.0,
+        }}, 30)
+        label.show()
+        self.app.processEvents()
+        return label, view
+
+    def test_six_names_use_two_rows(self):
+        _label, view = self.make_slot_view()
+        view.begin_round(["姓名"] * 6, 6)
+        view.set_names(["张三", "李四", "王五", "赵六", "周七", "吴八"])
+        self.assertEqual((view._columns, view._rows), (3, 2))
+        self.assertEqual(len(view.slot_geometries()), 6)
+
+    def test_rolling_text_keeps_slot_positions(self):
+        _label, view = self.make_slot_view()
+        view.begin_round(["姓名"] * 6, 6)
+        view.set_names(["张三", "李四", "王五", "赵六", "周七", "吴八"])
+        before = view.slot_geometries()
+        view.set_names(["甲", "乙", "丙", "丁", "戊", "己"])
+        self.assertEqual(before, view.slot_geometries())
+
+    def test_long_name_relayouts_and_stays_fixed(self):
+        _label, view = self.make_slot_view()
+        view.begin_round(["姓名"] * 6, 6)
+        view.set_names(["张三", "李四", "王五", "赵六", "周七", "吴八"])
+        before = (view._columns, view._rows, view._layout_point_size)
+        view.set_names(["张三", "李四", "王五", "赵六", "周七", "非常非常非常长的名字"])
+        after = (view._columns, view._rows, view._layout_point_size)
+        self.assertNotEqual(before, after)
+        locked = view.slot_geometries()
+        view.set_names(["张三", "李四", "王五", "赵六", "周七", "短"])
+        self.assertEqual(locked, view.slot_geometries())
+
+    def test_clear_round_resets_layout(self):
+        _label, view = self.make_slot_view()
+        view.begin_round(["姓名"] * 6, 6)
+        view.set_names(["张三", "李四", "王五", "赵六", "周七", "非常非常非常长的名字"])
+        self.assertNotEqual((view._columns, view._rows), (3, 2))
+        view.clear_round()
+        view.set_names(["张三", "李四", "王五", "赵六", "周七", "吴八"])
+        self.assertEqual((view._columns, view._rows), (3, 2))
+        self.assertEqual(view._layout_point_size, 30)
+
+    def test_choose_slot_layout_prefers_target_rows_at_same_font(self):
+        columns, rows, size = choose_slot_layout(
+            ["张三", "李四", "王五", "赵六", "周七", "吴八"],
+            700, 400, QFont(), 30, 12, 1, 8, 6,
+        )
+        self.assertEqual((columns, rows), (3, 2))
+        self.assertEqual(size, 30)
+
+    def test_choose_slot_layout_handles_missing_size(self):
+        columns, rows, size = choose_slot_layout(["张三"], 1, 1, QFont(), 30, 12, 1, 8, 1)
+        self.assertEqual((columns, rows, size), (1, 1, 30))
 
 
 if __name__ == "__main__":
