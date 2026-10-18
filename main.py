@@ -822,7 +822,7 @@ class MainWindow(QMainWindow):
         self.multi_button = getattr(self.ui_multi, "pushButton_Multi", None)
         output = getattr(self.ui_multi, "label_MultiOutput", None)
         if output is not None:
-            self.multi_view = OutputView(output, config, 30)
+            self.multi_view = OutputView(output, config, 33)
         self.multi_quantity_label = getattr(self.ui_multi, "label_MultiQuantity", None)
         self.multi_up_button = getattr(self.ui_multi, "pushButton_MultiQuantityUp", None)
         self.multi_down_button = getattr(self.ui_multi, "pushButton_MultiQuantityDown", None)
@@ -840,7 +840,7 @@ class MainWindow(QMainWindow):
         self.lift_button = getattr(self.ui_lift, "pushButton_Lift", None)
         output = getattr(self.ui_lift, "label_LiftOutput", None)
         if output is not None:
-            self.lift_view = OutputView(output, config, 30)
+            self.lift_view = OutputView(output, config, 33)
         self.lift_quantity_label = getattr(self.ui_lift, "label_LiftQuantity", None)
         self.lift_up_button = getattr(self.ui_lift, "pushButton_LiftQuantityUp", None)
         self.lift_down_button = getattr(self.ui_lift, "pushButton_LiftQuantityDown", None)
@@ -863,7 +863,7 @@ class MainWindow(QMainWindow):
             self.scroll_multi_quantity_label = getattr(self.ui_scrollmulti, "label_ScrollMultiQuantity", None)
             output = getattr(self.ui_scrollmulti, "label_ScrollMultiOutput", None)
             if output is not None:
-                self.scroll_multi_view = SlotOutputView(output, config, 30)
+                self.scroll_multi_view = SlotOutputView(output, config, 33)
             self.scroll_multi_up_button = getattr(self.ui_scrollmulti, "pushButton_ScrollMultiQuantityUp", None)
             self.scroll_multi_down_button = getattr(self.ui_scrollmulti, "pushButton_ScrollMultiQuantityDown", None)
             self._set_quantity_label(self.scroll_multi_quantity_label, self.scroll_multi_quantity)
@@ -893,7 +893,7 @@ class MainWindow(QMainWindow):
             self.scroll_lift_quantity_label = getattr(self.ui_scrolllift, "label_ScrollLiftQuantity", None)
             output = getattr(self.ui_scrolllift, "label_ScrollLiftOutput", None)
             if output is not None:
-                self.scroll_lift_view = SlotOutputView(output, config, 30)
+                self.scroll_lift_view = SlotOutputView(output, config, 33)
             self.scroll_lift_up_button = getattr(self.ui_scrolllift, "pushButton_ScrollLiftQuantityUp", None)
             self.scroll_lift_down_button = getattr(self.ui_scrolllift, "pushButton_ScrollLiftQuantityDown", None)
             self.scroll_lift_renew_button = getattr(self.ui_scrolllift, "pushButton_ScrollLiftRenew", None)

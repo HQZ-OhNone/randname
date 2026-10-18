@@ -2,10 +2,7 @@
 build
 __pycache__
 test*
-!tests/
-!tests/**
-tests/__pycache__/
-tests/*.pyc
+/tests/
 # runtime artifacts
 doc/log.log
 # Ignore the former JSON log name as well, so an old runtime file is never committed.

@@ -16,6 +16,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
 # 应用版本号：启动框、状态栏和文档统一从这里读取。
-APP_VERSION = "3.8.4"
+APP_VERSION = "3.9.1"
 
 __all__ = ["APP_VERSION"]

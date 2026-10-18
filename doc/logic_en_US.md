@@ -9,7 +9,7 @@ version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
 This document records the actual behaviour, hidden mechanisms, and edge cases
-of randname 3.8.4. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
+of randname 3.9.1. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 `logic_zh_TW.md`.
 
 ## 1. Terms and modes
@@ -34,7 +34,7 @@ of randname 3.8.4. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 | Path | Responsibility |
 | --- | --- |
 | `main.py` | Startup, main window, menus, status bar, page switching, memory restore |
-| `lib/version.py` | `APP_VERSION = "3.8.4"` |
+| `lib/version.py` | `APP_VERSION = "3.9.1"` |
 | `lib/Multi.py` | Multi draw algorithm |
 | `lib/Lift.py` | Elimination draw algorithm |
 | `lib/ScrollMulti.py` | Rolling Multi controller |
@@ -59,7 +59,7 @@ of randname 3.8.4. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
    `.config.default.toml`, then the built-in configuration.
 4. Load the icon and create the splash screen.
 5. Scale the splash according to `[splash]`, keeping the image aspect ratio.
-6. `_draw_splash_version()` draws `v3.8.4` in the bottom-right corner. The
+6. `_draw_splash_version()` draws `v3.9.1` in the bottom-right corner. The
    font size always scales with the image width to one third of that width;
    the text is always pure white and has no size or colour configuration.
 7. `_startup_file_check()` collects recoverable-file warnings. `required` is
@@ -445,7 +445,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
    `.config.default.toml`, `.name.default.toml`, `config/`, and `doc/`.
 3. Removed files: `WidgetScrollSingle.ui`, `ui_widgetscrollsingle.py`,
    `ScrollSingle.py`, `randname-start_v3.6.png`, `randname-start_v3.7.png`.
-4. Version lives in `lib/version.py`; use `3.8.4[upgrade]_...` in the commit
+4. Version lives in `lib/version.py`; use `3.9.1[upgrade]_...` in the commit
    message to trigger the release workflow.
 
 ## 18. Hidden mechanisms and edge cases
@@ -521,7 +521,7 @@ Run: `QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests`.
 
 ## 20. Version
 
-Current version: **3.8.4**.
+Current version: **3.9.1**.
 
 Main changes in the 3.8.x series:
 
@@ -609,3 +609,13 @@ Main changes in the 3.8.x series:
 - Added tests for fixed-slot layout, stable positions, long-name re-layout, and
   result-only memory import/export.
 - Version is now `3.8.4`.
+
+## 25. 3.9.1 additions
+
+- Raised the output-label `.ui` font size from 30 to 33 and regenerated all
+  four `lib/ui_*.py` files.
+- Synchronized `[ui].display_font_size` to 33 and changed `BUILTIN_CONFIG`
+  and the `OutputView` fallback to 33 so the runtime actually uses it.
+- Added `tests/` to `.gitignore` and untracked it in the new commit while
+  keeping local test files; history is unchanged.
+- Version is now `3.9.1`.

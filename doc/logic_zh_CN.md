@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文记录 randname 3.8.4 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
+本文记录 randname 3.9.1 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
 `logic_en_US.md`，正體中文版见 `logic_zh_TW.md`。
 
 ## 1. 术语与模式
@@ -31,7 +31,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路径 | 职责 |
 | --- | --- |
 | `main.py` | 启动、主窗口、菜单、状态栏、页面切换、记忆回填、查看器入口 |
-| `lib/version.py` | `APP_VERSION = "3.8.4"` |
+| `lib/version.py` | `APP_VERSION = "3.9.1"` |
 | `lib/Multi.py` | 多抽算法 |
 | `lib/Lift.py` | 减量抽算法 |
 | `lib/ScrollMulti.py` | 滚动多抽控制器 |
@@ -59,7 +59,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 3. `_bootstrap_config()` 读取 `config/config.toml`；失败时读取 `.config.default.toml`，再失败使用内建配置。
 4. 读取图标；创建启动画面。
 5. 启动画面按 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 缩放，保持宽高比。
-6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.8.4`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
+6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.9.1`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
 7. `_startup_file_check()` 检查可恢复文件；缺失项加入启动警告。`required` 当前恒为空，因此“启动检查失败”分支不可达。
 8. 导入 `lib` 模块。
 9. `StateManager.configure_paths()` 应用 `[paths]` 的日志/记忆路径。
@@ -410,7 +410,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
    - `config/`
    - `doc/`
 3. 旧文件 `WidgetScrollSingle.ui`、`ui_widgetscrollsingle.py`、`ScrollSingle.py`、`randname-start_v3.6.png`、`randname-start_v3.7.png` 已删除。
-4. 版本号在 `lib/version.py`；提交信息使用 `3.8.4[upgrade]_...` 触发发布流程。
+4. 版本号在 `lib/version.py`；提交信息使用 `3.9.1[upgrade]_...` 触发发布流程。
 5. CI 在提交信息含 `[upgrade]` 时构建 Linux/Windows 包并创建 Release。
 
 ## 18. 隐藏机制与边界
@@ -478,7 +478,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-当前版本：**3.8.4**。
+当前版本：**3.9.1**。
 
 3.8.x 主要变化：
 
@@ -535,3 +535,10 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - 下一轮抽取、更改数量、重置或导入结果时清除布局锁定。
 - 新增固定格子布局、位置稳定、超长姓名重排与记忆导出导入测试。
 - 版本号更新为 `3.8.4`。
+
+## 25. 3.9.1 增补
+
+- 输出框 `.ui` 字号由 30 调整为 33，并重新生成 4 个 `lib/ui_*.py`。
+- `[ui].display_font_size` 同步改为 33，`BUILTIN_CONFIG` 与 `OutputView` 的 fallback 也改为 33，确保执行时实际生效。
+- `tests/` 加入 `.gitignore`，并从新提交取消追踪；本机测试文件保留，历史提交不变。
+- 版本号更新为 `3.9.1`。

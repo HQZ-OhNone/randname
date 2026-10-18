@@ -71,7 +71,7 @@ resizable = true
 font_family = ""
 
 # 输出框基准字号（pt）。名字不长时使用这个字号。
-display_font_size = 30
+display_font_size = 33
 
 # 自动缩字号的下限（pt）。名字太多/太长时不会小于这个值。
 display_min_font_size = 15

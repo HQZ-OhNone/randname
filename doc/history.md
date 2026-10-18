@@ -267,3 +267,31 @@ verification results.
 - Unresolved: transient long rolling names can trigger one global re-layout;
   extreme names may still wrap or clip inside a slot; real-device touch
   stability was not tested.
+
+## 2026-10-18 / 3.9.1
+
+### 已完成 / Completed
+
+- 将 4 个输出框 `.ui` 字号由 30 调整为 33，并用 `pyside6-uic` 重新生成对应的 `lib/ui_*.py`。
+- 同步将 `config/config.toml`、`.config.default.toml`、`BUILTIN_CONFIG` 与 `OutputView` fallback 的 `display_font_size` 改为 33，确保运行期实际生效。
+- 将 `tests/` 加入 `.gitignore`，并用 `git rm --cached -r tests` 从新提交取消追踪；本机测试文件保留，历史提交不变。
+- 更新 README、三语言业务逻辑文档与本历史文件。
+- 版本号更新为 `3.9.1`。
+
+### 验证 / Verification
+
+- 本机 28 项测试通过。
+- `pyside6-uic` 生成结果只包含预期字号变化。
+- Python 编译检查通过。
+
+### English summary
+
+- Raised all four output-label `.ui` font sizes from 30 to 33 and regenerated
+  the corresponding `lib/ui_*.py` files with `pyside6-uic`.
+- Synchronized `[ui].display_font_size` to 33 in `config/config.toml`,
+  `.config.default.toml`, `BUILTIN_CONFIG`, and the `OutputView` fallback so
+  the runtime actually uses it.
+- Added `tests/` to `.gitignore` and untracked it in the new commit with
+  `git rm --cached -r tests`; local test files remain and history is unchanged.
+- Updated README, all three logic documents, and this history file.
+- Version is now `3.9.1`.

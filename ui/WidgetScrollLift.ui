@@ -119,7 +119,7 @@
      <property name="font">
       <font>
        <family>文泉驛微米黑</family>
-       <pointsize>30</pointsize>
+       <pointsize>33</pointsize>
       </font>
      </property>
      <property name="styleSheet">

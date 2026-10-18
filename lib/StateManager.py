@@ -83,7 +83,7 @@ BUILTIN_CONFIG = {
     },
     "ui": {
         "font_family": "",
-        "display_font_size": 30,
+        "display_font_size": 33,
         "display_min_font_size": 12,
         "display_font_step": 1,
         "display_line_spacing": 1.0,

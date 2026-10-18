@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文記錄 randname 3.8.4 的實際行為、隱藏機制與邊界。簡體中文見
+本文記錄 randname 3.9.1 的實際行為、隱藏機制與邊界。簡體中文見
 `logic_zh_CN.md`，英文見 `logic_en_US.md`。
 
 ## 1. 術語與模式
@@ -32,7 +32,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路徑 | 職責 |
 | --- | --- |
 | `main.py` | 啟動、主視窗、選單、狀態列、頁面切換、記憶回填 |
-| `lib/version.py` | `APP_VERSION = "3.8.4"` |
+| `lib/version.py` | `APP_VERSION = "3.9.1"` |
 | `lib/Multi.py` | 多抽演算法 |
 | `lib/Lift.py` | 減量抽演算法 |
 | `lib/ScrollMulti.py` | 滾動多抽控制器 |
@@ -57,7 +57,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
    `.config.default.toml`，再失敗使用內建設定。
 4. 載入圖示與啟動畫面。
 5. 依 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 縮放，保持比例。
-6. `_draw_splash_version()` 在右下角繪製 `v3.8.4`；字號始終依圖片寬度的三分之一
+6. `_draw_splash_version()` 在右下角繪製 `v3.9.1`；字號始終依圖片寬度的三分之一
    自動縮放，文字固定為純白色，不提供字號或顏色設定。
 7. `_startup_file_check()` 收集可恢復檔案警告；`required` 目前恆為空。
 8. 匯入 `lib` 模組。
@@ -379,7 +379,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
    `.config.default.toml`、`.name.default.toml`、`config/`、`doc/`。
 3. 已刪除 `WidgetScrollSingle.ui`、`ui_widgetscrollsingle.py`、
    `ScrollSingle.py`、`randname-start_v3.6.png`、`randname-start_v3.7.png`。
-4. 版本在 `lib/version.py`；提交訊息使用 `3.8.4[upgrade]_...` 觸發發布。
+4. 版本在 `lib/version.py`；提交訊息使用 `3.9.1[upgrade]_...` 觸發發布。
 
 ## 18. 隱藏機制與邊界
 
@@ -441,7 +441,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-目前版本：**3.8.4**。
+目前版本：**3.9.1**。
 
 3.8.x 主要變更：
 
@@ -504,3 +504,10 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - 下一輪抽取、更改數量、重設或匯入結果時清除佈局鎖定。
 - 新增固定格子佈局、位置穩定、超長姓名重排與記憶匯出匯入測試。
 - 版本更新為 `3.8.4`。
+
+## 25. 3.9.1 增補
+
+- 輸出框 `.ui` 字號由 30 調整為 33，並重新產生 4 個 `lib/ui_*.py`。
+- `[ui].display_font_size` 同步改為 33，`BUILTIN_CONFIG` 與 `OutputView` 的 fallback 也改為 33，確保執行時實際生效。
+- `tests/` 加入 `.gitignore`，並從新提交取消追蹤；本機測試檔案保留，歷史提交不變。
+- 版本更新為 `3.9.1`。
