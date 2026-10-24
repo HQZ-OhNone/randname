@@ -17,7 +17,7 @@
 ### 技術實現
 - python3.12.10
 - qt6.11.1(pyside6)
-- 目前版本：3.9.4
+- 目前版本：3.10.0
 
 ### 許可證
 [GNU General Public License v3.0](./doc/gpl-3.0.md)

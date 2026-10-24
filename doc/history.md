@@ -12,6 +12,26 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 This file is appended per session: completed work, unresolved findings, and
 verification results.
 
+## 2026-10-25 / 3.10.0
+
+### 已完成 / Completed
+
+- 首次将 3.9.2–3.9.4 的累积改动合并发布到 `main`：数量滑条与启动最大化、检查更新窗口、姓名紧凑排版、固定资源路径、全量会话日志高亮与模式名称标准化。
+- 检查更新窗口仅在发现新版本时启用「更新」，「手动查询」始终打开 GitHub Releases；修复 Pylance 类型警告并精简网络解析依赖。
+- 发布版本号 `3.10.0`；README、三语逻辑文档与历史记录同步。
+
+### 发现但未解决 / Found but unresolved
+
+- 日志窗口仅显示当前运行会话，不回溯历史日志文件。
+- 紧凑排版、触控滑条与高 DPI 仍需真实课堂投影环境验证。
+- 本次由 GitHub Actions 构建发布，本地未验证打包成品。
+
+### English summary
+
+- Released the accumulated 3.9.2–3.9.4 changes on `main`: quantity sliders and maximum startup, update checker, compact name layout, fixed asset/document paths, full-session highlighted logs, and canonical mode names.
+- The update dialog enables “Update” only when a newer release exists; “Manual check” always opens GitHub Releases. Pylance type warnings were removed and network parsing dependencies reduced.
+- Version bumped to `3.10.0`; README, trilingual logic documents, and history are synchronized.
+
 ## 2026-10-25 / 3.9.4
 
 ### 已完成 / Completed

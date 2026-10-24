@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文记录 randname 3.9.4 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
+本文记录 randname 3.10.0 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
 `logic_en_US.md`，正體中文版见 `logic_zh_TW.md`。
 
 ## 1. 术语与模式
@@ -31,7 +31,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路径 | 职责 |
 | --- | --- |
 | `main.py` | 启动、主窗口、菜单、状态栏、页面切换、记忆回填、查看器入口 |
-| `lib/version.py` | `APP_VERSION = "3.9.4"` |
+| `lib/version.py` | `APP_VERSION = "3.10.0"` |
 | `lib/Multi.py` | 多抽算法 |
 | `lib/Lift.py` | 减量抽算法 |
 | `lib/ScrollMulti.py` | 滚动多抽控制器 |
@@ -60,7 +60,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 3. `_bootstrap_config()` 读取 `config/config.toml`；失败时读取 `.config.default.toml`，再失败使用内建配置。
 4. 读取图标；创建启动画面。
 5. 启动画面按 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 缩放，保持宽高比。
-6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.9.4`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
+6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.10.0`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
 7. `_startup_file_check()` 检查可恢复文件；缺失项加入启动警告。`required` 当前恒为空，因此“启动检查失败”分支不可达。
 8. 导入 `lib` 模块。
 9. 图标、启动图、帮助、许可证、日志与记忆路径固定于代码，不再有可配置路径段。
@@ -412,7 +412,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
    - `config/`
    - `doc/`
 3. 旧文件 `WidgetScrollSingle.ui`、`ui_widgetscrollsingle.py`、`ScrollSingle.py`、`randname-start_v3.6.png`、`randname-start_v3.7.png` 已删除。
-4. 版本号在 `lib/version.py`；提交信息使用 `3.9.4[upgrade]_...` 触发发布流程。检查更新使用 QtNetwork，构建时不再排除 `PySide6.QtNetwork`。
+4. 版本号在 `lib/version.py`；提交信息使用 `3.10.0[upgrade]_...` 触发发布流程。检查更新使用 QtNetwork，构建时不再排除 `PySide6.QtNetwork`。
 5. CI 在提交信息含 `[upgrade]` 时构建 Linux/Windows 包并创建 Release。
 
 ## 18. 隐藏机制与边界
@@ -481,7 +481,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-当前版本：**3.9.4**。
+当前版本：**3.10.0**。
 
 3.8.x 主要变化：
 
@@ -574,3 +574,9 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - 缓存 GitHub API 与 Releases 的 `QUrl`；更新按钮状态、手动查询与超时行为不变。
 - 全项目 AST 扫描仅发现并移除上述 `Qt` 未使用 import。
 - 版本号更新到 3.9.4。
+
+## 29. 3.10.0 发布说明
+
+- 将 3.9.2–3.9.4 的累积改动合并到 `main`，并以 `3.10.0[upgrade]` 触发 GitHub Actions 发布。
+- 本版本包含数量滑条、启动最大化、检查更新、姓名紧凑排版、固定资源路径、全量会话日志高亮与模式名称标准化。
+- 版本号更新到 3.10.0。
