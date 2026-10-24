@@ -105,12 +105,11 @@ jobs:
 
       - name: Compile UI files
         run: |
-          # 將 ui/*.ui 編譯為 Python 模塊，放到 lib/
-          pyside6-uic ui/Main.ui -o lib/ui_main.py
-          pyside6-uic ui/WidgetMulti.ui -o lib/ui_widgetmulti.py
-          pyside6-uic ui/WidgetLift.ui -o lib/ui_widgetlift.py
-          pyside6-uic ui/WidgetScrollLift.ui -o lib/ui_widgetscrolllift.py
-          pyside6-uic ui/WidgetScrollMulti.ui -o lib/ui_widgetscrollmulti.py
+          # 將全部 ui/*.ui 編譯為 Python 模塊，放到 lib/
+          for ui_file in ui/*.ui; do
+            ui_name=$(basename "$ui_file" .ui | tr '[:upper:]' '[:lower:]')
+            pyside6-uic "$ui_file" -o "lib/ui_${ui_name}.py"
+          done
 
       - name: Build with Nuitka
         run: |
@@ -129,7 +128,6 @@ jobs:
             --assume-yes-for-downloads \
             --nofollow-import-to=PySide6.QtDesigner \
             --nofollow-import-to=PySide6.QtUiTools \
-            --nofollow-import-to=PySide6.QtNetwork \
             --nofollow-import-to=PySide6.QtSql \
             --nofollow-import-to=PySide6.QtTest \
             --nofollow-import-to=PySide6.QtXml \
@@ -210,12 +208,11 @@ jobs:
 
       - name: Compile UI files
         run: |
-          # 將 ui/*.ui 編譯為 Python 模塊，放到 lib/
-          pyside6-uic ui/Main.ui -o lib/ui_main.py
-          pyside6-uic ui/WidgetMulti.ui -o lib/ui_widgetmulti.py
-          pyside6-uic ui/WidgetLift.ui -o lib/ui_widgetlift.py
-          pyside6-uic ui/WidgetScrollLift.ui -o lib/ui_widgetscrolllift.py
-          pyside6-uic ui/WidgetScrollMulti.ui -o lib/ui_widgetscrollmulti.py
+          # 將全部 ui/*.ui 編譯為 Python 模塊，放到 lib/
+          Get-ChildItem ui/*.ui | ForEach-Object {
+            $name = $_.BaseName.ToLower()
+            pyside6-uic $_.FullName -o "lib/ui_$name.py"
+          }
 
       - name: Build with Nuitka
         run: |
@@ -235,7 +232,6 @@ jobs:
             --assume-yes-for-downloads `
             --nofollow-import-to=PySide6.QtDesigner `
             --nofollow-import-to=PySide6.QtUiTools `
-            --nofollow-import-to=PySide6.QtNetwork `
             --nofollow-import-to=PySide6.QtSql `
             --nofollow-import-to=PySide6.QtTest `
             --nofollow-import-to=PySide6.QtXml `

@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文記錄 randname 3.9.1 的實際行為、隱藏機制與邊界。簡體中文見
+本文記錄 randname 3.10.0 的實際行為、隱藏機制與邊界。簡體中文見
 `logic_zh_CN.md`，英文見 `logic_en_US.md`。
 
 ## 1. 術語與模式
@@ -17,10 +17,10 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | --- | --- | --- | --- | --- |
 | `Multi` | 多抽 | 多抽 | Multi | 多抽頁面 |
 | `Single` | 單抽 | 单抽 | Single | 多抽頁面（數量 1） |
-| `Lift` | 減量抽 | 减量抽 | Elimination | 減量抽頁面 |
-| `ScrollMulti` | 滾動多抽 | 滚动多抽 | Rolling Multi | 滾動多抽頁面 |
-| `ScrollSingle` | 滾動單抽 | 滚动单抽 | Rolling Single | 滾動多抽頁面（數量 1） |
-| `ScrollLift` | 滾動減量抽 | 滚动减量抽 | Rolling Elimination | 滾動減量抽頁面 |
+| `Lift` | 減量抽 | 减量抽 | Lift | 減量抽頁面 |
+| `ScrollMulti` | 滾動多抽 | 滚动多抽 | ScrollMulti | 滾動多抽頁面 |
+| `ScrollSingle` | 滾動單抽 | 滚动单抽 | ScrollSingle | 滾動多抽頁面（數量 1） |
+| `ScrollLift` | 滾動減量抽 | 滚动减量抽 | ScrollLift | 滾動減量抽頁面 |
 
 - 單抽與滾動單抽只是選單快捷方式，不建立獨立頁面或控制器。
 - 結果、日誌與記憶仍使用 `Multi`、`Lift`、`ScrollMulti`、`ScrollLift` 作為
@@ -32,13 +32,14 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路徑 | 職責 |
 | --- | --- |
 | `main.py` | 啟動、主視窗、選單、狀態列、頁面切換、記憶回填 |
-| `lib/version.py` | `APP_VERSION = "3.9.1"` |
+| `lib/version.py` | `APP_VERSION = "3.10.0"` |
 | `lib/Multi.py` | 多抽演算法 |
 | `lib/Lift.py` | 減量抽演算法 |
 | `lib/ScrollMulti.py` | 滾動多抽控制器 |
 | `lib/ScrollLift.py` | 滾動減量抽控制器（繼承 ScrollMultiController） |
 | `lib/OutputView.py` | 非滾動輸出框自適應；滾動模式固定格子 `SlotOutputView` |
 | `lib/TextViewer.py` | 唯讀即時說明/授權/日誌檢視器 |
+| `lib/UpdateDialog.py` | 檢查更新視窗、GitHub Releases 查詢與版本比較 |
 | `lib/StateManager.py` | 設定、記憶結果、日誌 |
 | `lib/importnames.py` | 名單載入 |
 | `lib/ThemeManager.py` | 主題與 QSS |
@@ -57,13 +58,13 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
    `.config.default.toml`，再失敗使用內建設定。
 4. 載入圖示與啟動畫面。
 5. 依 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 縮放，保持比例。
-6. `_draw_splash_version()` 在右下角繪製 `v3.9.1`；字號始終依圖片寬度的三分之一
+6. `_draw_splash_version()` 在右下角繪製 `v3.10.0`；字號始終依圖片寬度的三分之一
    自動縮放，文字固定為純白色，不提供字號或顏色設定。
 7. `_startup_file_check()` 收集可恢復檔案警告；`required` 目前恆為空。
 8. 匯入 `lib` 模組。
-9. `StateManager.configure_paths()` 套用 `[paths]`。
+9. 圖示、啟動圖、說明、授權、日誌與記憶路徑固定於程式碼，不再有可設定路徑段。
 10. 不讀取記憶偏好；每次啟動都從設定檔與獨立設定檔讀取介面狀態。
-11. 日誌等級：`[logging].level` > `INFO`。
+11. 日誌等級：`[logging].level` > `INFO`；該等級只控制檔案寫入。
 12. 主題：`theme.toml` 的 `default` > `config.toml` `app.theme`（舊鍵） > 第一個主題。
 13. 語言：`language.toml` 的 `preferred` > `config.toml` `app.language`（舊鍵） > 系統語言 > `en_US`。
 14. 名單：`[app].roster` > 第一組名單。
@@ -113,6 +114,8 @@ language.toml preferred（有效）
 4. `height = width / aspect_ratio`。
 5. 若 `height > screen_height * screen_ratio`，改用高度上限並重算寬度。
 6. 回傳至少 1 的整數。
+
+`size_mode = "maximum"` 時不計算上述尺寸；`_window_is_maximized()` 判斷後只設定最小尺寸，`reveal_window()` 以 `showMaximized()` 顯示。重新整理設定時，可見視窗也會立即最大化。
 
 啟動畫面使用相同演算法，預設 `screen_ratio = 0.25`、`aspect_ratio = 2.0`。
 
@@ -272,7 +275,7 @@ language.toml preferred（有效）
 ## 11. 單抽與滾動單抽別名
 
 - 選單「單抽」→ `_show_single_page()`：多抽數量設 1、更新標籤、切到多抽頁。
-- 選單「滾動單抽」→ `_show_scrollsingle_page()`：滾動多抽數量設 1、更新
+- 選單「滾動單抽」→ `_show_scroll_single_page()`：滾動多抽數量設 1、更新
   控制器、切到滾動多抽頁。
 - `default_mode` 相容：`Single` → 多抽數量 1；`ScrollSingle` → 滾動多抽數量 1；
   非法值 → 多抽。
@@ -306,8 +309,8 @@ language.toml preferred（有效）
 
 ## 13. 日誌
 
-- `StateManager.configure_logging()` 設定根 logger 並安裝 `_SessionLogHandler`。
-- Handler 將記錄追加到 `[paths].log_file`，同時存入 `SESSION_LOG_RECORDS`。
+- `StateManager.configure_logging()` 將根 logger 設為 DEBUG 並安裝 `_SessionLogHandler`。
+- Handler 始終將記錄存入 `SESSION_LOG_RECORDS`，再依所選等級寫入 `doc/log.log`。
 - `StateManager.log()` 寫出精簡單行：
 
 ```
@@ -315,6 +318,8 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 ```
 
 - 欄位順序：`time` → `level` → `action` → `result` → `error`。
+- `StateManager.log()` 也會先寫入 `SESSION_LOG_RECORDS`，再判斷檔案等級；因此日誌視窗始終包含本次執行的全部等級。
+- 日誌檢視器把工作階段記錄渲染為 HTML，並為行首的 `level=...` 或 `[INFO]` 等級標記上色。
 - `_log_value()` 將換行/製表符換成空格，`{}[]` 換成 `()`，保證單行。
 - 低於目前等級的記錄不寫入。
 - 「關於 > 程式日誌」讀取日誌檔，不只顯示本次工作階段記憶體。
@@ -361,25 +366,22 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 - 主視窗：`ui/Main.ui` → `lib/ui_main.py`。
 - 頁面：多抽、減量抽、滾動多抽、滾動減量抽。
+- 四個數量頁面在數量欄右側各有一個縱向 `QSlider`；`_prepare_quantity_slider()` 安裝觸控過濾器，`_set_quantity()` 統一同步數值、標籤、滑動條與滾動控制器。
+- 文字視窗：`ui/TextViewer.ui`；檢查更新視窗：`ui/Update.ui`。
 - 模式選單順序：單抽、多抽、減量抽、分隔線、滾動單抽、滾動多抽、滾動減量抽。
-- 關於選單：說明、程式日誌、記錄等級、分隔線、授權、專案原始碼、回饋。
+- 關於選單：說明、程式日誌、檢查更新、記錄等級、分隔線、授權、專案原始碼、回饋。
 - 專案與回饋網址硬寫在 `main.py` 的 `REPOSITORY_URL`、`FEEDBACK_URL`，
   不是設定項。
 - 模式 QAction 未加入 `QActionGroup`；以目前頁面與 `current_mode` 為準。
 
 ## 17. 建置與發布
 
-1. `pyside6-uic` 編譯：
-   - `Main.ui` → `ui_main.py`
-   - `WidgetMulti.ui` → `ui_widgetmulti.py`
-   - `WidgetLift.ui` → `ui_widgetlift.py`
-   - `WidgetScrollMulti.ui` → `ui_widgetscrollmulti.py`
-   - `WidgetScrollLift.ui` → `ui_widgetscrolllift.py`
+1. `pyside6-uic` 遍歷編譯全部 `ui/*.ui`，檔名轉小寫後輸出為 `lib/ui_<name>.py`；新增 `.ui` 不需修改建置腳本。
 2. Nuitka 包含 `ui/randname1.png`、`ui/randname-start.png`、
    `.config.default.toml`、`.name.default.toml`、`config/`、`doc/`。
 3. 已刪除 `WidgetScrollSingle.ui`、`ui_widgetscrollsingle.py`、
    `ScrollSingle.py`、`randname-start_v3.6.png`、`randname-start_v3.7.png`。
-4. 版本在 `lib/version.py`；提交訊息使用 `3.9.1[upgrade]_...` 觸發發布。
+4. 版本在 `lib/version.py`；提交訊息使用 `3.10.0[upgrade]_...` 觸發發布。檢查更新使用 QtNetwork，建置時不再排除 `PySide6.QtNetwork`。
 
 ## 18. 隱藏機制與邊界
 
@@ -418,14 +420,14 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ### 日誌與檢視器
 
-- 日誌路徑由 `[paths].log_file` 決定，寫入端與檢視器共用。
+- 日誌檔固定為 `doc/log.log`；程式日誌視窗顯示目前工作階段記憶體中的全部等級記錄。
 - 檢視器非模態，關閉主視窗時一併關閉。
 - 檔案被刪除時顯示「目前尚無日誌記錄」，並繼續監聽父目錄。
 - 觸控行為依平台而異，需實機驗證。
 
 ### 安全
 
-- 程式不主動連網；唯一網路行為是使用者點擊專案或回饋連結。
+- 程式只會在使用者主動檢查更新或點擊專案、回饋連結時連網。
 - 沒有密鑰、權杖、遙測或上傳。
 - `config/` 唯讀；只寫入設定的記憶檔與日誌檔。
 - `doc/memory.json`、`doc/log.log` 已加入 `.gitignore`。
@@ -435,13 +437,14 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - `tests/test_output_fit.py`：非滾動單行/多行/縮字號；滾動固定格子、位置穩定、超長姓名重排、重設佈局。
 - `tests/test_memory.py`：只保留結果、舊偏好丟棄、匯入/匯出結果。
 - `tests/test_scroll_lift.py`：剩餘池、逐個停止、重設、數量越界。
-- `tests/test_config.py`：設定相容、非法值回退、啟動畫面等待、版本號字號換算。
+- `tests/test_config.py`：設定相容、非法值回退、啟動畫面等待、版本號字號換算、最大化模式與數量夾緊。
+- `tests/test_update.py`：版本號解析與新版本比較。
 
 執行：`QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests`。
 
 ## 20. 版本
 
-目前版本：**3.9.1**。
+目前版本：**3.10.0**。
 
 3.8.x 主要變更：
 
@@ -511,3 +514,38 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - `[ui].display_font_size` 同步改為 33，`BUILTIN_CONFIG` 與 `OutputView` 的 fallback 也改為 33，確保執行時實際生效。
 - `tests/` 加入 `.gitignore`，並從新提交取消追蹤；本機測試檔案保留，歷史提交不變。
 - 版本更新為 `3.9.1`。
+
+## 26. 3.9.3 增補
+
+- 檢查更新僅在偵測到新版本時啟用「更新」；新增「手動查詢」開啟 Releases 頁面。
+- `[update].timeout_ms`（預設 15000）控制 GitHub 請求逾時；修正螢幕與 `QByteArray` 型別問題。
+- 姓名排版緊湊化；大螢幕下滾動格子依內容收攏並置中。
+- 刪除 `[assets]`、`[paths]`，資源與文件路徑固定於程式碼。
+- 日誌等級只過濾檔案輸出；程式日誌視窗顯示目前工作階段全部等級並高亮。
+- 模式名稱與識別字統一為 Multi、ScrollMulti、ScrollSingle、Single、Lift、ScrollLift。
+- 版本號更新到 3.9.3。
+
+## 27. 3.9.2 增補
+
+- `[window].size_mode` 新增 `maximum`：`_window_is_maximized()` 判斷後跳過尺寸計算，只設最小尺寸；`reveal_window()` 呼叫 `showMaximized()`。重新整理設定時可見視窗立即最大化。
+- 四個模式頁在數量欄右側新增縱向 `QSlider`；`_prepare_quantity_slider()` 安裝 `_QuantitySliderTouchFilter`，把觸點縱向位置換算成數值，支援觸控拖動。
+- `_set_quantity()` 統一更新數值、標籤、滑動條範圍與滾動控制器；`_refresh_quantity_ranges()` 在切換名單或重新整理設定時夾緊並同步四個模式。
+- 新增 `lib/UpdateDialog.py`：以 `QNetworkAccessManager` 非同步查詢 GitHub Releases，`parse_version()`/`is_newer_version()` 比較版本；關閉視窗會中止未完成請求。
+- 新增 `ui/Update.ui` 與 `ui/TextViewer.ui`，文字檢視器改用 `.ui`；建置腳本與 CI 遍歷全部 `ui/*.ui`。
+- 檢查更新使用 QtNetwork，三個建置設定皆移除 `--nofollow-import-to=PySide6.QtNetwork`。
+- 三語新增 `action.check_update`、`update.*` 文案；說明、README、歷史記錄同步到 3.9.2。
+- 新增最大化模式、數量夾緊、版本比較測試。
+
+## 28. 3.9.4 增補
+
+- `UpdateDialog` 改用 `QJsonDocument.fromJson()`/`toVariant()` 解析 GitHub 回應，消除 `QByteArray.data()` 的 `memoryview.decode` 型別警告。
+- 移除 `json`、`re`、`QFont` 與未使用的 `Qt`；`parse_version()` 改為手寫數字掃描，字型改用現有 `QFont` 副本。
+- 快取 GitHub API 與 Releases 的 `QUrl`；更新按鈕狀態、手動查詢與逾時行為不變。
+- 全專案 AST 掃描僅發現並移除上述 `Qt` 未使用 import。
+- 版本號更新到 3.9.4。
+
+## 29. 3.10.0 發佈說明
+
+- 將 3.9.2–3.9.4 的累積改動合併到 `main`，並以 `3.10.0[upgrade]` 觸發 GitHub Actions 發佈。
+- 本版本包含數量滑桿、啟動最大化、檢查更新、姓名緊湊排版、固定資源路徑、完整工作階段日誌高亮與模式名稱標準化。
+- 版本號更新到 3.10.0。

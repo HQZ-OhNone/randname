@@ -68,6 +68,7 @@
     </property>
     <addaction name="action_help"/>
     <addaction name="action_program_log"/>
+    <addaction name="action_check_update"/>
     <addaction name="menu_log_level"/>
     <addaction name="separator"/>
     <addaction name="action_license"/>
@@ -144,6 +145,11 @@
         <string>程序日志</string>
      </property>
     </action>
+  <action name="action_check_update">
+   <property name="text">
+    <string>检查更新</string>
+   </property>
+  </action>
   <action name="action_repository">
    <property name="text">
     <string>开源仓库</string>

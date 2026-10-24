@@ -54,13 +54,13 @@ def pack_names(names, metrics, max_width):
     for raw_name in names:
         name = str(raw_name)
         candidate = current + [name]
-        if current and metrics.horizontalAdvance("  ".join(candidate)) > max_width:
-            lines.append("  ".join(current))
+        if current and metrics.horizontalAdvance(" ".join(candidate)) > max_width:
+            lines.append(" ".join(current))
             current = [name]
         else:
             current = candidate
     if current:
-        lines.append("  ".join(current))
+        lines.append(" ".join(current))
     return lines or [""]
 
 
@@ -301,6 +301,7 @@ class _SlotGrid(QWidget):
         self._rows = 1
         self._gap = 8
         self._font = QFont()
+        self._cell_limit = None
 
     def set_slot_count(self, count):
         count = max(0, int(count))
@@ -358,6 +359,15 @@ class _SlotGrid(QWidget):
         self._gap = max(0, int(gap))
         self._layout_children()
 
+    def set_cell_limit(self, width, height):
+        """限制格子最大尺寸，让大屏上的姓名群组保持紧凑并居中。"""
+        self._cell_limit = (max(1, int(width)), max(1, int(height)))
+        self._layout_children()
+
+    def clear_cell_limit(self):
+        self._cell_limit = None
+        self._layout_children()
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._layout_children()
@@ -369,6 +379,11 @@ class _SlotGrid(QWidget):
         gap = self._gap
         cell_width = max(1.0, (width - (self._columns - 1) * gap) / self._columns)
         cell_height = max(1.0, (height - (self._rows - 1) * gap) / self._rows)
+        if self._cell_limit is not None:
+            cell_width = min(cell_width, float(self._cell_limit[0]))
+            cell_height = min(cell_height, float(self._cell_limit[1]))
+        total_height = self._rows * cell_height + max(0, self._rows - 1) * gap
+        start_y = (height - total_height) / 2.0
         self.message_label.setGeometry(rect)
         for index, label in enumerate(self.slots):
             row = index // self._columns
@@ -377,7 +392,7 @@ class _SlotGrid(QWidget):
             row_width = row_count * cell_width + max(0, row_count - 1) * gap
             start_x = (width - row_width) / 2.0
             x = start_x + column * (cell_width + gap)
-            y = row * (cell_height + gap)
+            y = start_y + row * (cell_height + gap)
             label.setGeometry(
                 int(round(x)), int(round(y)),
                 int(round(cell_width)), int(round(cell_height)),
@@ -401,6 +416,7 @@ class SlotOutputView(QObject):
         self._columns = 0
         self._rows = 0
         self._layout_point_size = None
+        self._cell_limit = None
         self._font_family = ""
         self._base_font = QFont(label.font())
 
@@ -437,6 +453,7 @@ class SlotOutputView(QObject):
         if self._font_family:
             self._base_font.setFamily(self._font_family)
         self._layout_point_size = None
+        self._cell_limit = None
         self._columns = 0
         self._rows = 0
         if self._message_mode:
@@ -451,9 +468,11 @@ class SlotOutputView(QObject):
         self._names = []
         self._quantity = 0
         self._layout_point_size = None
+        self._cell_limit = None
         self._columns = 0
         self._rows = 0
         self.grid.set_slot_count(0)
+        self.grid.clear_cell_limit()
         self.grid.set_message(str(text))
         self._grid_font(self.base_point_size)
         self.grid.setGeometry(self.label.contentsRect())
@@ -483,8 +502,10 @@ class SlotOutputView(QObject):
         self._names = []
         self._quantity = count
         self._layout_point_size = None
+        self._cell_limit = None
         self._columns = 0
         self._rows = 0
+        self.grid.clear_cell_limit()
         self.grid.set_slot_count(count)
         self.grid.set_names([""] * count)
         self._grid_font(self.base_point_size)
@@ -493,9 +514,11 @@ class SlotOutputView(QObject):
     def clear_round(self):
         """下一轮、数量变化或导入结果时清除布局锁定。"""
         self._layout_point_size = None
+        self._cell_limit = None
         self._columns = 0
         self._rows = 0
         self._quantity = 0
+        self.grid.clear_cell_limit()
 
     @property
     def current_text(self):
@@ -519,7 +542,7 @@ class SlotOutputView(QObject):
 
     def _gap(self):
         width, height = self._available()
-        return max(4, int(min(width, height) * 0.02))
+        return max(4, int(min(width, height) * 0.01))
 
     def _grid_font(self, point_size):
         font = _font_at_size(self._base_font, point_size)
@@ -537,6 +560,10 @@ class SlotOutputView(QObject):
         metrics = QFontMetrics(_font_at_size(self._base_font, point_size))
         if metrics.lineSpacing() > max(1.0, cell_height - 2.0):
             return False
+        if self._cell_limit is not None:
+            available_width = max(1.0, self._cell_limit[0] - self.padding * 2)
+            if any(metrics.horizontalAdvance(name) > available_width for name in names):
+                return False
         return all(
             metrics.horizontalAdvance(name) <= max(1.0, cell_width - 4.0)
             for name in names
@@ -571,8 +598,14 @@ class SlotOutputView(QObject):
         self._columns = columns
         self._rows = rows
         self._layout_point_size = size
+        metrics = QFontMetrics(_font_at_size(self._base_font, size))
+        name_width = max((metrics.horizontalAdvance(name) for name in self._names), default=0)
+        limit_width = max(48, int(name_width + self.padding * 2 + 8))
+        limit_height = max(28, int(metrics.lineSpacing() + self.padding * 2))
+        self._cell_limit = (limit_width, limit_height)
         self.grid.set_gap(gap)
         self.grid.set_grid(columns, rows)
+        self.grid.set_cell_limit(limit_width, limit_height)
         self._grid_font(size)
 
     def _relayout(self):

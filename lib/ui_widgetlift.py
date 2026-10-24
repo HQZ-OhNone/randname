@@ -16,7 +16,8 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QGridLayout, QLabel, QPushButton,
-    QSizePolicy, QSpacerItem, QVBoxLayout, QWidget)
+    QSizePolicy, QSlider, QSpacerItem, QVBoxLayout,
+    QWidget)
 
 class Ui_Form(object):
     def setupUi(self, Form):
@@ -106,9 +107,49 @@ class Ui_Form(object):
 
         self.gridLayout.addItem(self.verticalSpacer, 3, 1, 1, 1)
 
+        self.verticalSlider_LiftQuantity = QSlider(Form)
+        self.verticalSlider_LiftQuantity.setObjectName(u"verticalSlider_LiftQuantity")
+        self.verticalSlider_LiftQuantity.setMinimumSize(QSize(44, 0))
+        self.verticalSlider_LiftQuantity.setMaximumSize(QSize(56, 16777215))
+        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
+        sizePolicy1.setHorizontalStretch(0)
+        sizePolicy1.setVerticalStretch(0)
+        sizePolicy1.setHeightForWidth(self.verticalSlider_LiftQuantity.sizePolicy().hasHeightForWidth())
+        self.verticalSlider_LiftQuantity.setSizePolicy(sizePolicy1)
+        self.verticalSlider_LiftQuantity.setStyleSheet(u"QSlider::groove:vertical {\n"
+"    background: rgba(60, 60, 60, 255);\n"
+"    width: 12px;\n"
+"    border-radius: 6px;\n"
+"}\n"
+"QSlider::sub-page:vertical {\n"
+"    background: #4A90E2;\n"
+"    border-radius: 6px;\n"
+"}\n"
+"QSlider::add-page:vertical {\n"
+"    background: rgba(60, 60, 60, 255);\n"
+"    border-radius: 6px;\n"
+"}\n"
+"QSlider::handle:vertical {\n"
+"    background: #4A90E2;\n"
+"    border: 2px solid #D0E4FF;\n"
+"    height: 30px;\n"
+"    width: 30px;\n"
+"    margin: 0 -10px;\n"
+"    border-radius: 15px;\n"
+"}\n"
+"")
+        self.verticalSlider_LiftQuantity.setMinimum(1)
+        self.verticalSlider_LiftQuantity.setMaximum(1)
+        self.verticalSlider_LiftQuantity.setSingleStep(1)
+        self.verticalSlider_LiftQuantity.setPageStep(1)
+        self.verticalSlider_LiftQuantity.setValue(1)
+        self.verticalSlider_LiftQuantity.setOrientation(Qt.Orientation.Vertical)
+
+        self.gridLayout.addWidget(self.verticalSlider_LiftQuantity, 1, 3, 1, 1)
+
         self.horizontalSpacer_2 = QSpacerItem(80, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
-        self.gridLayout.addItem(self.horizontalSpacer_2, 1, 3, 1, 1)
+        self.gridLayout.addItem(self.horizontalSpacer_2, 1, 4, 1, 1)
 
         self.horizontalSpacer = QSpacerItem(80, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
@@ -116,11 +157,11 @@ class Ui_Form(object):
 
         self.label_LiftOutput = QLabel(Form)
         self.label_LiftOutput.setObjectName(u"label_LiftOutput")
-        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        sizePolicy1.setHorizontalStretch(160)
-        sizePolicy1.setVerticalStretch(0)
-        sizePolicy1.setHeightForWidth(self.label_LiftOutput.sizePolicy().hasHeightForWidth())
-        self.label_LiftOutput.setSizePolicy(sizePolicy1)
+        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy2.setHorizontalStretch(160)
+        sizePolicy2.setVerticalStretch(0)
+        sizePolicy2.setHeightForWidth(self.label_LiftOutput.sizePolicy().hasHeightForWidth())
+        self.label_LiftOutput.setSizePolicy(sizePolicy2)
         font3 = QFont()
         font3.setFamilies([u"\u6587\u6cc9\u9a5b\u5fae\u7c73\u9ed1"])
         font3.setPointSize(33)
@@ -168,4 +209,3 @@ class Ui_Form(object):
         self.label_LiftOutput.setText(QCoreApplication.translate("Form", u"\u51cf\u91cf\u62bd", None))
         self.pushButton_LiftRenew.setText(QCoreApplication.translate("Form", u"\u5237\u65b0", None))
     # retranslateUi
-

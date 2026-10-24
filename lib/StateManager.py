@@ -54,16 +54,6 @@ BUILTIN_CONFIG = {
         "default_mode": "Multi",
         "roster": "class_1",
     },
-    "assets": {
-        "icon": "ui/randname1.png",
-        "splash_image": "ui/randname-start.png",
-    },
-    "paths": {
-        "license_file": "doc/gpl-3.0.md",
-        "help_directory": "doc",
-        "log_file": "doc/log.log",
-        "memory_file": "doc/memory.json",
-    },
     "splash": {
         "enabled": True,
         "mode": 0,
@@ -108,6 +98,7 @@ BUILTIN_CONFIG = {
         "show_version": True,
     },
     "logging": {"level": "INFO"},
+    "update": {"timeout_ms": 15000},
 }
 
 
@@ -115,29 +106,12 @@ def _now_iso() -> str:
     return datetime.now().isoformat(sep=" ", timespec="seconds")
 
 
-def configure_paths(config: dict) -> None:
-    """Apply configurable writable paths while keeping project-relative defaults."""
-    global MEMORY_PATH, LOG_PATH
-    paths = config.get("paths", {}) if isinstance(config, dict) else {}
-    if not isinstance(paths, dict):
-        paths = {}
-    for key, default in (("memory_file", DOC / "memory.json"), ("log_file", DOC / "log.log")):
-        value = paths.get(key)
-        selected = Path(value) if isinstance(value, str) and value else default
-        if not selected.is_absolute():
-            selected = ROOT / selected
-        selected = selected.resolve()
-        selected.parent.mkdir(parents=True, exist_ok=True)
-        if key == "memory_file":
-            MEMORY_PATH = selected
-        else:
-            LOG_PATH = selected
-
-
 class _SessionLogHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         line = self.format(record)
         SESSION_LOG_RECORDS.append(line)
+        if record.levelno < LOG_LEVELS[CURRENT_LOG_LEVEL]:
+            return
         try:
             with LOG_PATH.open("a", encoding="utf-8") as log_file:
                 log_file.write(line + "\n")
@@ -146,7 +120,7 @@ class _SessionLogHandler(logging.Handler):
 
 
 def configure_logging(level: str = "INFO") -> str:
-    """Set the logging threshold and capture this process's Python log records."""
+    """Set the file log threshold and capture every record in this session."""
     global CURRENT_LOG_LEVEL
     selected = level.upper() if isinstance(level, str) else "INFO"
     if selected == "WARN":
@@ -155,7 +129,8 @@ def configure_logging(level: str = "INFO") -> str:
         selected = "INFO"
     CURRENT_LOG_LEVEL = selected
     root_logger = logging.getLogger()
-    root_logger.setLevel(LOG_LEVELS[selected])
+    # 会话缓冲区必须收到全部等级；实际写文件时再按 CURRENT_LOG_LEVEL 过滤。
+    root_logger.setLevel(logging.DEBUG)
     handler = next(
         (item for item in root_logger.handlers if isinstance(item, _SessionLogHandler)),
         None,
@@ -164,7 +139,11 @@ def configure_logging(level: str = "INFO") -> str:
         handler = _SessionLogHandler()
         handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
         root_logger.addHandler(handler)
-    handler.setLevel(LOG_LEVELS[selected])
+    handler.setLevel(logging.DEBUG)
+    # 控制台/其它 handler 仍按所选等级输出，避免 DEBUG 噪音。
+    for item in root_logger.handlers:
+        if isinstance(item, logging.StreamHandler) and not isinstance(item, _SessionLogHandler):
+            item.setLevel(LOG_LEVELS[selected])
     return selected
 
 
@@ -202,8 +181,6 @@ def log(level: str, action: str, result: Optional[Any] = None,
     normalized_level = level.upper()
     if normalized_level == "WARN":
         normalized_level = "WARNING"
-    if LOG_LEVELS.get(normalized_level, logging.INFO) < LOG_LEVELS[CURRENT_LOG_LEVEL]:
-        return
     try:
         fields = [
             f"time={_now_iso()}",
@@ -216,6 +193,8 @@ def log(level: str, action: str, result: Optional[Any] = None,
             fields.append(f"error={_log_value(error)}")
         line = " ".join(fields)
         SESSION_LOG_RECORDS.append(line)
+        if LOG_LEVELS.get(normalized_level, logging.INFO) < LOG_LEVELS[CURRENT_LOG_LEVEL]:
+            return
         with LOG_PATH.open("a", encoding="utf-8") as log_file:
             log_file.write(line + "\n")
     except Exception:

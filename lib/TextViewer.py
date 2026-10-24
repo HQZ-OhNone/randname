@@ -25,19 +25,46 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 - 支持触屏拖动滚动和更宽的滚动条。
 """
 
+import html
+import re
 from pathlib import Path
 
 from PySide6.QtCore import QFileSystemWatcher, QTimer, Qt
 from PySide6.QtGui import QDesktopServices, QFont, QTextCursor
-from PySide6.QtWidgets import (
-    QApplication,
-    QDialog,
-    QDialogButtonBox,
-    QPlainTextEdit,
-    QTextBrowser,
-    QVBoxLayout,
+from PySide6.QtWidgets import QApplication, QDialog, QDialogButtonBox, QScroller
+
+from lib import ui_textviewer
+
+_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+_LOG_COLORS = {
+    "DEBUG": "#9AA0A6",
+    "INFO": "#8AB4F8",
+    "WARNING": "#FDD663",
+    "ERROR": "#F28B82",
+    "CRITICAL": "#FF6D91",
+}
+_LOG_LEVEL_PATTERN = re.compile(
+    r"(\[(?:" + "|".join(_LOG_LEVELS) + r")\]|level=(?:" + "|".join(_LOG_LEVELS) + r"))"
 )
-from PySide6.QtWidgets import QScroller
+
+
+def _level_name(token: str) -> str:
+    if token.startswith("level="):
+        return token[len("level="):]
+    return token.strip("[]")
+
+
+def highlight_log_text(text: str) -> str:
+    """把日志行首等级标记转成带颜色的 HTML，保留等宽换行。"""
+    escaped = html.escape(text)
+
+    def replace(match):
+        token = match.group(1)
+        color = _LOG_COLORS.get(_level_name(token), "#FFFFFF")
+        return f'<span style="color:{color}; font-weight:600;">{token}</span>'
+
+    body = _LOG_LEVEL_PATTERN.sub(replace, escaped).replace("\n", "<br>")
+    return f'<pre style="white-space:pre-wrap; margin:0;">{body}</pre>'
 
 
 def _number(value, default, minimum=None, maximum=None):
@@ -54,13 +81,16 @@ def _number(value, default, minimum=None, maximum=None):
 
 class TextViewerDialog(QDialog):
     def __init__(self, parent, title, path: Path, *, markdown=False, config=None,
-                 translate=None, empty_text="", close_text="Close"):
+                 translate=None, empty_text="", close_text="Close",
+                 text_provider=None, highlight_log=False):
         super().__init__(parent)
         self.path = Path(path)
         self.markdown = bool(markdown)
         self.translate = translate or (lambda key, **values: key)
         self.empty_text = empty_text or self.translate("state.no_logs")
-        self._last_signature = None
+        self.text_provider = text_provider
+        self.highlight_log = bool(highlight_log)
+        self._last_text = None
         self._closing = False
         viewer = config.get("viewer", {}) if isinstance(config, dict) else {}
         if not isinstance(viewer, dict):
@@ -70,6 +100,9 @@ class TextViewerDialog(QDialog):
         self.max_screen_ratio = _number(viewer.get("max_screen_ratio"), 0.85, 0.3, 1.0)
         self.touch_scroll = viewer.get("touch_scroll", True) is not False
 
+        self.ui = ui_textviewer.Ui_TextViewerDialog()
+        self.ui.setupUi(self)
+        self.text_view = self.ui.textView
         self.setWindowTitle(title)
         self.setModal(False)
         self.setWindowModality(Qt.WindowModality.NonModal)
@@ -78,12 +111,9 @@ class TextViewerDialog(QDialog):
         self._apply_geometry()
 
         if self.markdown:
-            self.text_view = QTextBrowser(self)
             self.text_view.setOpenExternalLinks(False)
             self.text_view.setOpenLinks(False)
             self.text_view.anchorClicked.connect(lambda url: QDesktopServices.openUrl(url))
-        else:
-            self.text_view = QPlainTextEdit(self)
         self.text_view.setReadOnly(True)
         self.text_view.setUndoRedoEnabled(False)
         flags = (
@@ -92,6 +122,8 @@ class TextViewerDialog(QDialog):
         )
         if self.markdown:
             flags |= Qt.TextInteractionFlag.LinksAccessibleByMouse
+        else:
+            flags &= ~Qt.TextInteractionFlag.LinksAccessibleByMouse
         self.text_view.setTextInteractionFlags(flags)
         self.text_view.setFont(QFont(self.text_view.font().family(), int(self.font_size)))
         self.text_view.setStyleSheet(
@@ -107,17 +139,13 @@ class TextViewerDialog(QDialog):
             except Exception:
                 pass
 
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close, parent=self)
-        buttons.button(QDialogButtonBox.StandardButton.Close).setText(close_text)
-        buttons.button(QDialogButtonBox.StandardButton.Close).setMinimumHeight(40)
+        buttons = self.ui.buttonBox
+        close_button = buttons.button(QDialogButtonBox.StandardButton.Close)
+        if close_button is not None:
+            close_button.setText(close_text)
+            close_button.setMinimumHeight(40)
         buttons.rejected.connect(self.close)
         buttons.accepted.connect(self.close)
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(10)
-        layout.addWidget(self.text_view)
-        layout.addWidget(buttons)
 
         self.watcher = QFileSystemWatcher(self)
         self.watcher.fileChanged.connect(self._on_file_changed)
@@ -131,7 +159,7 @@ class TextViewerDialog(QDialog):
 
     # ------------------------------------------------------------------ geometry
     def _apply_geometry(self):
-        screen = self.parent().screen() if self.parent() is not None else QApplication.primaryScreen()
+        screen = QApplication.screenAt(self.pos()) or QApplication.primaryScreen()
         available = screen.availableGeometry() if screen is not None else None
         if available is None:
             self.resize(820, 560)
@@ -168,14 +196,12 @@ class TextViewerDialog(QDialog):
         self._watch()
         self._refresh()
 
-    def _signature(self):
-        try:
-            stat = self.path.stat()
-        except OSError:
-            return None
-        return (stat.st_mtime_ns, stat.st_size)
-
     def _read_text(self):
+        if self.text_provider is not None:
+            try:
+                return str(self.text_provider())
+            except Exception:
+                return None
         try:
             return self.path.read_text(encoding="utf-8", errors="replace")
         except OSError:
@@ -184,16 +210,17 @@ class TextViewerDialog(QDialog):
     def _refresh(self, force=False):
         if self._closing:
             return
-        signature = self._signature()
-        if not force and signature == self._last_signature:
-            return
         text = self._read_text()
         if text is None:
             text = self.empty_text
-        self._last_signature = signature
+        if not force and text == self._last_text:
+            return
+        self._last_text = text
         bar = self.text_view.verticalScrollBar()
         at_bottom = bar.value() >= bar.maximum() - 4
-        if self.markdown:
+        if self.highlight_log:
+            self.text_view.setHtml(highlight_log_text(text))
+        elif self.markdown:
             self.text_view.setMarkdown(text)
         else:
             self.text_view.setPlainText(text)
@@ -211,4 +238,4 @@ class TextViewerDialog(QDialog):
         super().closeEvent(event)
 
 
-__all__ = ["TextViewerDialog"]
+__all__ = ["TextViewerDialog", "highlight_log_text"]

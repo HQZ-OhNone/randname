@@ -16,7 +16,8 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QGridLayout, QLabel, QPushButton,
-    QSizePolicy, QSpacerItem, QVBoxLayout, QWidget)
+    QSizePolicy, QSlider, QSpacerItem, QVBoxLayout,
+    QWidget)
 
 class Ui_Form(object):
     def setupUi(self, Form):
@@ -133,9 +134,49 @@ class Ui_Form(object):
 
         self.gridLayout.addItem(self.verticalSpacer, 3, 1, 1, 1)
 
+        self.verticalSlider_MultiQuantity = QSlider(Form)
+        self.verticalSlider_MultiQuantity.setObjectName(u"verticalSlider_MultiQuantity")
+        self.verticalSlider_MultiQuantity.setMinimumSize(QSize(44, 0))
+        self.verticalSlider_MultiQuantity.setMaximumSize(QSize(56, 16777215))
+        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
+        sizePolicy2.setHorizontalStretch(0)
+        sizePolicy2.setVerticalStretch(0)
+        sizePolicy2.setHeightForWidth(self.verticalSlider_MultiQuantity.sizePolicy().hasHeightForWidth())
+        self.verticalSlider_MultiQuantity.setSizePolicy(sizePolicy2)
+        self.verticalSlider_MultiQuantity.setStyleSheet(u"QSlider::groove:vertical {\n"
+"    background: rgba(60, 60, 60, 255);\n"
+"    width: 12px;\n"
+"    border-radius: 6px;\n"
+"}\n"
+"QSlider::sub-page:vertical {\n"
+"    background: #4A90E2;\n"
+"    border-radius: 6px;\n"
+"}\n"
+"QSlider::add-page:vertical {\n"
+"    background: rgba(60, 60, 60, 255);\n"
+"    border-radius: 6px;\n"
+"}\n"
+"QSlider::handle:vertical {\n"
+"    background: #4A90E2;\n"
+"    border: 2px solid #D0E4FF;\n"
+"    height: 30px;\n"
+"    width: 30px;\n"
+"    margin: 0 -10px;\n"
+"    border-radius: 15px;\n"
+"}\n"
+"")
+        self.verticalSlider_MultiQuantity.setMinimum(1)
+        self.verticalSlider_MultiQuantity.setMaximum(1)
+        self.verticalSlider_MultiQuantity.setSingleStep(1)
+        self.verticalSlider_MultiQuantity.setPageStep(1)
+        self.verticalSlider_MultiQuantity.setValue(1)
+        self.verticalSlider_MultiQuantity.setOrientation(Qt.Orientation.Vertical)
+
+        self.gridLayout.addWidget(self.verticalSlider_MultiQuantity, 1, 3, 1, 1)
+
         self.horizontalSpacer_2 = QSpacerItem(80, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
-        self.gridLayout.addItem(self.horizontalSpacer_2, 1, 3, 1, 1)
+        self.gridLayout.addItem(self.horizontalSpacer_2, 1, 4, 1, 1)
 
 
         self.retranslateUi(Form)
@@ -151,4 +192,3 @@ class Ui_Form(object):
         self.label_MultiOutput.setText(QCoreApplication.translate("Form", u"\u591a\u62bd", None))
         self.pushButton_Multi.setText(QCoreApplication.translate("Form", u"\u62bd\u53d6", None))
     # retranslateUi
-
