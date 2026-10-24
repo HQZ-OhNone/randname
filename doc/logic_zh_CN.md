@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文记录 randname 3.9.1 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
+本文记录 randname 3.9.2 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
 `logic_en_US.md`，正體中文版见 `logic_zh_TW.md`。
 
 ## 1. 术语与模式
@@ -31,13 +31,14 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路径 | 职责 |
 | --- | --- |
 | `main.py` | 启动、主窗口、菜单、状态栏、页面切换、记忆回填、查看器入口 |
-| `lib/version.py` | `APP_VERSION = "3.9.1"` |
+| `lib/version.py` | `APP_VERSION = "3.9.2"` |
 | `lib/Multi.py` | 多抽算法 |
 | `lib/Lift.py` | 减量抽算法 |
 | `lib/ScrollMulti.py` | 滚动多抽控制器 |
 | `lib/ScrollLift.py` | 滚动减量抽控制器（继承 ScrollMultiController） |
 | `lib/OutputView.py` | 非滚动输出框自适应；滚动模式固定格子 `SlotOutputView` |
 | `lib/TextViewer.py` | 只读、实时刷新的帮助/许可证/日志查看器 |
+| `lib/UpdateDialog.py` | 检查更新窗口、GitHub Releases 查询与版本比较 |
 | `lib/StateManager.py` | 配置、记忆结果、日志 |
 | `lib/importnames.py` | 启动时加载名单 |
 | `lib/ThemeManager.py` | 主题读取、样式表 |
@@ -59,7 +60,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 3. `_bootstrap_config()` 读取 `config/config.toml`；失败时读取 `.config.default.toml`，再失败使用内建配置。
 4. 读取图标；创建启动画面。
 5. 启动画面按 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 缩放，保持宽高比。
-6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.9.1`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
+6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.9.2`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
 7. `_startup_file_check()` 检查可恢复文件；缺失项加入启动警告。`required` 当前恒为空，因此“启动检查失败”分支不可达。
 8. 导入 `lib` 模块。
 9. `StateManager.configure_paths()` 应用 `[paths]` 的日志/记忆路径。
@@ -113,6 +114,8 @@ language.toml 的 preferred（有效）
 4. `height = width / aspect_ratio`。
 5. 若 `height > screen_height * screen_ratio`，则 `height = screen_height * screen_ratio`，`width = height * aspect_ratio`。
 6. 结果转整数，至少为 1。
+
+`size_mode = "maximum"` 时不计算上述尺寸；`_window_is_maximized()` 判断后只设置最小尺寸，并在 `reveal_window()` 中用 `showMaximized()` 显示主窗口。刷新配置时若可见，也会立即最大化。
 
 启动画面使用相同算法，默认 `screen_ratio = 0.25`、`aspect_ratio = 2.0`。
 
@@ -386,8 +389,10 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
   - `ui/WidgetLift.ui` → 减量抽；
   - `ui/WidgetScrollMulti.ui` → 滚动多抽；
   - `ui/WidgetScrollLift.ui` → 滚动减量抽（比滚动多抽多一个“重置”按钮）。
+- 四个数量页面在数量列右侧各有一个纵向 `QSlider`，范围 `1..len(names)`；`_prepare_quantity_slider()` 安装触控过滤器，`_set_quantity()` 统一同步数值、标签、滑条和滚动控制器。
+- 文本窗口：`ui/TextViewer.ui` → `lib/ui_textviewer.py`；检查更新窗口：`ui/Update.ui` → `lib/ui_update.py`。
 - 模式菜单顺序：单抽、多抽、减量抽、分隔线、滚动单抽、滚动多抽、滚动减量抽。
-- 关于菜单：帮助、程序日志、日志等级、分隔线、许可证、项目仓库、反馈。
+- 关于菜单：帮助、程序日志、检查更新、日志等级、分隔线、许可证、项目仓库、反馈。
 - 仓库/反馈地址硬编码在 `main.py`：
   - `REPOSITORY_URL`
   - `FEEDBACK_URL`
@@ -396,12 +401,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 17. 构建与发布
 
-1. 用 `pyside6-uic` 编译：
-   - `ui/Main.ui` → `lib/ui_main.py`
-   - `ui/WidgetMulti.ui` → `lib/ui_widgetmulti.py`
-   - `ui/WidgetLift.ui` → `lib/ui_widgetlift.py`
-   - `ui/WidgetScrollMulti.ui` → `lib/ui_widgetscrollmulti.py`
-   - `ui/WidgetScrollLift.ui` → `lib/ui_widgetscrolllift.py`
+1. 用 `pyside6-uic` 遍历编译全部 `ui/*.ui`，文件名小写后输出为 `lib/ui_<name>.py`；新增 `.ui` 无需修改构建脚本。
 2. Nuitka 打包时包含：
    - `ui/randname1.png`
    - `ui/randname-start.png`
@@ -410,7 +410,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
    - `config/`
    - `doc/`
 3. 旧文件 `WidgetScrollSingle.ui`、`ui_widgetscrollsingle.py`、`ScrollSingle.py`、`randname-start_v3.6.png`、`randname-start_v3.7.png` 已删除。
-4. 版本号在 `lib/version.py`；提交信息使用 `3.9.1[upgrade]_...` 触发发布流程。
+4. 版本号在 `lib/version.py`；提交信息使用 `3.9.2[upgrade]_...` 触发发布流程。检查更新使用 QtNetwork，构建时不再排除 `PySide6.QtNetwork`。
 5. CI 在提交信息含 `[upgrade]` 时构建 Linux/Windows 包并创建 Release。
 
 ## 18. 隐藏机制与边界
@@ -435,7 +435,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ### 18.3 减量抽
 
-- `_adjust_quantity` 的上限是完整名单长度，不是剩余长度；剩余不足时点“抽取”会走 `outdict={}` 分支显示“暂无结果”，需要手动调小数量或重置。
+- `_set_quantity`（原 `_adjust_quantity`）的上限是完整名单长度，不是剩余长度；剩余不足时点“抽取”会走 `outdict={}` 分支显示“暂无结果”，需要手动调小数量或重置。
 - `Lift` 结果的 `quantity.Lift` 是“本轮之后剩余人数”，不是“已减量数”。
 - 导入历史记忆不会恢复 `lift_current_dict`；减量抽剩余状态只能通过当前会话继续。
 
@@ -473,12 +473,13 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - `tests/test_output_fit.py`：非滚动单行/多行/缩字号；滚动固定格子、位置稳定、超长姓名重排、重置布局。
 - `tests/test_memory.py`：只保留结果、旧偏好丢弃、导入/导出结果。
 - `tests/test_scroll_lift.py`：剩余池、逐个停止、重置、数量越界。
-- `tests/test_config.py`：新旧配置键兼容、非法值回退、启动画面等待时间、版本号字号换算。
+- `tests/test_config.py`：新旧配置键兼容、非法值回退、启动画面等待时间、版本号字号换算、最大化模式与数量夹紧。
+- `tests/test_update.py`：版本号解析与新版本比较。
 - 运行：`QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests`。
 
 ## 20. 版本
 
-当前版本：**3.9.1**。
+当前版本：**3.9.2**。
 
 3.8.x 主要变化：
 
@@ -542,3 +543,14 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - `[ui].display_font_size` 同步改为 33，`BUILTIN_CONFIG` 与 `OutputView` 的 fallback 也改为 33，确保执行时实际生效。
 - `tests/` 加入 `.gitignore`，并从新提交取消追踪；本机测试文件保留，历史提交不变。
 - 版本号更新为 `3.9.1`。
+
+## 26. 3.9.2 增补
+
+- `[window].size_mode` 新增 `maximum`：`_window_is_maximized()` 判断后跳过尺寸计算，只设最小尺寸；`reveal_window()` 调用 `showMaximized()`。刷新配置时可见窗口会立即最大化。
+- 四个模式页在数量列右侧新增纵向 `QSlider`；`_prepare_quantity_slider()` 安装 `_QuantitySliderTouchFilter`，把触点纵向位置换算成数值，支持触控拖动。
+- `_set_quantity()` 统一更新数量值、标签、滑条范围和滚动控制器；`_refresh_quantity_ranges()` 在切换名单或刷新配置时夹紧并同步四个模式。
+- 新增 `lib/UpdateDialog.py`：用 `QNetworkAccessManager` 异步请求 GitHub Releases，`parse_version()`/`is_newer_version()` 比较版本；关闭窗口会中止未完成请求。
+- 新增 `ui/Update.ui` 与 `ui/TextViewer.ui`，文本查看器改用 `.ui`；构建脚本与 CI 遍历全部 `ui/*.ui`。
+- 检查更新使用 QtNetwork，三个构建配置均移除 `--nofollow-import-to=PySide6.QtNetwork`。
+- 三语新增 `action.check_update`、`update.*` 文案；帮助、README、历史记录同步到 3.9.2。
+- 新增最大化模式、数量夹紧、版本比较测试。

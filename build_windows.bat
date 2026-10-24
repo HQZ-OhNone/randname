@@ -1,13 +1,9 @@
 @echo off
 REM Windows build: compile every UI, package TOML data, and exclude unused Qt modules.
 
-echo 編譯 .ui 為 Python 模塊到 lib\ ...
+echo 編譯全部 .ui 為 Python 模塊到 lib\ ...
 if not exist lib mkdir lib
-pyside6-uic ui\Main.ui -o lib\ui_main.py
-pyside6-uic ui\WidgetMulti.ui -o lib\ui_widgetmulti.py
-pyside6-uic ui\WidgetLift.ui -o lib\ui_widgetlift.py
-pyside6-uic ui\WidgetScrollLift.ui -o lib\ui_widgetscrolllift.py
-pyside6-uic ui\WidgetScrollMulti.ui -o lib\ui_widgetscrollmulti.py
+python -c "import pathlib, subprocess; [subprocess.run(['pyside6-uic', str(p), '-o', 'lib/ui_' + p.stem.lower() + '.py'], check=True) for p in sorted(pathlib.Path('ui').glob('*.ui'))]"
 
 echo 安裝 Nuitka 與 PySide6
 python -m pip install --upgrade pip
@@ -32,7 +28,6 @@ nuitka ^
   --windows-disable-console ^
   --nofollow-import-to=PySide6.QtDesigner ^
   --nofollow-import-to=PySide6.QtUiTools ^
-  --nofollow-import-to=PySide6.QtNetwork ^
   --nofollow-import-to=PySide6.QtSql ^
   --nofollow-import-to=PySide6.QtTest ^
   --nofollow-import-to=PySide6.QtXml ^

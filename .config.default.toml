@@ -46,6 +46,7 @@ memory_file = "doc/memory.json"
 # 初始窗口尺寸模式：
 #   "screen_ratio" = 按可用屏幕比例计算初始尺寸
 #   "fixed"        = 使用下面的 width/height
+#   "maximum"      = 启动时直接最大化
 # 每次启动都使用这里定义的初始尺寸；程序不会记住上次拉伸后的尺寸。
 size_mode = "screen_ratio"
 
@@ -58,7 +59,7 @@ screen_ratio = 0.75
 aspect_ratio = 1.5
 
 # size_mode = "fixed" 时使用的初始宽高，单位为逻辑像素。
-# 若 size_mode = "screen_ratio"，这两项只作为无法计算屏幕尺寸时的后备值。
+# 若 size_mode = "screen_ratio" 或 "maximum"，这两项只作为后备值。
 width = 1000
 height = 600
 

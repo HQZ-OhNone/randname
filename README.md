@@ -17,7 +17,7 @@
 ### 技術實現
 - python3.12.10
 - qt6.11.1(pyside6)
-- 目前版本：3.9.1
+- 目前版本：3.9.2
 
 ### 許可證
 [GNU General Public License v3.0](./doc/gpl-3.0.md)
@@ -51,11 +51,13 @@ pip install pyside6==6.11.1
 - `config/theme.toml` 集中保存主题颜色、多语言名称和默认主题；配置或名单缺失时分别回退到 `.config.default.toml` 和 `.name.default.toml`。
 - `config/config.toml` 内每一項都有面向首次使用者的注释，可直接照着修改。
 - 每次启动都从配置档读取界面状态：主题以 `theme.toml` 的 `default`、语言以 `language.toml` 的 `preferred`、模式/名单/日志等级/窗口尺寸以 `config.toml` 为准，不读取记忆偏好。
-- 主窗口可自由拉伸，但下次启动仍使用配置档的初始尺寸。输出框不会因为名字过长而改变窗口大小，而是自动切换单行/多行显示，必要时缩小字号；滚动多抽与滚动减量抽使用固定格子，已抽出的名字位置不会随其他名字滚动。
-- 启动画面与主窗口均支持固定尺寸或屏幕比例尺寸；`[splash]` 支持关闭、就绪后关闭或固定显示时间（时间到后才显示主窗口）。
+- 主窗口可自由拉伸，但下次启动仍使用配置档的初始尺寸；`size_mode = "maximum"` 时启动即最大化。输出框不会因为名字过长而改变窗口大小，而是自动切换单行/多行显示，必要时缩小字号；滚动多抽与滚动减量抽使用固定格子，已抽出的名字位置不会随其他名字滚动。
+- 多抽、减量抽、滚动多抽与滚动减量抽页面均提供纵向滑动条，可在 `1` 到当前名单人数之间调节，支持触控，并与加减按钮和数量显示框同步。
+- 启动画面与主窗口均支持固定尺寸、屏幕比例尺寸或最大化；`[splash]` 支持关闭、就绪后关闭或固定显示时间（时间到后才显示主窗口）。
 - `doc/memory.json` 只保存各模式最近结果，`doc/log.log` 保存精简的英文逐行日志；两者均不会提交到 Git。
 - 菜单栏“文件 -> 导入记忆...”和“导出记忆...”用于导入/导出最近结果，不会覆盖 `config/` 下的配置。
 - “关于 > 程序日志”会实时读取 `doc/log.log`，可以一边运行程序一边查看；帮助、许可证也使用同一个只读查看器。
+- “关于 > 检查更新”会查询 GitHub Releases，并在窗口中显示检测状态与 `doc/history.md`；可直接打开 Releases 页面。
 
 #### 方案三、自行編譯二進制文件
 1. 在本機配置 Python 環境，可贊考 [Python官方網站](https://www.python.org/)
@@ -70,7 +72,7 @@ pip install nuitka==4.1.3 pyside6==6.11.1
 ```
 4. 使用 Nuitka 經行編譯，如：
 
-直接运行仓库中的 [`build_linux.sh`](./build_linux.sh) 或 [`build_windows.bat`](./build_windows.bat)。
+直接运行仓库中的 [`build_linux.sh`](./build_linux.sh) 或 [`build_windows.bat`](./build_windows.bat)。构建脚本会遍历 `ui/*.ui`，自动编译全套最新界面文件到 `lib/ui_*.py`。
 
 5. 找到 ```build``` 目錄下的可執行文件，運行即可。
 6. 編譯完成後亦可打包分發
@@ -86,4 +88,4 @@ tar -cavf randname3_linux.tar.xz randname3
 
 -----
 HQZ-OhNone \<ohnone_hqz@outlook.com>  
-lastedit: 2026-10-18
+lastedit: 2026-10-25

@@ -5,11 +5,13 @@ randname is a desktop app for classroom roll calls. The Mode menu contains Singl
 ## Drawing
 
 - **Single:** A shortcut that opens Multi and sets the quantity to `1`; it has no separate page.
-- **Multi:** Set the quantity with the increase/decrease buttons, then select Draw. A draw contains no duplicate names; later draws start from the full roster again.
+- **Multi:** Set the quantity with the increase/decrease buttons or the vertical slider, then select Draw. A draw contains no duplicate names; later draws start from the full roster again.
 - **Elimination:** Each draw removes selected people from the remaining pool for the current run. Reset restores the active roster. Changing rosters or refreshing changed roster data also resets the remaining pool.
 - **Rolling Single:** A shortcut that opens Rolling Multi and sets the quantity to `1`.
-- **Rolling Multi:** Set the quantity, then select Draw to show that many fixed slots cycling at once. Slot positions are decided on the first draw (for example six names form a centred 3×2 grid), and each press of Stop fixes one name without moving names already fixed. If a name is too long, randname adjusts the grid or font size and locks it again; the next draw or a quantity change resets the layout. Names fixed this round never appear again in the same round. The cycle rate is controlled by `scroll.rate`.
+- **Rolling Multi:** Set the quantity with the vertical slider or buttons, then select Draw to show that many fixed slots cycling at once. Slot positions are decided on the first draw (for example six names form a centred 3×2 grid), and each press of Stop fixes one name without moving names already fixed. If a name is too long, randname adjusts the grid or font size and locks it again; the next draw or a quantity change resets the layout. Names fixed this round never appear again in the same round. The cycle rate is controlled by `scroll.rate`.
 - **Rolling Elimination:** The rolling and fixed-slot layout is the same as Rolling Multi, but names drawn this round are removed from the remaining pool. The Reset button restores the full roster. The rate is also controlled by `scroll.rate`.
+
+All four quantity pages provide a vertical slider from `1` to the current roster size. It supports dragging and touch input and stays synchronised with the buttons and quantity display. Changing rosters or refreshing configuration clamps an out-of-range quantity automatically.
 
 The output box never changes the window size. In non-rolling modes, names are shown on one line when possible, wrapped onto multiple lines when there is enough height, and the font is reduced for the current draw when the box is already full. Rolling modes keep every name in a fixed slot and reduce the font only when a name cannot fit its slot.
 
@@ -40,7 +42,7 @@ randname does not remember the theme, roster, log level, mode, language, quantit
 
 ## Window and Status Bar
 
-The main window can be resized by dragging its edges, but the next startup still uses the initial size configured in `[window]`; the last resized size is not remembered. Long names and memory imports never change the window size.
+The main window can be resized by dragging its edges, but the next startup still uses the initial size configured in `[window]`; the last resized size is not remembered. Long names and memory imports never change the window size. Set `size_mode` to `"maximum"` to start maximised.
 
 The left side of the status bar shows temporary messages such as "Multi complete"; the right side shows the current mode, roster, quantity, theme, language, log level, and version. Each item can be hidden in `[statusbar]`.
 
@@ -50,7 +52,7 @@ Edit `config/config.toml` to set the startup mode, roster, splash screen, window
 
 ```toml
 [window]
-size_mode = "screen_ratio"   # or "fixed"
+size_mode = "screen_ratio"   # or "fixed", "maximum"
 screen_ratio = 0.75          # initial size as a share of the available screen
 aspect_ratio = 1.5
 width = 1000
@@ -78,6 +80,8 @@ Choose a threshold under **About > Log level**: Debug, Information, Warning, Err
 File > Import memory and File > Export memory exchange recent results as JSON. They do not replace configuration, roster, or interface state. The runtime memory file is `doc/memory.json` and stores only each mode's most recent result.
 
 Help, the license, and the program log all use randname's own read-only viewer. The viewer is clamped to the available desktop area so the taskbar remains accessible; it supports touch-drag scrolling, and its font size and refresh interval can be adjusted in `[viewer]`.
+
+**About > Check for updates** queries GitHub Releases asynchronously. A large label at the top shows checking, up to date, a new version found, or a failed check; the text below shows `doc/history.md`. Update opens the Releases page and closes the window, while OK only closes it. If the network is unavailable or GitHub rate-limits the request, open the Releases page manually.
 
 ## Startup and Troubleshooting
 

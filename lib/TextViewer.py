@@ -29,15 +29,9 @@ from pathlib import Path
 
 from PySide6.QtCore import QFileSystemWatcher, QTimer, Qt
 from PySide6.QtGui import QDesktopServices, QFont, QTextCursor
-from PySide6.QtWidgets import (
-    QApplication,
-    QDialog,
-    QDialogButtonBox,
-    QPlainTextEdit,
-    QTextBrowser,
-    QVBoxLayout,
-)
-from PySide6.QtWidgets import QScroller
+from PySide6.QtWidgets import QApplication, QDialog, QDialogButtonBox, QScroller
+
+from lib import ui_textviewer
 
 
 def _number(value, default, minimum=None, maximum=None):
@@ -70,6 +64,9 @@ class TextViewerDialog(QDialog):
         self.max_screen_ratio = _number(viewer.get("max_screen_ratio"), 0.85, 0.3, 1.0)
         self.touch_scroll = viewer.get("touch_scroll", True) is not False
 
+        self.ui = ui_textviewer.Ui_TextViewerDialog()
+        self.ui.setupUi(self)
+        self.text_view = self.ui.textView
         self.setWindowTitle(title)
         self.setModal(False)
         self.setWindowModality(Qt.WindowModality.NonModal)
@@ -78,12 +75,9 @@ class TextViewerDialog(QDialog):
         self._apply_geometry()
 
         if self.markdown:
-            self.text_view = QTextBrowser(self)
             self.text_view.setOpenExternalLinks(False)
             self.text_view.setOpenLinks(False)
             self.text_view.anchorClicked.connect(lambda url: QDesktopServices.openUrl(url))
-        else:
-            self.text_view = QPlainTextEdit(self)
         self.text_view.setReadOnly(True)
         self.text_view.setUndoRedoEnabled(False)
         flags = (
@@ -92,6 +86,8 @@ class TextViewerDialog(QDialog):
         )
         if self.markdown:
             flags |= Qt.TextInteractionFlag.LinksAccessibleByMouse
+        else:
+            flags &= ~Qt.TextInteractionFlag.LinksAccessibleByMouse
         self.text_view.setTextInteractionFlags(flags)
         self.text_view.setFont(QFont(self.text_view.font().family(), int(self.font_size)))
         self.text_view.setStyleSheet(
@@ -107,17 +103,13 @@ class TextViewerDialog(QDialog):
             except Exception:
                 pass
 
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close, parent=self)
-        buttons.button(QDialogButtonBox.StandardButton.Close).setText(close_text)
-        buttons.button(QDialogButtonBox.StandardButton.Close).setMinimumHeight(40)
+        buttons = self.ui.buttonBox
+        close_button = buttons.button(QDialogButtonBox.StandardButton.Close)
+        if close_button is not None:
+            close_button.setText(close_text)
+            close_button.setMinimumHeight(40)
         buttons.rejected.connect(self.close)
         buttons.accepted.connect(self.close)
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(10)
-        layout.addWidget(self.text_view)
-        layout.addWidget(buttons)
 
         self.watcher = QFileSystemWatcher(self)
         self.watcher.fileChanged.connect(self._on_file_changed)

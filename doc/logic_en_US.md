@@ -9,7 +9,7 @@ version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
 This document records the actual behaviour, hidden mechanisms, and edge cases
-of randname 3.9.1. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
+of randname 3.9.2. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 `logic_zh_TW.md`.
 
 ## 1. Terms and modes
@@ -34,13 +34,14 @@ of randname 3.9.1. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 | Path | Responsibility |
 | --- | --- |
 | `main.py` | Startup, main window, menus, status bar, page switching, memory restore |
-| `lib/version.py` | `APP_VERSION = "3.9.1"` |
+| `lib/version.py` | `APP_VERSION = "3.9.2"` |
 | `lib/Multi.py` | Multi draw algorithm |
 | `lib/Lift.py` | Elimination draw algorithm |
 | `lib/ScrollMulti.py` | Rolling Multi controller |
 | `lib/ScrollLift.py` | Rolling Elimination controller (extends ScrollMultiController) |
 | `lib/OutputView.py` | Auto-fit output; fixed-slot `SlotOutputView` for rolling modes |
 | `lib/TextViewer.py` | Read-only live viewer for help, license, and logs |
+| `lib/UpdateDialog.py` | Update dialog, GitHub Releases request, version comparison |
 | `lib/StateManager.py` | Configuration, memory results, logging |
 | `lib/importnames.py` | Roster loading |
 | `lib/ThemeManager.py` | Theme loading and QSS |
@@ -59,7 +60,7 @@ of randname 3.9.1. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
    `.config.default.toml`, then the built-in configuration.
 4. Load the icon and create the splash screen.
 5. Scale the splash according to `[splash]`, keeping the image aspect ratio.
-6. `_draw_splash_version()` draws `v3.9.1` in the bottom-right corner. The
+6. `_draw_splash_version()` draws `v3.9.2` in the bottom-right corner. The
    font size always scales with the image width to one third of that width;
    the text is always pure white and has no size or colour configuration.
 7. `_startup_file_check()` collects recoverable-file warnings. `required` is
@@ -126,6 +127,10 @@ or window size from the memory file.
 5. If `height > screen_height * screen_ratio`, set
    `height = screen_height * screen_ratio` and `width = height * aspect_ratio`.
 6. Return integer sizes, at least 1.
+
+With `size_mode = "maximum"`, `_window_is_maximized()` skips this calculation,
+applies only a minimum size, and `reveal_window()` calls `showMaximized()`. A
+reload also maximises a visible window.
 
 The splash uses the same algorithm with `screen_ratio = 0.25` and
 `aspect_ratio = 2.0` by default.
@@ -424,10 +429,14 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 - Main window: `ui/Main.ui` → `lib/ui_main.py`.
 - Pages: Multi, Elimination, Rolling Multi, Rolling Elimination.
+- Every quantity page has a vertical `QSlider` to the right of the quantity
+  column. `_prepare_quantity_slider()` installs the touch filter, and
+  `_set_quantity()` synchronises value, label, slider, and rolling controller.
+- Text viewer: `ui/TextViewer.ui`; update dialog: `ui/Update.ui`.
 - Mode menu order: Single, Multi, Elimination, separator, Rolling Single,
   Rolling Multi, Rolling Elimination.
-- About menu: Help, Program log, Log level, separator, License, Source
-  repository, Feedback.
+- About menu: Help, Program log, Check for updates, Log level, separator,
+  License, Source repository, Feedback.
 - Repository and feedback URLs are hard-coded in `main.py`
   (`REPOSITORY_URL`, `FEEDBACK_URL`); they are not configuration options.
 - Mode actions are not in a `QActionGroup`; `current_mode` and the visible page
@@ -435,18 +444,15 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 17. Build and release
 
-1. Compile with `pyside6-uic`:
-   - `Main.ui` → `ui_main.py`
-   - `WidgetMulti.ui` → `ui_widgetmulti.py`
-   - `WidgetLift.ui` → `ui_widgetlift.py`
-   - `WidgetScrollMulti.ui` → `ui_widgetscrollmulti.py`
-   - `WidgetScrollLift.ui` → `ui_widgetscrolllift.py`
+1. Compile every `ui/*.ui` with `pyside6-uic`, lowercasing the name into
+   `lib/ui_<name>.py`. New `.ui` files need no build-script change.
 2. Nuitka includes `ui/randname1.png`, `ui/randname-start.png`,
    `.config.default.toml`, `.name.default.toml`, `config/`, and `doc/`.
 3. Removed files: `WidgetScrollSingle.ui`, `ui_widgetscrollsingle.py`,
    `ScrollSingle.py`, `randname-start_v3.6.png`, `randname-start_v3.7.png`.
-4. Version lives in `lib/version.py`; use `3.9.1[upgrade]_...` in the commit
-   message to trigger the release workflow.
+4. Version lives in `lib/version.py`; use `3.9.2[upgrade]_...` in the commit
+   message to trigger the release workflow. Update checks use QtNetwork, so
+   `PySide6.QtNetwork` is no longer excluded.
 
 ## 18. Hidden mechanisms and edge cases
 
@@ -515,13 +521,14 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - `tests/test_scroll_lift.py`: remaining pool, one-by-one stops, reset, and
   quantity clamping.
 - `tests/test_config.py`: configuration compatibility, invalid-value fallback,
-  splash wait, and version font sizing.
+  splash wait, version font sizing, maximum mode, and quantity clamping.
+- `tests/test_update.py`: version parsing and newer-version comparison.
 
 Run: `QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests`.
 
 ## 20. Version
 
-Current version: **3.9.1**.
+Current version: **3.9.2**.
 
 Main changes in the 3.8.x series:
 
@@ -619,3 +626,14 @@ Main changes in the 3.8.x series:
 - Added `tests/` to `.gitignore` and untracked it in the new commit while
   keeping local test files; history is unchanged.
 - Version is now `3.9.1`.
+
+## 26. 3.9.2 additions
+
+- Added `[window].size_mode = "maximum"`; `_window_is_maximized()` skips size calculation and `reveal_window()` uses `showMaximized()`.
+- Added a vertical quantity slider beside the quantity column on all four pages. `_QuantitySliderTouchFilter` maps touch positions to values, and `_set_quantity()` synchronises value, label, slider range, and rolling controller.
+- `_refresh_quantity_ranges()` clamps and synchronises all four quantities after roster changes or configuration reloads.
+- Added `lib/UpdateDialog.py` using an asynchronous `QNetworkAccessManager` request to GitHub Releases. `parse_version()` and `is_newer_version()` compare tags; closing aborts a pending request.
+- Added `ui/Update.ui` and `ui/TextViewer.ui`; the viewer now loads its `.ui`. Build scripts and CI compile every `ui/*.ui`.
+- QtNetwork is no longer excluded from any build configuration.
+- Added trilingual update texts; help, README, and history are updated to 3.9.2.
+- Added maximum-mode, quantity-clamping, and version-comparison tests.

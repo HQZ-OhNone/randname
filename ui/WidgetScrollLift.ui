@@ -225,6 +225,70 @@
     </spacer>
    </item>
    <item row="1" column="3">
+    <widget class="QSlider" name="verticalSlider_ScrollLiftQuantity">
+     <property name="minimumSize">
+      <size>
+       <width>44</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>56</width>
+       <height>16777215</height>
+      </size>
+     </property>
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Fixed" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QSlider::groove:vertical {
+    background: rgba(60, 60, 60, 255);
+    width: 12px;
+    border-radius: 6px;
+}
+QSlider::sub-page:vertical {
+    background: #4A90E2;
+    border-radius: 6px;
+}
+QSlider::add-page:vertical {
+    background: rgba(60, 60, 60, 255);
+    border-radius: 6px;
+}
+QSlider::handle:vertical {
+    background: #4A90E2;
+    border: 2px solid #D0E4FF;
+    height: 30px;
+    width: 30px;
+    margin: 0 -10px;
+    border-radius: 15px;
+}
+</string>
+     </property>
+     <property name="minimum">
+      <number>1</number>
+     </property>
+     <property name="maximum">
+      <number>1</number>
+     </property>
+     <property name="singleStep">
+      <number>1</number>
+     </property>
+     <property name="pageStep">
+      <number>1</number>
+     </property>
+     <property name="value">
+      <number>1</number>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Orientation::Vertical</enum>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="4">
     <spacer name="horizontalSpacer_2">
      <property name="orientation">
       <enum>Qt::Orientation::Horizontal</enum>

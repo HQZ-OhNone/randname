@@ -35,7 +35,7 @@ import sys
 import tomllib
 from pathlib import Path
 
-from PySide6.QtCore import QElapsedTimer, QPointF, QTimer, QUrl, Qt
+from PySide6.QtCore import QElapsedTimer, QEvent, QObject, QPointF, QTimer, QUrl, Qt
 from PySide6.QtGui import (
     QAction,
     QActionGroup,
@@ -49,7 +49,6 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import (
     QApplication,
-    QDialog,
     QFileDialog,
     QHBoxLayout,
     QLabel,
@@ -57,7 +56,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QMenu,
     QSplashScreen,
-    QVBoxLayout,
+    QSlider,
     QWidget,
 )
 
@@ -69,6 +68,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 UI_DIR = ROOT_DIR / "ui"
 # 仓库与反馈地址固定不变，直接写在程序中，不放进配置文件。
 REPOSITORY_URL = "https://www.github.com/HQZ-OhNone/randname"
+RELEASES_URL = "https://github.com/HQZ-OhNone/randname/releases"
 FEEDBACK_URL = "https://github.com/HQZ-OhNone/randname/issues"
 EMAIL_ADDRESS = "ohnone_hqz@outlook.com"
 
@@ -126,6 +126,25 @@ def _configured_size(section: dict, screen_width: int, screen_height: int, *, sp
         height = screen_height * ratio
         width = height * aspect
     return max(1, int(width)), max(1, int(height))
+
+
+def _window_is_maximized(section: dict) -> bool:
+    """判断窗口配置是否要求启动时最大化。"""
+    return isinstance(section, dict) and section.get("size_mode") == "maximum"
+
+
+def _clamp_quantity(value, maximum) -> int:
+    """把抽取数量夹紧到 1..maximum，非法输入回退为 1。"""
+    try:
+        maximum = int(maximum)
+    except (TypeError, ValueError):
+        maximum = 1
+    maximum = max(1, maximum)
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        value = 1
+    return max(1, min(maximum, value))
 
 
 def _splash_wait_ms(mode, duration_ms, elapsed_ms) -> int:
@@ -203,6 +222,30 @@ MainWindow 负责：
 """
 
 
+class _QuantitySliderTouchFilter(QObject):
+    """把触点纵向位置直接映射为纵向滑动条数值，保证触屏可以稳定拖动。"""
+
+    def eventFilter(self, watched, event):
+        if not isinstance(watched, QSlider):
+            return False
+        event_type = event.type()
+        if event_type == QEvent.Type.TouchEnd:
+            event.accept()
+            return True
+        if event_type not in (QEvent.Type.TouchBegin, QEvent.Type.TouchUpdate):
+            return False
+        points = event.points()
+        if not points:
+            return False
+        position = points[0].position()
+        span = max(1, watched.height())
+        ratio = min(1.0, max(0.0, 1.0 - position.y() / span))
+        value = watched.minimum() + round(ratio * (watched.maximum() - watched.minimum()))
+        watched.setValue(int(value))
+        event.accept()
+        return True
+
+
 class MainWindow(QMainWindow):
     def __init__(
         self,
@@ -259,6 +302,7 @@ class MainWindow(QMainWindow):
         self.action_feedback_email = None
         self.action_help = None
         self.action_program_log = None
+        self.action_check_update = None
         self.theme_actions = None
         self.language_actions = None
         self.roster_actions = None
@@ -269,11 +313,13 @@ class MainWindow(QMainWindow):
         self.multi_quantity_label = None
         self.multi_up_button = None
         self.multi_down_button = None
+        self.multi_quantity_slider = None
         self.lift_button = None
         self.lift_view = None
         self.lift_quantity_label = None
         self.lift_up_button = None
         self.lift_down_button = None
+        self.lift_quantity_slider = None
         self.lift_renew_button = None
 
         self.scroll_multi_button = None
@@ -281,6 +327,7 @@ class MainWindow(QMainWindow):
         self.scroll_multi_quantity_label = None
         self.scroll_multi_up_button = None
         self.scroll_multi_down_button = None
+        self.scroll_multi_quantity_slider = None
         self.scroll_multi_controller = None
 
         self.scroll_lift_button = None
@@ -288,8 +335,11 @@ class MainWindow(QMainWindow):
         self.scroll_lift_quantity_label = None
         self.scroll_lift_up_button = None
         self.scroll_lift_down_button = None
+        self.scroll_lift_quantity_slider = None
         self.scroll_lift_renew_button = None
         self.scroll_lift_controller = None
+        self._syncing_quantity = False
+        self._quantity_touch_filters = []
 
         self.status_widgets = {}
         self.status_separators = []
@@ -297,6 +347,7 @@ class MainWindow(QMainWindow):
         self.status_message_label = None
         self.viewer_dialogs = {}
         self._resizable = True
+        self._start_maximized = False
 
         self._build_ui()
         self._apply_config_window()
@@ -342,8 +393,16 @@ class MainWindow(QMainWindow):
         geometry = screen.availableGeometry() if screen is not None else None
         screen_width = geometry.width() if geometry is not None else 1280
         screen_height = geometry.height() if geometry is not None else 800
-        width, height = _configured_size(window, screen_width, screen_height)
+        self._start_maximized = _window_is_maximized(window)
         self._resizable = window.get("resizable", True) is not False
+        if self._start_maximized:
+            # 最大化模式只约束最小尺寸，实际显示时由 showMaximized() 完成。
+            self.setMinimumSize(640, 480)
+            self.setMaximumSize(16777215, 16777215)
+            if self.isVisible():
+                self.showMaximized()
+            return
+        width, height = _configured_size(window, screen_width, screen_height)
         self.resize(width, height)
         if self._resizable:
             self.setMinimumSize(640, 480)
@@ -409,6 +468,7 @@ class MainWindow(QMainWindow):
         self.action_feedback_email = getattr(self.ui_main, "action_feedback_email", None)
         self.action_help = getattr(self.ui_main, "action_help", None)
         self.action_program_log = getattr(self.ui_main, "action_program_log", None)
+        self.action_check_update = getattr(self.ui_main, "action_check_update", None)
 
         if self.action_multi:
             self.action_multi.triggered.connect(lambda: self._show_multi_page())
@@ -442,6 +502,8 @@ class MainWindow(QMainWindow):
             self.action_help.triggered.connect(self._open_help)
         if self.action_program_log:
             self.action_program_log.triggered.connect(self._show_program_log)
+        if self.action_check_update:
+            self.action_check_update.triggered.connect(self._open_update_check)
 
     def _build_theme_menu(self):
         theme_menu = getattr(self.ui_main, "menu_theme", None)
@@ -648,14 +710,7 @@ class MainWindow(QMainWindow):
         self.lift_current_dict = None
         self.lift_result = None
         self.lift_result_names = []
-        self.multi_quantity = min(max(1, self.multi_quantity), max(1, len(self.names)))
-        self.lift_quantity = min(max(1, self.lift_quantity), max(1, len(self.names)))
-        self.scroll_multi_quantity = min(max(1, self.scroll_multi_quantity), max(1, len(self.names)))
-        self.scroll_lift_quantity = min(max(1, self.scroll_lift_quantity), max(1, len(self.names)))
-        self._set_quantity_label(self.multi_quantity_label, self.multi_quantity)
-        self._set_quantity_label(self.lift_quantity_label, self.lift_quantity)
-        self._set_quantity_label(self.scroll_multi_quantity_label, self.scroll_multi_quantity)
-        self._set_quantity_label(self.scroll_lift_quantity_label, self.scroll_lift_quantity)
+        self._refresh_quantity_ranges()
         if self.lift_view is not None:
             self.lift_view.set_message(self._t("state.waiting"))
         if self.scroll_multi_controller is not None:
@@ -698,6 +753,7 @@ class MainWindow(QMainWindow):
             (self.action_feedback_email, "action.feedback.email"),
             (self.action_help, "action.help"),
             (self.action_program_log, "action.program_log"),
+            (self.action_check_update, "action.check_update"),
         ):
             if action is not None:
                 action.setText(self._t(key))
@@ -826,6 +882,8 @@ class MainWindow(QMainWindow):
         self.multi_quantity_label = getattr(self.ui_multi, "label_MultiQuantity", None)
         self.multi_up_button = getattr(self.ui_multi, "pushButton_MultiQuantityUp", None)
         self.multi_down_button = getattr(self.ui_multi, "pushButton_MultiQuantityDown", None)
+        self.multi_quantity_slider = getattr(self.ui_multi, "verticalSlider_MultiQuantity", None)
+        self._prepare_quantity_slider(self.multi_quantity_slider, "multi")
         self._set_quantity_label(self.multi_quantity_label, self.multi_quantity)
         if self.multi_up_button is not None:
             self.multi_up_button.clicked.connect(lambda: self._adjust_quantity("multi", 1))
@@ -844,6 +902,8 @@ class MainWindow(QMainWindow):
         self.lift_quantity_label = getattr(self.ui_lift, "label_LiftQuantity", None)
         self.lift_up_button = getattr(self.ui_lift, "pushButton_LiftQuantityUp", None)
         self.lift_down_button = getattr(self.ui_lift, "pushButton_LiftQuantityDown", None)
+        self.lift_quantity_slider = getattr(self.ui_lift, "verticalSlider_LiftQuantity", None)
+        self._prepare_quantity_slider(self.lift_quantity_slider, "lift")
         self.lift_renew_button = getattr(self.ui_lift, "pushButton_LiftRenew", None)
         self._set_quantity_label(self.lift_quantity_label, self.lift_quantity)
         if self.lift_up_button is not None:
@@ -866,6 +926,10 @@ class MainWindow(QMainWindow):
                 self.scroll_multi_view = SlotOutputView(output, config, 33)
             self.scroll_multi_up_button = getattr(self.ui_scrollmulti, "pushButton_ScrollMultiQuantityUp", None)
             self.scroll_multi_down_button = getattr(self.ui_scrollmulti, "pushButton_ScrollMultiQuantityDown", None)
+            self.scroll_multi_quantity_slider = getattr(
+                self.ui_scrollmulti, "verticalSlider_ScrollMultiQuantity", None
+            )
+            self._prepare_quantity_slider(self.scroll_multi_quantity_slider, "scrollmulti")
             self._set_quantity_label(self.scroll_multi_quantity_label, self.scroll_multi_quantity)
             if self.scroll_multi_up_button is not None:
                 self.scroll_multi_up_button.clicked.connect(lambda: self._adjust_quantity("scrollmulti", 1))
@@ -896,6 +960,10 @@ class MainWindow(QMainWindow):
                 self.scroll_lift_view = SlotOutputView(output, config, 33)
             self.scroll_lift_up_button = getattr(self.ui_scrolllift, "pushButton_ScrollLiftQuantityUp", None)
             self.scroll_lift_down_button = getattr(self.ui_scrolllift, "pushButton_ScrollLiftQuantityDown", None)
+            self.scroll_lift_quantity_slider = getattr(
+                self.ui_scrolllift, "verticalSlider_ScrollLiftQuantity", None
+            )
+            self._prepare_quantity_slider(self.scroll_lift_quantity_slider, "scrolllift")
             self.scroll_lift_renew_button = getattr(self.ui_scrolllift, "pushButton_ScrollLiftRenew", None)
             self._set_quantity_label(self.scroll_lift_quantity_label, self.scroll_lift_quantity)
             if self.scroll_lift_up_button is not None:
@@ -920,6 +988,8 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             logging.exception("初始化 ScrollLift 失败: %s", exc)
 
+        self._refresh_quantity_ranges()
+
     def _show_multi_page(self):
         if self.stacked_widget is not None:
             self.stacked_widget.setCurrentWidget(self.page_multi)
@@ -927,8 +997,7 @@ class MainWindow(QMainWindow):
         self._update_status_info()
 
     def _show_single_page(self):
-        self.multi_quantity = 1
-        self._set_quantity_label(self.multi_quantity_label, self.multi_quantity)
+        self._set_quantity("multi", 1, log=False)
         self._show_multi_page()
 
     def _show_lift_page(self):
@@ -938,10 +1007,7 @@ class MainWindow(QMainWindow):
         self._update_status_info()
 
     def _show_scrollsingle_page(self):
-        self.scroll_multi_quantity = 1
-        self._set_quantity_label(self.scroll_multi_quantity_label, self.scroll_multi_quantity)
-        if self.scroll_multi_controller is not None:
-            self.scroll_multi_controller.set_quantity(1)
+        self._set_quantity("scrollmulti", 1, log=False)
         self._show_scrollmulti_page()
 
     def _show_scrollmulti_page(self):
@@ -1202,28 +1268,93 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
 
-    def _adjust_quantity(self, mode, delta):
-        max_count = max(1, len(self.names))
+    def _quantity_controls(self, mode):
+        """返回指定模式的（滑动条、数值标签、滚动控制器）。"""
+        return {
+            "multi": (self.multi_quantity_slider, self.multi_quantity_label, None),
+            "lift": (self.lift_quantity_slider, self.lift_quantity_label, None),
+            "scrollmulti": (
+                self.scroll_multi_quantity_slider,
+                self.scroll_multi_quantity_label,
+                self.scroll_multi_controller,
+            ),
+            "scrolllift": (
+                self.scroll_lift_quantity_slider,
+                self.scroll_lift_quantity_label,
+                self.scroll_lift_controller,
+            ),
+        }.get(mode, (None, None, None))
+
+    def _prepare_quantity_slider(self, slider, mode):
+        """安装触控过滤器并连接数值变化信号。"""
+        if slider is None:
+            return
+        slider.setAttribute(Qt.WidgetAttribute.WA_AcceptTouchEvents, True)
+        touch_filter = _QuantitySliderTouchFilter(slider)
+        slider.installEventFilter(touch_filter)
+        self._quantity_touch_filters.append(touch_filter)
+        slider.valueChanged.connect(
+            lambda value, selected_mode=mode: self._on_quantity_slider_changed(selected_mode, value)
+        )
+
+    def _set_quantity(self, mode, value, *, log=True):
+        """统一更新数量值、标签、滑动条和滚动控制器。"""
+        maximum = max(1, len(self.names))
+        value = _clamp_quantity(value, maximum)
         if mode == "multi":
-            self.multi_quantity = max(1, min(max_count, self.multi_quantity + delta))
-            self._set_quantity_label(self.multi_quantity_label, self.multi_quantity)
-            logging.info("更新多抽数量=%s", self.multi_quantity)
+            self.multi_quantity = value
+            logging_message = "更新多抽数量=%s"
         elif mode == "lift":
-            self.lift_quantity = max(1, min(max_count, self.lift_quantity + delta))
-            self._set_quantity_label(self.lift_quantity_label, self.lift_quantity)
-            logging.info("更新减量抽数量=%s", self.lift_quantity)
+            self.lift_quantity = value
+            logging_message = "更新减量抽数量=%s"
         elif mode == "scrollmulti":
-            self.scroll_multi_quantity = max(1, min(max_count, self.scroll_multi_quantity + delta))
-            self._set_quantity_label(self.scroll_multi_quantity_label, self.scroll_multi_quantity)
-            if self.scroll_multi_controller is not None:
-                self.scroll_multi_controller.set_quantity(self.scroll_multi_quantity)
-            logging.info("更新滚动多抽数量=%s", self.scroll_multi_quantity)
+            self.scroll_multi_quantity = value
+            logging_message = "更新滚动多抽数量=%s"
         elif mode == "scrolllift":
-            self.scroll_lift_quantity = max(1, min(max_count, self.scroll_lift_quantity + delta))
-            self._set_quantity_label(self.scroll_lift_quantity_label, self.scroll_lift_quantity)
-            if self.scroll_lift_controller is not None:
-                self.scroll_lift_controller.set_quantity(self.scroll_lift_quantity)
-            logging.info("更新滚动减量抽数量=%s", self.scroll_lift_quantity)
+            self.scroll_lift_quantity = value
+            logging_message = "更新滚动减量抽数量=%s"
+        else:
+            return value
+
+        slider, label, controller = self._quantity_controls(mode)
+        self._syncing_quantity = True
+        try:
+            if label is not None:
+                label.setText(str(value))
+            if slider is not None:
+                slider.setRange(1, maximum)
+                slider.setPageStep(max(1, (maximum - 1) // 10))
+                if slider.value() != value:
+                    slider.setValue(value)
+        finally:
+            self._syncing_quantity = False
+        if controller is not None:
+            controller.set_quantity(value)
+        if log:
+            logging.info(logging_message, value)
+        return value
+
+    def _quantity_value(self, mode):
+        return {
+            "multi": self.multi_quantity,
+            "lift": self.lift_quantity,
+            "scrollmulti": self.scroll_multi_quantity,
+            "scrolllift": self.scroll_lift_quantity,
+        }.get(mode, 1)
+
+    def _refresh_quantity_ranges(self):
+        """名单或数量上下限变化后，同步四个模式的全部数量控件。"""
+        for mode in ("multi", "lift", "scrollmulti", "scrolllift"):
+            self._set_quantity(mode, self._quantity_value(mode), log=False)
+
+    def _on_quantity_slider_changed(self, mode, value):
+        if self._syncing_quantity:
+            return
+        self._set_quantity(mode, value, log=False)
+        self._update_status_info()
+
+    def _adjust_quantity(self, mode, delta):
+        self._set_quantity(mode, self._quantity_value(mode) + delta)
         self._update_status_info()
 
     def _reset_lift_page(self):
@@ -1313,15 +1444,7 @@ class MainWindow(QMainWindow):
             roster_changed = previous_names != self.names
             if roster_changed:
                 self.lift_current_dict = None
-            max_count = max(1, len(self.names))
-            self.multi_quantity = min(max(1, self.multi_quantity), max_count)
-            self.lift_quantity = min(max(1, self.lift_quantity), max_count)
-            self.scroll_multi_quantity = min(max(1, self.scroll_multi_quantity), max_count)
-            self.scroll_lift_quantity = min(max(1, self.scroll_lift_quantity), max_count)
-            self._set_quantity_label(self.multi_quantity_label, self.multi_quantity)
-            self._set_quantity_label(self.lift_quantity_label, self.lift_quantity)
-            self._set_quantity_label(self.scroll_multi_quantity_label, self.scroll_multi_quantity)
-            self._set_quantity_label(self.scroll_lift_quantity_label, self.scroll_lift_quantity)
+            self._refresh_quantity_ranges()
             self.themes = ThemeManager.discover_themes()
             self.languages, preferred_language, language_warning = LanguageManager.load_languages()
             app_config = cfg.get("app", {}) if isinstance(cfg, dict) else {}
@@ -1345,6 +1468,7 @@ class MainWindow(QMainWindow):
             self._build_log_level_menu()
             self._retranslate()
             self._apply_ui_config()
+            self._apply_config_window()
             self._refresh_status_visibility()
             rate = _rate_from_config(cfg)
             if self.multi_view is not None:
@@ -1502,6 +1626,22 @@ class MainWindow(QMainWindow):
             self._t("menu.feedback"),
             self._t("dialog.email_fallback", email=EMAIL_ADDRESS),
         )
+
+    def _open_update_check(self):
+        """打开检查更新窗口，联网查询 GitHub Releases。"""
+        config = self._app_config()
+        history_directory = _configured_path(config, "paths", "help_directory", "doc")
+        history_path = history_directory / "history.md"
+        from lib.UpdateDialog import UpdateDialog
+
+        dialog = UpdateDialog(
+            self,
+            history_path=history_path,
+            translate=self._t,
+            config=config,
+            releases_url=RELEASES_URL,
+        )
+        dialog.exec()
 
     def _on_exit(self):
         logging.info("用户请求退出程序")
@@ -1711,7 +1851,10 @@ def main():
         logging.exception("应用启动主题失败: %s", exc)
         StateManager.log("ERROR", "startup_theme", error=str(exc))
     def reveal_window():
-        window.show()
+        if getattr(window, "_start_maximized", False):
+            window.showMaximized()
+        else:
+            window.show()
         if splash is not None:
             splash.finish(window)
 

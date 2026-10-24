@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文記錄 randname 3.9.1 的實際行為、隱藏機制與邊界。簡體中文見
+本文記錄 randname 3.9.2 的實際行為、隱藏機制與邊界。簡體中文見
 `logic_zh_CN.md`，英文見 `logic_en_US.md`。
 
 ## 1. 術語與模式
@@ -32,13 +32,14 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路徑 | 職責 |
 | --- | --- |
 | `main.py` | 啟動、主視窗、選單、狀態列、頁面切換、記憶回填 |
-| `lib/version.py` | `APP_VERSION = "3.9.1"` |
+| `lib/version.py` | `APP_VERSION = "3.9.2"` |
 | `lib/Multi.py` | 多抽演算法 |
 | `lib/Lift.py` | 減量抽演算法 |
 | `lib/ScrollMulti.py` | 滾動多抽控制器 |
 | `lib/ScrollLift.py` | 滾動減量抽控制器（繼承 ScrollMultiController） |
 | `lib/OutputView.py` | 非滾動輸出框自適應；滾動模式固定格子 `SlotOutputView` |
 | `lib/TextViewer.py` | 唯讀即時說明/授權/日誌檢視器 |
+| `lib/UpdateDialog.py` | 檢查更新視窗、GitHub Releases 查詢與版本比較 |
 | `lib/StateManager.py` | 設定、記憶結果、日誌 |
 | `lib/importnames.py` | 名單載入 |
 | `lib/ThemeManager.py` | 主題與 QSS |
@@ -57,7 +58,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
    `.config.default.toml`，再失敗使用內建設定。
 4. 載入圖示與啟動畫面。
 5. 依 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 縮放，保持比例。
-6. `_draw_splash_version()` 在右下角繪製 `v3.9.1`；字號始終依圖片寬度的三分之一
+6. `_draw_splash_version()` 在右下角繪製 `v3.9.2`；字號始終依圖片寬度的三分之一
    自動縮放，文字固定為純白色，不提供字號或顏色設定。
 7. `_startup_file_check()` 收集可恢復檔案警告；`required` 目前恆為空。
 8. 匯入 `lib` 模組。
@@ -113,6 +114,8 @@ language.toml preferred（有效）
 4. `height = width / aspect_ratio`。
 5. 若 `height > screen_height * screen_ratio`，改用高度上限並重算寬度。
 6. 回傳至少 1 的整數。
+
+`size_mode = "maximum"` 時不計算上述尺寸；`_window_is_maximized()` 判斷後只設定最小尺寸，`reveal_window()` 以 `showMaximized()` 顯示。重新整理設定時，可見視窗也會立即最大化。
 
 啟動畫面使用相同演算法，預設 `screen_ratio = 0.25`、`aspect_ratio = 2.0`。
 
@@ -361,25 +364,22 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 - 主視窗：`ui/Main.ui` → `lib/ui_main.py`。
 - 頁面：多抽、減量抽、滾動多抽、滾動減量抽。
+- 四個數量頁面在數量欄右側各有一個縱向 `QSlider`；`_prepare_quantity_slider()` 安裝觸控過濾器，`_set_quantity()` 統一同步數值、標籤、滑動條與滾動控制器。
+- 文字視窗：`ui/TextViewer.ui`；檢查更新視窗：`ui/Update.ui`。
 - 模式選單順序：單抽、多抽、減量抽、分隔線、滾動單抽、滾動多抽、滾動減量抽。
-- 關於選單：說明、程式日誌、記錄等級、分隔線、授權、專案原始碼、回饋。
+- 關於選單：說明、程式日誌、檢查更新、記錄等級、分隔線、授權、專案原始碼、回饋。
 - 專案與回饋網址硬寫在 `main.py` 的 `REPOSITORY_URL`、`FEEDBACK_URL`，
   不是設定項。
 - 模式 QAction 未加入 `QActionGroup`；以目前頁面與 `current_mode` 為準。
 
 ## 17. 建置與發布
 
-1. `pyside6-uic` 編譯：
-   - `Main.ui` → `ui_main.py`
-   - `WidgetMulti.ui` → `ui_widgetmulti.py`
-   - `WidgetLift.ui` → `ui_widgetlift.py`
-   - `WidgetScrollMulti.ui` → `ui_widgetscrollmulti.py`
-   - `WidgetScrollLift.ui` → `ui_widgetscrolllift.py`
+1. `pyside6-uic` 遍歷編譯全部 `ui/*.ui`，檔名轉小寫後輸出為 `lib/ui_<name>.py`；新增 `.ui` 不需修改建置腳本。
 2. Nuitka 包含 `ui/randname1.png`、`ui/randname-start.png`、
    `.config.default.toml`、`.name.default.toml`、`config/`、`doc/`。
 3. 已刪除 `WidgetScrollSingle.ui`、`ui_widgetscrollsingle.py`、
    `ScrollSingle.py`、`randname-start_v3.6.png`、`randname-start_v3.7.png`。
-4. 版本在 `lib/version.py`；提交訊息使用 `3.9.1[upgrade]_...` 觸發發布。
+4. 版本在 `lib/version.py`；提交訊息使用 `3.9.2[upgrade]_...` 觸發發布。檢查更新使用 QtNetwork，建置時不再排除 `PySide6.QtNetwork`。
 
 ## 18. 隱藏機制與邊界
 
@@ -435,13 +435,14 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - `tests/test_output_fit.py`：非滾動單行/多行/縮字號；滾動固定格子、位置穩定、超長姓名重排、重設佈局。
 - `tests/test_memory.py`：只保留結果、舊偏好丟棄、匯入/匯出結果。
 - `tests/test_scroll_lift.py`：剩餘池、逐個停止、重設、數量越界。
-- `tests/test_config.py`：設定相容、非法值回退、啟動畫面等待、版本號字號換算。
+- `tests/test_config.py`：設定相容、非法值回退、啟動畫面等待、版本號字號換算、最大化模式與數量夾緊。
+- `tests/test_update.py`：版本號解析與新版本比較。
 
 執行：`QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests`。
 
 ## 20. 版本
 
-目前版本：**3.9.1**。
+目前版本：**3.9.2**。
 
 3.8.x 主要變更：
 
@@ -511,3 +512,14 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - `[ui].display_font_size` 同步改為 33，`BUILTIN_CONFIG` 與 `OutputView` 的 fallback 也改為 33，確保執行時實際生效。
 - `tests/` 加入 `.gitignore`，並從新提交取消追蹤；本機測試檔案保留，歷史提交不變。
 - 版本更新為 `3.9.1`。
+
+## 26. 3.9.2 增補
+
+- `[window].size_mode` 新增 `maximum`：`_window_is_maximized()` 判斷後跳過尺寸計算，只設最小尺寸；`reveal_window()` 呼叫 `showMaximized()`。重新整理設定時可見視窗立即最大化。
+- 四個模式頁在數量欄右側新增縱向 `QSlider`；`_prepare_quantity_slider()` 安裝 `_QuantitySliderTouchFilter`，把觸點縱向位置換算成數值，支援觸控拖動。
+- `_set_quantity()` 統一更新數值、標籤、滑動條範圍與滾動控制器；`_refresh_quantity_ranges()` 在切換名單或重新整理設定時夾緊並同步四個模式。
+- 新增 `lib/UpdateDialog.py`：以 `QNetworkAccessManager` 非同步查詢 GitHub Releases，`parse_version()`/`is_newer_version()` 比較版本；關閉視窗會中止未完成請求。
+- 新增 `ui/Update.ui` 與 `ui/TextViewer.ui`，文字檢視器改用 `.ui`；建置腳本與 CI 遍歷全部 `ui/*.ui`。
+- 檢查更新使用 QtNetwork，三個建置設定皆移除 `--nofollow-import-to=PySide6.QtNetwork`。
+- 三語新增 `action.check_update`、`update.*` 文案；說明、README、歷史記錄同步到 3.9.2。
+- 新增最大化模式、數量夾緊、版本比較測試。
