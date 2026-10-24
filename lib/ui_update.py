@@ -82,6 +82,13 @@ class Ui_UpdateDialog(object):
 
         self.buttonLayout.addWidget(self.updateButton)
 
+        self.manualButton = QPushButton(UpdateDialog)
+        self.manualButton.setObjectName(u"manualButton")
+        self.manualButton.setMinimumSize(QSize(132, 44))
+        self.manualButton.setFont(font2)
+
+        self.buttonLayout.addWidget(self.manualButton)
+
         self.okButton = QPushButton(UpdateDialog)
         self.okButton.setObjectName(u"okButton")
         self.okButton.setMinimumSize(QSize(132, 44))
@@ -102,5 +109,6 @@ class Ui_UpdateDialog(object):
         UpdateDialog.setWindowTitle(QCoreApplication.translate("UpdateDialog", u"\u68c0\u67e5\u66f4\u65b0", None))
         self.statusLabel.setText(QCoreApplication.translate("UpdateDialog", u"\u68c0\u6d4b\u4e2d", None))
         self.updateButton.setText(QCoreApplication.translate("UpdateDialog", u"\u66f4\u65b0", None))
+        self.manualButton.setText(QCoreApplication.translate("UpdateDialog", u"\u624b\u52a8\u67e5\u8be2", None))
         self.okButton.setText(QCoreApplication.translate("UpdateDialog", u"\u786e\u5b9a", None))
     # retranslateUi

@@ -9,7 +9,7 @@ version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
 This document records the actual behaviour, hidden mechanisms, and edge cases
-of randname 3.9.2. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
+of randname 3.9.3. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 `logic_zh_TW.md`.
 
 ## 1. Terms and modes
@@ -18,12 +18,12 @@ of randname 3.9.2. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 | --- | --- | --- | --- | --- |
 | `Multi` | Multi | 多抽 | 多抽 | Multi page |
 | `Single` | Single | 单抽 | 單抽 | Multi page (quantity 1) |
-| `Lift` | Elimination | 减量抽 | 減量抽 | Elimination page |
-| `ScrollMulti` | Rolling Multi | 滚动多抽 | 滾動多抽 | Rolling Multi page |
-| `ScrollSingle` | Rolling Single | 滚动单抽 | 滾動單抽 | Rolling Multi page (quantity 1) |
-| `ScrollLift` | Rolling Elimination | 滚动减量抽 | 滾動減量抽 | Rolling Elimination page |
+| `Lift` | Lift | 减量抽 | 減量抽 | Lift page |
+| `ScrollMulti` | ScrollMulti | 滚动多抽 | 滾動多抽 | ScrollMulti page |
+| `ScrollSingle` | ScrollSingle | 滚动单抽 | 滾動單抽 | ScrollMulti page (quantity 1) |
+| `ScrollLift` | ScrollLift | 滚动减量抽 | 滾動減量抽 | ScrollLift page |
 
-- Single and Rolling Single are menu shortcuts only. They do not create a
+- Single and ScrollSingle are menu shortcuts only. They do not create a
   separate page or controller.
 - Result/log/memory `mode` fields still use `Multi`, `Lift`, `ScrollMulti`, and
   `ScrollLift`.
@@ -34,11 +34,11 @@ of randname 3.9.2. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 | Path | Responsibility |
 | --- | --- |
 | `main.py` | Startup, main window, menus, status bar, page switching, memory restore |
-| `lib/version.py` | `APP_VERSION = "3.9.2"` |
+| `lib/version.py` | `APP_VERSION = "3.9.3"` |
 | `lib/Multi.py` | Multi draw algorithm |
-| `lib/Lift.py` | Elimination draw algorithm |
-| `lib/ScrollMulti.py` | Rolling Multi controller |
-| `lib/ScrollLift.py` | Rolling Elimination controller (extends ScrollMultiController) |
+| `lib/Lift.py` | Lift draw algorithm |
+| `lib/ScrollMulti.py` | ScrollMulti controller |
+| `lib/ScrollLift.py` | ScrollLift controller (extends ScrollMultiController) |
 | `lib/OutputView.py` | Auto-fit output; fixed-slot `SlotOutputView` for rolling modes |
 | `lib/TextViewer.py` | Read-only live viewer for help, license, and logs |
 | `lib/UpdateDialog.py` | Update dialog, GitHub Releases request, version comparison |
@@ -60,16 +60,17 @@ of randname 3.9.2. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
    `.config.default.toml`, then the built-in configuration.
 4. Load the icon and create the splash screen.
 5. Scale the splash according to `[splash]`, keeping the image aspect ratio.
-6. `_draw_splash_version()` draws `v3.9.2` in the bottom-right corner. The
+6. `_draw_splash_version()` draws `v3.9.3` in the bottom-right corner. The
    font size always scales with the image width to one third of that width;
    the text is always pure white and has no size or colour configuration.
 7. `_startup_file_check()` collects recoverable-file warnings. `required` is
    currently always empty, so the fatal startup-check branch is unreachable.
 8. Import `lib` modules.
-9. `StateManager.configure_paths()` applies `[paths]`.
+9. Asset, help, license, log, and memory paths are fixed in code; there is no
+   configurable path section.
 10. Memory preferences are not read; every startup reads the configuration and
     dedicated theme/language files.
-11. Log level: `[logging].level` > `INFO`.
+11. Log level: `[logging].level` > `INFO`; it controls file writes only.
 12. Theme: `theme.toml` `default` > `config.toml` `app.theme` (legacy) >
     first theme.
 13. Language: `language.toml` `preferred` > `config.toml` `app.language`
@@ -231,7 +232,7 @@ Result:
 }
 ```
 
-## 8. Elimination
+## 8. Lift
 
 `Lift.Lift(alllist, Liftdict, quantity)`:
 
@@ -252,7 +253,7 @@ Result:
 7. Reset clears `lift_current_dict`; the quantity stays unchanged.
 8. Changing rosters or refreshing changed roster data clears the state.
 
-## 9. Rolling Multi
+## 9. ScrollMulti
 
 `ScrollMultiController`:
 
@@ -289,7 +290,7 @@ Result:
   timer interval; `set_quantity()` clears the layout lock while idle so the
   next round re-lays out.
 
-## 10. Rolling Elimination
+## 10. ScrollLift
 
 `ScrollLiftController` extends `ScrollMultiController` and adds a persistent
 remaining pool:
@@ -320,14 +321,14 @@ remaining pool:
 - Importing memory restores the result and remaining pool but does not switch
   the current theme/language.
 
-## 11. Single and Rolling Single aliases
+## 11. Single and ScrollSingle aliases
 
 - Mode > Single calls `_show_single_page()`: set Multi quantity to 1, update
   the label, and switch to the Multi page.
-- Mode > Rolling Single calls `_show_scrollsingle_page()`: set Rolling Multi
-  quantity to 1, update the controller, and switch to the Rolling Multi page.
+- Mode > ScrollSingle calls `_show_scroll_single_page()`: set ScrollMulti
+  quantity to 1, update the controller, and switch to the ScrollMulti page.
 - `default_mode` compatibility: `Single` → Multi quantity 1;
-  `ScrollSingle` → Rolling Multi quantity 1; any invalid value → Multi.
+  `ScrollSingle` → ScrollMulti quantity 1; any invalid value → Multi.
 - No `Single.py`, `ScrollSingle.py`, `WidgetScrollSingle.ui`, or separate page
   exists.
 
@@ -347,7 +348,7 @@ remaining pool:
 - The memory file stores only each mode's most recent result. It no longer
   stores theme, roster, mode, language, log level, quantities, or window size.
 - Runtime result entries are usually `{"result": ..., "meta": ...}`; Multi and
-  Elimination use `{"result": ..., "time": ...}`.
+  Lift use `{"result": ..., "time": ...}`.
 - JSON is written as UTF-8 with `ensure_ascii=False, indent=2`.
 - `save_memory()` writes a `.tmp` file and replaces the target atomically.
 - `_normalize_memory()` keeps only `last_results` and drops legacy
@@ -365,10 +366,10 @@ remaining pool:
 
 ## 13. Logging
 
-- `StateManager.configure_logging()` sets the root logger and installs
+- `StateManager.configure_logging()` sets the root logger to DEBUG and installs
   `_SessionLogHandler`.
-- The handler appends Python log records to `[paths].log_file` and stores them
-  in `SESSION_LOG_RECORDS`.
+- The handler always stores Python log records in `SESSION_LOG_RECORDS`, then
+  writes only records at or above the selected level to `doc/log.log`.
 - `StateManager.log()` writes concise single-line records:
 
 ```
@@ -376,6 +377,10 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 ```
 
 - Field order: `time` → `level` → `action` → `result` → `error`.
+- `StateManager.log()` also appends to `SESSION_LOG_RECORDS` before the file
+  level check, so the program log window always shows the full current session.
+- The log viewer renders the session buffer as HTML and colours the
+  `level=...` or `[INFO]` tag at the start of each line.
 - `_log_value()` replaces newlines/tabs with spaces and `{}[]` with `()`, so
   every record stays on one line.
 - Records below the current level are dropped.
@@ -428,13 +433,13 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 ## 16. UI and menus
 
 - Main window: `ui/Main.ui` → `lib/ui_main.py`.
-- Pages: Multi, Elimination, Rolling Multi, Rolling Elimination.
+- Pages: Multi, Lift, ScrollMulti, ScrollLift.
 - Every quantity page has a vertical `QSlider` to the right of the quantity
   column. `_prepare_quantity_slider()` installs the touch filter, and
   `_set_quantity()` synchronises value, label, slider, and rolling controller.
 - Text viewer: `ui/TextViewer.ui`; update dialog: `ui/Update.ui`.
-- Mode menu order: Single, Multi, Elimination, separator, Rolling Single,
-  Rolling Multi, Rolling Elimination.
+- Mode menu order: Single, Multi, Lift, separator, ScrollSingle,
+  ScrollMulti, ScrollLift.
 - About menu: Help, Program log, Check for updates, Log level, separator,
   License, Source repository, Feedback.
 - Repository and feedback URLs are hard-coded in `main.py`
@@ -450,7 +455,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
    `.config.default.toml`, `.name.default.toml`, `config/`, and `doc/`.
 3. Removed files: `WidgetScrollSingle.ui`, `ui_widgetscrollsingle.py`,
    `ScrollSingle.py`, `randname-start_v3.6.png`, `randname-start_v3.7.png`.
-4. Version lives in `lib/version.py`; use `3.9.2[upgrade]_...` in the commit
+4. Version lives in `lib/version.py`; use `3.9.3[upgrade]_...` in the commit
    message to trigger the release workflow. Update checks use QtNetwork, so
    `PySide6.QtNetwork` is no longer excluded.
 
@@ -479,7 +484,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
   Reset.
 - Importing a `ScrollLift` memory restores `Liftdict` so drawing can continue.
 
-### Elimination
+### Lift
 
 - Quantity upper bound is the full roster size, not the remaining size. If too
   many remain unavailable, the draw returns an empty `outdict` and the UI shows
@@ -507,7 +512,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ### Security
 
-- No network access except user-initiated repository/feedback links.
+- Network access is limited to the user-triggered update check and repository/feedback links.
 - No secrets, tokens, telemetry, or uploads.
 - `config/` is read-only; only the configured memory and log files are written.
 - `doc/memory.json` and `doc/log.log` are git-ignored.
@@ -528,7 +533,7 @@ Run: `QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests`.
 
 ## 20. Version
 
-Current version: **3.9.2**.
+Current version: **3.9.3**.
 
 Main changes in the 3.8.x series:
 
@@ -537,8 +542,8 @@ Main changes in the 3.8.x series:
 - Shared auto-fit output across all modes.
 - Resizable window with a configured startup size.
 - Expanded status bar.
-- Single / Rolling Single aliases.
-- New Rolling Elimination mode.
+- Single / ScrollSingle aliases.
+- New ScrollLift mode.
 - Live read-only text viewer.
 - New splash image with dynamic version.
 - Documented, simplified configuration.
@@ -627,7 +632,22 @@ Main changes in the 3.8.x series:
   keeping local test files; history is unchanged.
 - Version is now `3.9.1`.
 
-## 26. 3.9.2 additions
+## 26. 3.9.3 additions
+
+- Update button is enabled only when a newer release exists; a Manual check
+  button opens the Releases page without closing the dialog.
+- `[update].timeout_ms` (default 15000) controls the GitHub request timeout;
+  screen lookup and `QByteArray` handling are type-safe.
+- Name spacing is compact; rolling grids are capped by content and centred on
+  large screens.
+- Removed `[assets]` and `[paths]`; all asset/document paths are constants.
+- Log level filters file output only; the program log viewer shows the whole
+  current session with coloured level tags.
+- Canonical mode names and identifiers: Multi, ScrollMulti, ScrollSingle,
+  Single, Lift, ScrollLift.
+- Version bumped to 3.9.3.
+
+## 27. 3.9.2 additions
 
 - Added `[window].size_mode = "maximum"`; `_window_is_maximized()` skips size calculation and `reveal_window()` uses `showMaximized()`.
 - Added a vertical quantity slider beside the quantity column on all four pages. `_QuantitySliderTouchFilter` maps touch positions to values, and `_set_quantity()` synchronises value, label, slider range, and rolling controller.

@@ -164,4 +164,3 @@ class Ui_MainWindow(object):
         self.menu_language.setTitle(QCoreApplication.translate("MainWindow", u"\u8bed\u8a00", None))
         self.menu_roster.setTitle(QCoreApplication.translate("MainWindow", u"\u540d\u5355", None))
     # retranslateUi
-

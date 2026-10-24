@@ -127,6 +127,24 @@ QScrollBar:horizontal { height: 22px; }
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="manualButton">
+       <property name="minimumSize">
+        <size>
+         <width>132</width>
+         <height>44</height>
+        </size>
+       </property>
+       <property name="font">
+        <font>
+         <pointsize>14</pointsize>
+        </font>
+       </property>
+       <property name="text">
+        <string>手动查询</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QPushButton" name="okButton">
        <property name="minimumSize">
         <size>

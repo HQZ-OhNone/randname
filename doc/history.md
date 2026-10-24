@@ -12,6 +12,31 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 This file is appended per session: completed work, unresolved findings, and
 verification results.
 
+## 2026-10-25 / 3.9.3
+
+### 已完成 / Completed
+
+- 检查更新窗口仅在检测到新版本时启用“更新”按钮，并在“更新”与“确定”之间新增“手动查询”。
+- “手动查询”始终可打开 GitHub Releases；修复更新窗口获取屏幕与解析网络的类型问题。
+- 更新查询超时改为 `[update].timeout_ms` 配置，默认 15000 毫秒。
+- 非滚动模式的姓名间距缩小；滚动模式的格子宽度按内容收拢并在大屏中居中，保持同一轮位置锁定。
+- 移除 `[assets]`、`[paths]` 配置，图标、启动图、帮助、日志、记忆与许可证路径固定于代码。
+- 日志等级只控制写入文件的详细度；程序日志窗口显示本次运行全部等级并在行首高亮。
+- 模式名称统一为 `Multi`、`ScrollMulti`、`ScrollSingle`、`Single`、`Lift`、`ScrollLift`，同步代码标识符、语言键与文档。
+- 修正 `config.toml` 的 `eont_size` 拼写；三语帮助、逻辑文档、README 与版本号同步到 `3.9.3`。
+
+### 发现但未解决 / Found but unresolved
+
+- 紧凑排版在不同字体与超长姓名下的视觉平衡仍需真实课堂投影环境确认。
+- 日志窗口只保留当前进程记录；程序重启后无法在窗口内回溯历史日志文件。
+- 本轮未运行打包后的成品验证，触控与高 DPI 仍需实机测试。
+
+### English summary
+
+- The update dialog now enables “Update” only when a newer release exists and adds a “Manual check” button between “Update” and “OK”; screen and network type issues are fixed.
+- Added configurable update timeout (`[update].timeout_ms`, default 15 s), compact name layout, fixed asset/document paths, full-session log viewer with level highlighting, and canonical mode names throughout.
+- Version bumped to 3.9.3; local tests pass, packaged binaries were not verified in this session.
+
 ## 2026-10-25 / 3.9.2
 
 ### 已完成 / Completed

@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文记录 randname 3.9.2 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
+本文记录 randname 3.9.3 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
 `logic_en_US.md`，正體中文版见 `logic_zh_TW.md`。
 
 ## 1. 术语与模式
@@ -17,10 +17,10 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | --- | --- | --- | --- | --- |
 | `Multi` | 多抽 | 多抽 | Multi | 多抽页面 |
 | `Single` | 单抽 | 單抽 | Single | 多抽页面（数量 1） |
-| `Lift` | 减量抽 | 減量抽 | Elimination | 减量抽页面 |
-| `ScrollMulti` | 滚动多抽 | 滾動多抽 | Rolling Multi | 滚动多抽页面 |
-| `ScrollSingle` | 滚动单抽 | 滾動單抽 | Rolling Single | 滚动多抽页面（数量 1） |
-| `ScrollLift` | 滚动减量抽 | 滾動減量抽 | Rolling Elimination | 滚动减量抽页面 |
+| `Lift` | 减量抽 | 減量抽 | Lift | 减量抽页面 |
+| `ScrollMulti` | 滚动多抽 | 滾動多抽 | ScrollMulti | 滚动多抽页面 |
+| `ScrollSingle` | 滚动单抽 | 滾動單抽 | ScrollSingle | 滚动多抽页面（数量 1） |
+| `ScrollLift` | 滚动减量抽 | 滾動減量抽 | ScrollLift | 滚动减量抽页面 |
 
 - “单抽”和“滚动单抽”只是菜单快捷方式，不创建独立控制器或页面。
 - 内部结果、日志和记忆仍使用 `Multi`、`Lift`、`ScrollMulti`、`ScrollLift` 作为 `mode` 字段。
@@ -31,7 +31,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路径 | 职责 |
 | --- | --- |
 | `main.py` | 启动、主窗口、菜单、状态栏、页面切换、记忆回填、查看器入口 |
-| `lib/version.py` | `APP_VERSION = "3.9.2"` |
+| `lib/version.py` | `APP_VERSION = "3.9.3"` |
 | `lib/Multi.py` | 多抽算法 |
 | `lib/Lift.py` | 减量抽算法 |
 | `lib/ScrollMulti.py` | 滚动多抽控制器 |
@@ -60,12 +60,12 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 3. `_bootstrap_config()` 读取 `config/config.toml`；失败时读取 `.config.default.toml`，再失败使用内建配置。
 4. 读取图标；创建启动画面。
 5. 启动画面按 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 缩放，保持宽高比。
-6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.9.2`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
+6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.9.3`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
 7. `_startup_file_check()` 检查可恢复文件；缺失项加入启动警告。`required` 当前恒为空，因此“启动检查失败”分支不可达。
 8. 导入 `lib` 模块。
-9. `StateManager.configure_paths()` 应用 `[paths]` 的日志/记忆路径。
+9. 图标、启动图、帮助、许可证、日志与记忆路径固定于代码，不再有可配置路径段。
 10. 不读取记忆偏好；每次启动都从配置档与独立配置档读取界面状态。
-11. 日志等级：`[logging].level` > `INFO`。
+11. 日志等级：`[logging].level` > `INFO`；该等级只控制文件写入。
 12. 主题：`theme.toml` 的 `default` > `config.toml` `app.theme`（旧键，兼容） > 主题目录第一项。
 13. 语言：`language.toml` 的 `preferred` > `config.toml` `app.language`（旧键，兼容） > 系统语言 > `en_US`。
 14. 名单：`config.toml` 的 `app.roster` > 名单目录第一项。
@@ -283,7 +283,7 @@ language.toml 的 preferred（有效）
   - `multi_quantity = 1`；
   - 更新数量标签；
   - 切到多抽页面。
-- 菜单“滚动单抽” → `_show_scrollsingle_page()`：
+- 菜单“滚动单抽” → `_show_scroll_single_page()`：
   - `scroll_multi_quantity = 1`；
   - 更新控制器数量；
   - 切到滚动多抽页面。
@@ -325,8 +325,8 @@ language.toml 的 preferred（有效）
 
 ## 13. 日志
 
-- `StateManager.configure_logging(level)` 设置根 logger 等级，并安装 `_SessionLogHandler`。
-- `_SessionLogHandler` 把 Python logging 记录追加到 `[paths].log_file`，同时保存到 `SESSION_LOG_RECORDS`。
+- `StateManager.configure_logging(level)` 把根 logger 设为 DEBUG，并安装 `_SessionLogHandler`。
+- `_SessionLogHandler` 始终把 Python logging 记录保存到 `SESSION_LOG_RECORDS`，再按所选等级写入 `doc/log.log`。
 - `StateManager.log(level, action, result=None, error=None)` 写入精简单行：
 
 ```
@@ -334,6 +334,8 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 ```
 
 - 字段顺序固定：`time` → `level` → `action` → `result` → `error`。
+- `StateManager.log()` 也会先写入 `SESSION_LOG_RECORDS`，再判断文件等级；因此日志窗口始终包含本次运行的全部等级。
+- 日志查看器把会话记录渲染为 HTML，并给行首的 `level=...` 或 `[INFO]` 等级标记上色。
 - `_log_value()` 把换行/制表符替换为空格，把 `{}[]` 替换为 `()`，保证严格单行。
 - 日志等级低于当前等级时不写入。
 - “关于 > 程序日志”读取日志文件，不是只读内存中的会话记录；因此可以看到程序启动以来的完整持久日志。
@@ -410,7 +412,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
    - `config/`
    - `doc/`
 3. 旧文件 `WidgetScrollSingle.ui`、`ui_widgetscrollsingle.py`、`ScrollSingle.py`、`randname-start_v3.6.png`、`randname-start_v3.7.png` 已删除。
-4. 版本号在 `lib/version.py`；提交信息使用 `3.9.2[upgrade]_...` 触发发布流程。检查更新使用 QtNetwork，构建时不再排除 `PySide6.QtNetwork`。
+4. 版本号在 `lib/version.py`；提交信息使用 `3.9.3[upgrade]_...` 触发发布流程。检查更新使用 QtNetwork，构建时不再排除 `PySide6.QtNetwork`。
 5. CI 在提交信息含 `[upgrade]` 时构建 Linux/Windows 包并创建 Release。
 
 ## 18. 隐藏机制与边界
@@ -449,16 +451,16 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ### 18.5 日志与查看器
 
-- 日志文件路径可由 `[paths].log_file` 修改；查看器读取同一路径。
+- 日志文件固定为 `doc/log.log`；程序日志窗口显示当前会话内存中的全部等级记录。
 - 日志查看器是非模态的，关闭主窗口时会一并关闭。
 - 文件被删除后查看器显示“暂无日志”，并继续监听父目录；文件重新创建后自动恢复。
 - 触屏拖动依赖 `QScroller`；Windows/Linux 的触摸板/触屏行为可能不同，需要实机验证。
 
 ### 18.6 安全与隐私
 
-- 程序不访问网络，唯一网络行为是用户点击“项目仓库”或“反馈”时调用系统浏览器。
+- 程序只会在用户主动检查更新或点击“项目仓库”“反馈”时访问网络。
 - 没有密钥、令牌、遥测或自动上传。
-- `config/` 全程只读；程序只写 `[paths].memory_file` 和 `[paths].log_file`。
+- `config/` 全程只读；程序只写固定的 `doc/memory.json` 和 `doc/log.log`。
 - `doc/memory.json`、`doc/log.log` 已加入 `.gitignore`。
 
 ### 18.7 编码与格式
@@ -479,7 +481,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-当前版本：**3.9.2**。
+当前版本：**3.9.3**。
 
 3.8.x 主要变化：
 
@@ -544,7 +546,17 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - `tests/` 加入 `.gitignore`，并从新提交取消追踪；本机测试文件保留，历史提交不变。
 - 版本号更新为 `3.9.1`。
 
-## 26. 3.9.2 增补
+## 26. 3.9.3 增补
+
+- 检查更新仅在检测到新版本时启用“更新”；新增“手动查询”打开 Releases 页面。
+- `[update].timeout_ms`（默认 15000）控制 GitHub 请求超时；修正屏幕与 `QByteArray` 类型问题。
+- 姓名排版紧凑化；大屏下滚动格子按内容收拢并居中。
+- 删除 `[assets]`、`[paths]`，资源与文档路径固定于代码。
+- 日志等级只过滤文件输出；程序日志窗口显示当前会话全部等级并高亮。
+- 模式名称与标识符统一为 Multi、ScrollMulti、ScrollSingle、Single、Lift、ScrollLift。
+- 版本号更新到 3.9.3。
+
+## 27. 3.9.2 增补
 
 - `[window].size_mode` 新增 `maximum`：`_window_is_maximized()` 判断后跳过尺寸计算，只设最小尺寸；`reveal_window()` 调用 `showMaximized()`。刷新配置时可见窗口会立即最大化。
 - 四个模式页在数量列右侧新增纵向 `QSlider`；`_prepare_quantity_slider()` 安装 `_QuantitySliderTouchFilter`，把触点纵向位置换算成数值，支持触控拖动。

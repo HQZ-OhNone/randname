@@ -2,8 +2,7 @@
 # 本程序使用 TOML 格式；以 # 开头的内容是注释，不会影响程序。
 # 修改后可在程序中选择“文件 > 刷新程序状态”立即生效；窗口尺寸等少数项目重启后生效。
 #
-# 路径规则：下面所有相对路径都以程序所在目录（本文件上一级目录）为基准。
-# 也可以填写绝对路径，例如 /home/user/randname/doc/log.log。
+# 图标、启动画面、帮助/日志/记忆/许可证文件的位置固定于程序代码，不再通过配置修改。
 #
 # 本程序是自由软件，依据 GNU GPL v3.0 发布；详见 doc/gpl-3.0.md。
 
@@ -19,38 +18,16 @@
 default_mode = "ScrollMulti"
 
 # 默认名单键名。必须存在于 config/name.toml 的 [rosters.<键名>] 中。
-# 每次启动都使用这里设置的名单。
-roster = "class_1"
-
-[assets]
-# 应用程序和窗口图标。建议使用 PNG；路径相对程序目录。
-icon = "ui/randname1.png"
-
-# 启动画面图片。图片本身不包含版本号，程序会在右下角动态绘制版本号。
-splash_image = "ui/randname-start.png"
-
-[paths]
-# 许可证文件，用于“关于 > 许可证”。
-license_file = "doc/gpl-3.0.md"
-
-# 帮助文档目录。程序会优先读取 help_<当前语言>.md，找不到时回退 help_en_US.md。
-help_directory = "doc"
-
-# 程序日志文件。日志查看器会实时读取这个文件，可一边运行程序一边查看。
-log_file = "doc/log.log"
-
-# 运行记忆文件。只保存各模式的最近结果，用于导出/导入；不会写入 config/ 下的配置。
-memory_file = "doc/memory.json"
+roster = "class_0"
 
 [window]
 # 初始窗口尺寸模式：
 #   "screen_ratio" = 按可用屏幕比例计算初始尺寸
 #   "fixed"        = 使用下面的 width/height
-# 每次启动都使用这里定义的初始尺寸；程序不会记住上次拉伸后的尺寸。
-size_mode = "screen_ratio"
+#   "maximum"      = 窗口最大化
+size_mode = "maximum"
 
 # screen_ratio 模式下的初始窗口占可用屏幕的比例，范围 0.05 到 1.0。
-# 例如 0.75 表示窗口宽高最多占屏幕可用区域的 75%。
 # 程序会同时考虑 aspect_ratio，避免窗口被拉得过宽或过高。
 screen_ratio = 0.75
 
@@ -58,7 +35,6 @@ screen_ratio = 0.75
 aspect_ratio = 1.5
 
 # size_mode = "fixed" 时使用的初始宽高，单位为逻辑像素。
-# 若 size_mode = "screen_ratio"，这两项只作为无法计算屏幕尺寸时的后备值。
 width = 1000
 height = 600
 
@@ -71,7 +47,7 @@ resizable = true
 font_family = ""
 
 # 输出框基准字号（pt）。名字不长时使用这个字号。
-display_font_size = 33
+display_font_size = 36
 
 # 自动缩字号的下限（pt）。名字太多/太长时不会小于这个值。
 display_min_font_size = 15
@@ -93,9 +69,7 @@ quantity_font_size = 20
 
 [scroll]
 # 滚动多抽和滚动减量抽每秒更新多少次，必须为正整数。
-# 数值越大滚动越快，但过低会显得卡顿，过高会增加 CPU 占用；推荐 20 到 60。
-# 旧配置中的 [scroll_multi].rate 仍可识别，但推荐使用本节。
-rate = 30
+rate = 48
 
 [splash]
 # 是否显示启动画面。true = 显示；false = 直接进入主窗口。
@@ -122,15 +96,12 @@ screen_ratio = 0.3
 width = 500
 height = 250
 
-# 右下角版本号始终为纯白色，字号自动取图片宽度的三分之一，无需配置。
-
 [viewer]
 # 帮助、许可证和程序日志查看器的刷新间隔，单位毫秒。
-# 程序会实时读取文件；数值越小越及时，但频繁读取会增加开销。
 refresh_ms = 500
 
 # 查看器正文字号（pt）。
-font_size = 12
+font_size = 13
 
 # 查看器窗口最多占桌面可用区域的比例，范围 0.3 到 1.0。
 # 程序会预留边距，避免遮挡任务栏；小屏幕会自动缩小。
@@ -151,7 +122,10 @@ show_log_level = true  # 当前日志等级
 show_version = true    # 程序版本
 
 [logging]
-# 最低记录等级，可填 DEBUG、INFO、WARNING、ERROR、CRITICAL。
-# DEBUG 最详细，CRITICAL 只记录严重错误；日常使用推荐 INFO。
-# 低于该等级的日志不会写入文件，也不会显示在日志查看器中。
+# 写入日志文件的最低等级，可填 DEBUG、INFO、WARNING、ERROR、CRITICAL，依次由详细到简略。
+# 低于该等级的记录不会写入文件，但程序日志窗口始终显示本次运行的全部等级。
 level = "INFO"
+
+[update]
+# 检查更新时访问 GitHub API 的超时时间，单位毫秒，范围 1000 到 120000。
+timeout_ms = 15000

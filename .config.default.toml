@@ -2,8 +2,7 @@
 # 本程序使用 TOML 格式；以 # 开头的内容是注释，不会影响程序。
 # 修改后可在程序中选择“文件 > 刷新程序状态”立即生效；窗口尺寸等少数项目重启后生效。
 #
-# 路径规则：下面所有相对路径都以程序所在目录（本文件上一级目录）为基准。
-# 也可以填写绝对路径，例如 /home/user/randname/doc/log.log。
+# 图标、启动画面、帮助/日志/记忆/许可证文件的位置固定于程序代码，不再通过配置修改。
 #
 # 本程序是自由软件，依据 GNU GPL v3.0 发布；详见 doc/gpl-3.0.md。
 
@@ -21,26 +20,6 @@ default_mode = "Multi"
 # 默认名单键名。必须存在于 config/name.toml 的 [rosters.<键名>] 中。
 # 每次启动都使用这里设置的名单。
 roster = "class_1"
-
-[assets]
-# 应用程序和窗口图标。建议使用 PNG；路径相对程序目录。
-icon = "ui/randname1.png"
-
-# 启动画面图片。图片本身不包含版本号，程序会在右下角动态绘制版本号。
-splash_image = "ui/randname-start.png"
-
-[paths]
-# 许可证文件，用于“关于 > 许可证”。
-license_file = "doc/gpl-3.0.md"
-
-# 帮助文档目录。程序会优先读取 help_<当前语言>.md，找不到时回退 help_en_US.md。
-help_directory = "doc"
-
-# 程序日志文件。日志查看器会实时读取这个文件，可一边运行程序一边查看。
-log_file = "doc/log.log"
-
-# 运行记忆文件。只保存各模式的最近结果，用于导出/导入；不会写入 config/ 下的配置。
-memory_file = "doc/memory.json"
 
 [window]
 # 初始窗口尺寸模式：
@@ -152,7 +131,11 @@ show_log_level = true  # 当前日志等级
 show_version = true    # 程序版本
 
 [logging]
-# 最低记录等级，可填 DEBUG、INFO、WARNING、ERROR、CRITICAL。
+# 写入日志文件的最低等级，可填 DEBUG、INFO、WARNING、ERROR、CRITICAL。
 # DEBUG 最详细，CRITICAL 只记录严重错误；日常使用推荐 INFO。
-# 低于该等级的日志不会写入文件，也不会显示在日志查看器中。
+# 低于该等级的记录不会写入文件，但程序日志窗口始终显示本次运行的全部等级。
 level = "INFO"
+
+[update]
+# 检查更新时访问 GitHub API 的超时时间，单位毫秒，范围 1000 到 120000。
+timeout_ms = 15000

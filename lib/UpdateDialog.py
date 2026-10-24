@@ -72,6 +72,14 @@ def _number(value, default, minimum=None, maximum=None):
     return result
 
 
+def update_timeout_ms(config) -> int:
+    """读取并限制更新查询超时，非法值回退到 15 秒。"""
+    update_config = config.get("update", {}) if isinstance(config, dict) else {}
+    if not isinstance(update_config, dict):
+        update_config = {}
+    return int(_number(update_config.get("timeout_ms"), 15000, 1000, 120000))
+
+
 class UpdateDialog(QDialog):
     def __init__(self, parent, *, history_path: Path, translate=None, config=None,
                  releases_url: str = "", api_url: str = API_URL):
@@ -84,6 +92,7 @@ class UpdateDialog(QDialog):
         self.api_url = api_url
         self.reply = None
         self._finished = False
+        self.timeout_ms = update_timeout_ms(config)
 
         viewer = config.get("viewer", {}) if isinstance(config, dict) else {}
         if not isinstance(viewer, dict):
@@ -91,11 +100,19 @@ class UpdateDialog(QDialog):
         font_size = _number(viewer.get("font_size"), 12, 6, 48)
         touch_scroll = viewer.get("touch_scroll", True) is not False
 
+        update_config = config.get("update", {}) if isinstance(config, dict) else {}
+        if not isinstance(update_config, dict):
+            update_config = {}
+        self.timeout_ms = int(_number(update_config.get("timeout_ms"), 15000, 1000, 120000))
+
         self.setWindowTitle(self.translate("update.title"))
         self.ui.updateButton.setText(self.translate("update.button_update"))
+        self.ui.manualButton.setText(self.translate("update.button_manual"))
         self.ui.okButton.setText(self.translate("update.button_ok"))
+        self.ui.updateButton.setEnabled(False)
         self.ui.okButton.clicked.connect(self.reject)
-        self.ui.updateButton.clicked.connect(self._open_releases)
+        self.ui.manualButton.clicked.connect(self._manual_query)
+        self.ui.updateButton.clicked.connect(self._open_releases_and_close)
         self.ui.historyEdit.setFont(QFont(self.ui.historyEdit.font().family(), int(font_size)))
         if touch_scroll:
             try:
@@ -115,7 +132,7 @@ class UpdateDialog(QDialog):
 
     # ------------------------------------------------------------------ layout
     def _apply_geometry(self):
-        screen = self.parent().screen() if self.parent() is not None else QApplication.primaryScreen()
+        screen = QApplication.screenAt(self.pos()) or QApplication.primaryScreen()
         available = screen.availableGeometry() if screen is not None else None
         if available is None:
             return
@@ -142,7 +159,7 @@ class UpdateDialog(QDialog):
         if self._finished:
             return
         request = QNetworkRequest(QUrl(self.api_url))
-        request.setTransferTimeout(15000)
+        request.setTransferTimeout(self.timeout_ms)  # 毫秒
         request.setHeader(
             QNetworkRequest.KnownHeaders.UserAgentHeader,
             f"randname/{APP_VERSION}",
@@ -162,7 +179,8 @@ class UpdateDialog(QDialog):
                 self._finish("update.failed")
                 return
             try:
-                payload = json.loads(bytes(reply.readAll()).decode("utf-8", errors="replace"))
+                raw = reply.readAll().data().decode("utf-8", errors="replace")
+                payload = json.loads(raw)
             except (ValueError, UnicodeDecodeError) as exc:
                 StateManager.log("ERROR", "check_update", error=str(exc))
                 self._finish("update.failed")
@@ -185,8 +203,14 @@ class UpdateDialog(QDialog):
     def _finish(self, status_key):
         self._finished = True
         self._set_status(status_key)
+        self.ui.updateButton.setEnabled(status_key == "update.available")
 
-    def _open_releases(self):
+    def _manual_query(self):
+        """手动查询：打开 Releases 页面，保持检测窗口开启。"""
+        QDesktopServices.openUrl(QUrl(self.releases_url))
+
+    def _open_releases_and_close(self):
+        """确认更新：打开 Releases 页面并关闭检测窗口。"""
         QDesktopServices.openUrl(QUrl(self.releases_url))
         self.accept()
 
@@ -198,4 +222,4 @@ class UpdateDialog(QDialog):
         super().closeEvent(event)
 
 
-__all__ = ["UpdateDialog", "is_newer_version", "parse_version"]
+__all__ = ["UpdateDialog", "is_newer_version", "parse_version", "update_timeout_ms"]

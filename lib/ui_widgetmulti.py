@@ -192,4 +192,3 @@ class Ui_Form(object):
         self.label_MultiOutput.setText(QCoreApplication.translate("Form", u"\u591a\u62bd", None))
         self.pushButton_Multi.setText(QCoreApplication.translate("Form", u"\u62bd\u53d6", None))
     # retranslateUi
-

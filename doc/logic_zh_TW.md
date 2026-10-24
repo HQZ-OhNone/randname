@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文記錄 randname 3.9.2 的實際行為、隱藏機制與邊界。簡體中文見
+本文記錄 randname 3.9.3 的實際行為、隱藏機制與邊界。簡體中文見
 `logic_zh_CN.md`，英文見 `logic_en_US.md`。
 
 ## 1. 術語與模式
@@ -17,10 +17,10 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | --- | --- | --- | --- | --- |
 | `Multi` | 多抽 | 多抽 | Multi | 多抽頁面 |
 | `Single` | 單抽 | 单抽 | Single | 多抽頁面（數量 1） |
-| `Lift` | 減量抽 | 减量抽 | Elimination | 減量抽頁面 |
-| `ScrollMulti` | 滾動多抽 | 滚动多抽 | Rolling Multi | 滾動多抽頁面 |
-| `ScrollSingle` | 滾動單抽 | 滚动单抽 | Rolling Single | 滾動多抽頁面（數量 1） |
-| `ScrollLift` | 滾動減量抽 | 滚动减量抽 | Rolling Elimination | 滾動減量抽頁面 |
+| `Lift` | 減量抽 | 减量抽 | Lift | 減量抽頁面 |
+| `ScrollMulti` | 滾動多抽 | 滚动多抽 | ScrollMulti | 滾動多抽頁面 |
+| `ScrollSingle` | 滾動單抽 | 滚动单抽 | ScrollSingle | 滾動多抽頁面（數量 1） |
+| `ScrollLift` | 滾動減量抽 | 滚动减量抽 | ScrollLift | 滾動減量抽頁面 |
 
 - 單抽與滾動單抽只是選單快捷方式，不建立獨立頁面或控制器。
 - 結果、日誌與記憶仍使用 `Multi`、`Lift`、`ScrollMulti`、`ScrollLift` 作為
@@ -32,7 +32,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路徑 | 職責 |
 | --- | --- |
 | `main.py` | 啟動、主視窗、選單、狀態列、頁面切換、記憶回填 |
-| `lib/version.py` | `APP_VERSION = "3.9.2"` |
+| `lib/version.py` | `APP_VERSION = "3.9.3"` |
 | `lib/Multi.py` | 多抽演算法 |
 | `lib/Lift.py` | 減量抽演算法 |
 | `lib/ScrollMulti.py` | 滾動多抽控制器 |
@@ -58,13 +58,13 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
    `.config.default.toml`，再失敗使用內建設定。
 4. 載入圖示與啟動畫面。
 5. 依 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 縮放，保持比例。
-6. `_draw_splash_version()` 在右下角繪製 `v3.9.2`；字號始終依圖片寬度的三分之一
+6. `_draw_splash_version()` 在右下角繪製 `v3.9.3`；字號始終依圖片寬度的三分之一
    自動縮放，文字固定為純白色，不提供字號或顏色設定。
 7. `_startup_file_check()` 收集可恢復檔案警告；`required` 目前恆為空。
 8. 匯入 `lib` 模組。
-9. `StateManager.configure_paths()` 套用 `[paths]`。
+9. 圖示、啟動圖、說明、授權、日誌與記憶路徑固定於程式碼，不再有可設定路徑段。
 10. 不讀取記憶偏好；每次啟動都從設定檔與獨立設定檔讀取介面狀態。
-11. 日誌等級：`[logging].level` > `INFO`。
+11. 日誌等級：`[logging].level` > `INFO`；該等級只控制檔案寫入。
 12. 主題：`theme.toml` 的 `default` > `config.toml` `app.theme`（舊鍵） > 第一個主題。
 13. 語言：`language.toml` 的 `preferred` > `config.toml` `app.language`（舊鍵） > 系統語言 > `en_US`。
 14. 名單：`[app].roster` > 第一組名單。
@@ -275,7 +275,7 @@ language.toml preferred（有效）
 ## 11. 單抽與滾動單抽別名
 
 - 選單「單抽」→ `_show_single_page()`：多抽數量設 1、更新標籤、切到多抽頁。
-- 選單「滾動單抽」→ `_show_scrollsingle_page()`：滾動多抽數量設 1、更新
+- 選單「滾動單抽」→ `_show_scroll_single_page()`：滾動多抽數量設 1、更新
   控制器、切到滾動多抽頁。
 - `default_mode` 相容：`Single` → 多抽數量 1；`ScrollSingle` → 滾動多抽數量 1；
   非法值 → 多抽。
@@ -309,8 +309,8 @@ language.toml preferred（有效）
 
 ## 13. 日誌
 
-- `StateManager.configure_logging()` 設定根 logger 並安裝 `_SessionLogHandler`。
-- Handler 將記錄追加到 `[paths].log_file`，同時存入 `SESSION_LOG_RECORDS`。
+- `StateManager.configure_logging()` 將根 logger 設為 DEBUG 並安裝 `_SessionLogHandler`。
+- Handler 始終將記錄存入 `SESSION_LOG_RECORDS`，再依所選等級寫入 `doc/log.log`。
 - `StateManager.log()` 寫出精簡單行：
 
 ```
@@ -318,6 +318,8 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 ```
 
 - 欄位順序：`time` → `level` → `action` → `result` → `error`。
+- `StateManager.log()` 也會先寫入 `SESSION_LOG_RECORDS`，再判斷檔案等級；因此日誌視窗始終包含本次執行的全部等級。
+- 日誌檢視器把工作階段記錄渲染為 HTML，並為行首的 `level=...` 或 `[INFO]` 等級標記上色。
 - `_log_value()` 將換行/製表符換成空格，`{}[]` 換成 `()`，保證單行。
 - 低於目前等級的記錄不寫入。
 - 「關於 > 程式日誌」讀取日誌檔，不只顯示本次工作階段記憶體。
@@ -379,7 +381,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
    `.config.default.toml`、`.name.default.toml`、`config/`、`doc/`。
 3. 已刪除 `WidgetScrollSingle.ui`、`ui_widgetscrollsingle.py`、
    `ScrollSingle.py`、`randname-start_v3.6.png`、`randname-start_v3.7.png`。
-4. 版本在 `lib/version.py`；提交訊息使用 `3.9.2[upgrade]_...` 觸發發布。檢查更新使用 QtNetwork，建置時不再排除 `PySide6.QtNetwork`。
+4. 版本在 `lib/version.py`；提交訊息使用 `3.9.3[upgrade]_...` 觸發發布。檢查更新使用 QtNetwork，建置時不再排除 `PySide6.QtNetwork`。
 
 ## 18. 隱藏機制與邊界
 
@@ -418,14 +420,14 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ### 日誌與檢視器
 
-- 日誌路徑由 `[paths].log_file` 決定，寫入端與檢視器共用。
+- 日誌檔固定為 `doc/log.log`；程式日誌視窗顯示目前工作階段記憶體中的全部等級記錄。
 - 檢視器非模態，關閉主視窗時一併關閉。
 - 檔案被刪除時顯示「目前尚無日誌記錄」，並繼續監聽父目錄。
 - 觸控行為依平台而異，需實機驗證。
 
 ### 安全
 
-- 程式不主動連網；唯一網路行為是使用者點擊專案或回饋連結。
+- 程式只會在使用者主動檢查更新或點擊專案、回饋連結時連網。
 - 沒有密鑰、權杖、遙測或上傳。
 - `config/` 唯讀；只寫入設定的記憶檔與日誌檔。
 - `doc/memory.json`、`doc/log.log` 已加入 `.gitignore`。
@@ -442,7 +444,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-目前版本：**3.9.2**。
+目前版本：**3.9.3**。
 
 3.8.x 主要變更：
 
@@ -513,7 +515,17 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - `tests/` 加入 `.gitignore`，並從新提交取消追蹤；本機測試檔案保留，歷史提交不變。
 - 版本更新為 `3.9.1`。
 
-## 26. 3.9.2 增補
+## 26. 3.9.3 增補
+
+- 檢查更新僅在偵測到新版本時啟用「更新」；新增「手動查詢」開啟 Releases 頁面。
+- `[update].timeout_ms`（預設 15000）控制 GitHub 請求逾時；修正螢幕與 `QByteArray` 型別問題。
+- 姓名排版緊湊化；大螢幕下滾動格子依內容收攏並置中。
+- 刪除 `[assets]`、`[paths]`，資源與文件路徑固定於程式碼。
+- 日誌等級只過濾檔案輸出；程式日誌視窗顯示目前工作階段全部等級並高亮。
+- 模式名稱與識別字統一為 Multi、ScrollMulti、ScrollSingle、Single、Lift、ScrollLift。
+- 版本號更新到 3.9.3。
+
+## 27. 3.9.2 增補
 
 - `[window].size_mode` 新增 `maximum`：`_window_is_maximized()` 判斷後跳過尺寸計算，只設最小尺寸；`reveal_window()` 呼叫 `showMaximized()`。重新整理設定時可見視窗立即最大化。
 - 四個模式頁在數量欄右側新增縱向 `QSlider`；`_prepare_quantity_slider()` 安裝 `_QuantitySliderTouchFilter`，把觸點縱向位置換算成數值，支援觸控拖動。

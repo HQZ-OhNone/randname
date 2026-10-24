@@ -192,4 +192,3 @@ class Ui_Form(object):
         self.label_ScrollMultiOutput.setText(QCoreApplication.translate("Form", u"\u6eda\u52a8\u591a\u62bd", None))
         self.pushButton_ScrollMulti.setText(QCoreApplication.translate("Form", u"\u62bd\u53d6", None))
     # retranslateUi
-

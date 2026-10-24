@@ -209,4 +209,3 @@ class Ui_Form(object):
         self.label_LiftOutput.setText(QCoreApplication.translate("Form", u"\u51cf\u91cf\u62bd", None))
         self.pushButton_LiftRenew.setText(QCoreApplication.translate("Form", u"\u5237\u65b0", None))
     # retranslateUi
-

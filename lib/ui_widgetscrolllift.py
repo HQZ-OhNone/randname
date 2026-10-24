@@ -209,4 +209,3 @@ class Ui_Form(object):
         self.pushButton_ScrollLift.setText(QCoreApplication.translate("Form", u"\u62bd\u53d6", None))
         self.pushButton_ScrollLiftRenew.setText(QCoreApplication.translate("Form", u"\u91cd\u7f6e", None))
     # retranslateUi
-
