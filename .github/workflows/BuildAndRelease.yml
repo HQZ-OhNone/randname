@@ -10,13 +10,18 @@ jobs:
   # 从 commit message 中提取版本号
   # 匹配模式：X.Y.Z[upgrade]_描述  或  X.Y.Z[upgrade]
   # ────────────────────────────────────────────
+  # 固定 Ubuntu 24.04，避免 ubuntu-latest 在 2026-10 至 2026-11 迁移到 26.04 期间
+  # 因 Qt/apt 套件差异造成打包结果漂移；需要升级时再显式修改标签。
   extract-version:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.get_version.outputs.version }}
       should_build: ${{ steps.check_commit.outputs.should_build }}
+    env:
+      # 通过环境变量传递提交信息，避免直接内插到 shell 脚本造成注入风险。
+      COMMIT_MSG: ${{ github.event.head_commit.message || github.event.commits[0].message }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 1
 
@@ -24,7 +29,6 @@ jobs:
         id: check_commit
         shell: bash
         run: |
-          COMMIT_MSG="${{ github.event.head_commit.message || github.event.commits[0].message }}"
           echo "Commit message: $COMMIT_MSG"
           if echo "$COMMIT_MSG" | grep -q '\[upgrade\]'; then
             echo "should_build=true" >> $GITHUB_OUTPUT
@@ -38,7 +42,6 @@ jobs:
         id: get_version
         shell: bash
         run: |
-          COMMIT_MSG="${{ github.event.head_commit.message || github.event.commits[0].message }}"
           # 提取 X.Y.Z 格式版本号
           VERSION=$(echo "$COMMIT_MSG" | grep -oP '^\d+\.\d+\.\d+(?=\[upgrade\])')
           if [ -z "$VERSION" ]; then
@@ -55,19 +58,19 @@ jobs:
   build-linux:
     needs: extract-version
     if: needs.extract-version.outputs.should_build == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
 
       - name: Set up Python 3.12.10
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.12.10'
           cache: 'pip'
           cache-dependency-path: '**/*.py'
 
       - name: Restore Nuitka cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6.1.0
         with:
           path: ~/.cache/nuitka
           key: ${{ runner.os }}-nuitka-${{ hashFiles('**/*.py') }}
@@ -160,7 +163,7 @@ jobs:
           ls -lh "randname-${VERSION}.linux.x64.tar.xz"
 
       - name: Upload Linux artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: linux-package
           path: randname-${{ needs.extract-version.outputs.version }}.linux.x64.tar.xz
@@ -176,10 +179,10 @@ jobs:
       # 关键：避免 Windows 上 Nuitka 依赖下载交互卡死
       NUITKA_ASSUME_YES_FOR_DOWNLOADS: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
 
       - name: Set up Python 3.12.10
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.12.10'
           architecture: 'x64'
@@ -187,7 +190,7 @@ jobs:
           cache-dependency-path: '**/*.py'
 
       - name: Restore Nuitka cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6.1.0
         with:
           path: ~\AppData\Local\Nuitka\Nuitka\cache
           key: ${{ runner.os }}-nuitka-${{ hashFiles('**/*.py') }}
@@ -304,7 +307,7 @@ jobs:
           Get-ChildItem "randname-$VERSION.windows.x64.7z" | Format-List Name, Length
 
       - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: windows-package
           path: randname-${{ needs.extract-version.outputs.version }}.windows.x64.7z
@@ -315,12 +318,12 @@ jobs:
   release:
     needs: [extract-version, build-linux, build-windows]
     if: needs.extract-version.outputs.should_build == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8.0.2
         with:
           path: artifacts
           merge-multiple: true
@@ -335,7 +338,7 @@ jobs:
           ls -lh *.tar.xz *.7z 2>/dev/null || true
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3.0.3
         with:
           tag_name: v${{ needs.extract-version.outputs.version }}
           name: randname v${{ needs.extract-version.outputs.version }}
