@@ -12,6 +12,29 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 This file is appended per session: completed work, unresolved findings, and
 verification results.
 
+## 2026-10-25 / 3.10.1
+
+### 已完成 / Completed
+
+- 调查 3.10.0 打包 run 的全部 annotations：仅有 Node.js 20 弃用 warning 与 `ubuntu-latest` 迁移 notice，无其他步骤警告。
+- 按官方 `action.yml` 升级所有 action 到 node24 版本：checkout v7.0.1、setup-python v7.1.0、cache v6.1.0、upload-artifact v7.0.2、download-artifact v8.0.2、action-gh-release v3.0.3。
+- Ubuntu 任务固定为 `ubuntu-24.04`，避开 2026-10 至 2026-11 的 Ubuntu 26.04 迁移期。
+- 提交信息改由 `COMMIT_MSG` 环境变量传入 shell，消除 actionlint 报告的脚本注入风险。
+- `actionlint v1.7.12` 校验通过；版本更新到 3.10.1。
+
+### 发现但未解决 / Found but unresolved
+
+- 新 action 版本与 `ubuntu-24.04` 固定策略需在下一次带 `[upgrade]` 的正式打包中实机验证。
+- `windows-latest` 仍使用 GitHub 托管标签，本次没有对应 notice，未固定具体版本。
+
+### English summary
+
+- Audited every annotation from the 3.10.0 build. Only Node.js 20 deprecation warnings and the `ubuntu-latest` migration notice appeared.
+- Upgraded all actions to node24 releases based on their official `action.yml` files: checkout v7.0.1, setup-python v7.1.0, cache v6.1.0, upload-artifact v7.0.2, download-artifact v8.0.2, and action-gh-release v3.0.3.
+- Pinned Ubuntu jobs to `ubuntu-24.04` during the Ubuntu 26.04 migration window.
+- Passed the commit message through `COMMIT_MSG` to remove actionlint's script-injection warning.
+- `actionlint v1.7.12` passes; version bumped to 3.10.1.
+
 ## 2026-10-25 / 3.10.0
 
 ### 已完成 / Completed

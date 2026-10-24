@@ -9,7 +9,7 @@ version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
 This document records the actual behaviour, hidden mechanisms, and edge cases
-of randname 3.10.0. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
+of randname 3.10.1. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 `logic_zh_TW.md`.
 
 ## 1. Terms and modes
@@ -34,7 +34,7 @@ of randname 3.10.0. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 | Path | Responsibility |
 | --- | --- |
 | `main.py` | Startup, main window, menus, status bar, page switching, memory restore |
-| `lib/version.py` | `APP_VERSION = "3.10.0"` |
+| `lib/version.py` | `APP_VERSION = "3.10.1"` |
 | `lib/Multi.py` | Multi draw algorithm |
 | `lib/Lift.py` | Lift draw algorithm |
 | `lib/ScrollMulti.py` | ScrollMulti controller |
@@ -60,7 +60,7 @@ of randname 3.10.0. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
    `.config.default.toml`, then the built-in configuration.
 4. Load the icon and create the splash screen.
 5. Scale the splash according to `[splash]`, keeping the image aspect ratio.
-6. `_draw_splash_version()` draws `v3.10.0` in the bottom-right corner. The
+6. `_draw_splash_version()` draws `v3.10.1` in the bottom-right corner. The
    font size always scales with the image width to one third of that width;
    the text is always pure white and has no size or colour configuration.
 7. `_startup_file_check()` collects recoverable-file warnings. `required` is
@@ -455,7 +455,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
    `.config.default.toml`, `.name.default.toml`, `config/`, and `doc/`.
 3. Removed files: `WidgetScrollSingle.ui`, `ui_widgetscrollsingle.py`,
    `ScrollSingle.py`, `randname-start_v3.6.png`, `randname-start_v3.7.png`.
-4. Version lives in `lib/version.py`; use `3.10.0[upgrade]_...` in the commit
+4. Version lives in `lib/version.py`; use `3.10.1[upgrade]_...` in the commit
    message to trigger the release workflow. Update checks use QtNetwork, so
    `PySide6.QtNetwork` is no longer excluded.
 
@@ -533,7 +533,7 @@ Run: `QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests`.
 
 ## 20. Version
 
-Current version: **3.10.0**.
+Current version: **3.10.1**.
 
 Main changes in the 3.8.x series:
 
@@ -671,3 +671,11 @@ Main changes in the 3.8.x series:
 - Merged the accumulated 3.9.2–3.9.4 changes into `main` and triggered the GitHub Actions release with `3.10.0[upgrade]`.
 - This release includes quantity sliders, maximum startup, the update checker, compact name layout, fixed asset/document paths, full-session highlighted logs, and canonical mode names.
 - Version bumped to 3.10.0.
+
+## 30. 3.10.1 CI maintenance
+
+- The previous 3.10.0 build annotations contained only Node.js 20 deprecation warnings and the `ubuntu-latest` migration notice.
+- All official actions were upgraded to node24 releases: checkout v7.0.1, setup-python v7.1.0, cache v6.1.0, upload-artifact v7.0.2, download-artifact v8.0.2, and action-gh-release v3.0.3.
+- Ubuntu jobs are pinned to `ubuntu-24.04` to avoid the Ubuntu 26.04 migration from October to November 2026.
+- The commit message is passed to shell steps through the `COMMIT_MSG` environment variable, avoiding expression interpolation and script-injection risk.
+- `actionlint v1.7.12` reports no issues. Version bumped to 3.10.1 with no `[upgrade]` tag, so no release is triggered.

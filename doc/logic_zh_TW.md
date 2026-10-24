@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文記錄 randname 3.10.0 的實際行為、隱藏機制與邊界。簡體中文見
+本文記錄 randname 3.10.1 的實際行為、隱藏機制與邊界。簡體中文見
 `logic_zh_CN.md`，英文見 `logic_en_US.md`。
 
 ## 1. 術語與模式
@@ -32,7 +32,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路徑 | 職責 |
 | --- | --- |
 | `main.py` | 啟動、主視窗、選單、狀態列、頁面切換、記憶回填 |
-| `lib/version.py` | `APP_VERSION = "3.10.0"` |
+| `lib/version.py` | `APP_VERSION = "3.10.1"` |
 | `lib/Multi.py` | 多抽演算法 |
 | `lib/Lift.py` | 減量抽演算法 |
 | `lib/ScrollMulti.py` | 滾動多抽控制器 |
@@ -58,7 +58,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
    `.config.default.toml`，再失敗使用內建設定。
 4. 載入圖示與啟動畫面。
 5. 依 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 縮放，保持比例。
-6. `_draw_splash_version()` 在右下角繪製 `v3.10.0`；字號始終依圖片寬度的三分之一
+6. `_draw_splash_version()` 在右下角繪製 `v3.10.1`；字號始終依圖片寬度的三分之一
    自動縮放，文字固定為純白色，不提供字號或顏色設定。
 7. `_startup_file_check()` 收集可恢復檔案警告；`required` 目前恆為空。
 8. 匯入 `lib` 模組。
@@ -381,7 +381,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
    `.config.default.toml`、`.name.default.toml`、`config/`、`doc/`。
 3. 已刪除 `WidgetScrollSingle.ui`、`ui_widgetscrollsingle.py`、
    `ScrollSingle.py`、`randname-start_v3.6.png`、`randname-start_v3.7.png`。
-4. 版本在 `lib/version.py`；提交訊息使用 `3.10.0[upgrade]_...` 觸發發布。檢查更新使用 QtNetwork，建置時不再排除 `PySide6.QtNetwork`。
+4. 版本在 `lib/version.py`；提交訊息使用 `3.10.1[upgrade]_...` 觸發發布。檢查更新使用 QtNetwork，建置時不再排除 `PySide6.QtNetwork`。
 
 ## 18. 隱藏機制與邊界
 
@@ -444,7 +444,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-目前版本：**3.10.0**。
+目前版本：**3.10.1**。
 
 3.8.x 主要變更：
 
@@ -549,3 +549,11 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - 將 3.9.2–3.9.4 的累積改動合併到 `main`，並以 `3.10.0[upgrade]` 觸發 GitHub Actions 發佈。
 - 本版本包含數量滑桿、啟動最大化、檢查更新、姓名緊湊排版、固定資源路徑、完整工作階段日誌高亮與模式名稱標準化。
 - 版本號更新到 3.10.0。
+
+## 30. 3.10.1 CI 維護
+
+- 上次 3.10.0 打包的 annotations 僅有 Node.js 20 棄用警告與 `ubuntu-latest` 遷移提示。
+- 所有官方 action 升級到 node24 版本：checkout v7.0.1、setup-python v7.1.0、cache v6.1.0、upload-artifact v7.0.2、download-artifact v8.0.2、action-gh-release v3.0.3。
+- Ubuntu 任務固定為 `ubuntu-24.04`，避開 2026-10 至 2026-11 的 Ubuntu 26.04 遷移。
+- 提交訊息改由 `COMMIT_MSG` 環境變數傳入 shell，避免表達式直接內插造成腳本注入風險。
+- `actionlint v1.7.12` 校驗通過；版本更新到 3.10.1，提交不帶 `[upgrade]`，不觸發發佈。
