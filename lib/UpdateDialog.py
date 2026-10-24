@@ -23,12 +23,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 - “更新”打开 Releases 页面并关闭，“确定”只关闭窗口。
 """
 
-import json
-import re
 from pathlib import Path
 
-from PySide6.QtCore import QTimer, QUrl, Qt
-from PySide6.QtGui import QDesktopServices, QFont
+from PySide6.QtCore import QJsonDocument, QTimer, QUrl
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PySide6.QtWidgets import QApplication, QDialog, QScroller
 
@@ -42,10 +40,21 @@ def parse_version(value) -> tuple[int, ...]:
     """把 v3.9.2、3.10.0-beta 等字符串转换为可比较的数字元组。"""
     if not isinstance(value, str):
         return ()
-    match = re.search(r"\d+(?:\.\d+)*", value)
-    if match is None:
-        return ()
-    return tuple(int(part) for part in match.group(0).split("."))
+    parts = []
+    digits = []
+    started = False
+    for char in value:
+        if char.isdigit():
+            digits.append(char)
+            started = True
+        elif char == "." and digits:
+            parts.append(int("".join(digits)))
+            digits.clear()
+        elif started:
+            break
+    if digits:
+        parts.append(int("".join(digits)))
+    return tuple(parts)
 
 
 def is_newer_version(latest, current) -> bool:
@@ -90,6 +99,8 @@ class UpdateDialog(QDialog):
         self.history_path = Path(history_path)
         self.releases_url = releases_url or "https://github.com/HQZ-OhNone/randname/releases"
         self.api_url = api_url
+        self._releases_qurl = QUrl(self.releases_url)
+        self._api_qurl = QUrl(self.api_url)
         self.reply = None
         self._finished = False
         self.timeout_ms = update_timeout_ms(config)
@@ -100,11 +111,6 @@ class UpdateDialog(QDialog):
         font_size = _number(viewer.get("font_size"), 12, 6, 48)
         touch_scroll = viewer.get("touch_scroll", True) is not False
 
-        update_config = config.get("update", {}) if isinstance(config, dict) else {}
-        if not isinstance(update_config, dict):
-            update_config = {}
-        self.timeout_ms = int(_number(update_config.get("timeout_ms"), 15000, 1000, 120000))
-
         self.setWindowTitle(self.translate("update.title"))
         self.ui.updateButton.setText(self.translate("update.button_update"))
         self.ui.manualButton.setText(self.translate("update.button_manual"))
@@ -113,7 +119,9 @@ class UpdateDialog(QDialog):
         self.ui.okButton.clicked.connect(self.reject)
         self.ui.manualButton.clicked.connect(self._manual_query)
         self.ui.updateButton.clicked.connect(self._open_releases_and_close)
-        self.ui.historyEdit.setFont(QFont(self.ui.historyEdit.font().family(), int(font_size)))
+        history_font = self.ui.historyEdit.font()
+        history_font.setPointSize(int(font_size))
+        self.ui.historyEdit.setFont(history_font)
         if touch_scroll:
             try:
                 QScroller.grabGesture(
@@ -158,7 +166,7 @@ class UpdateDialog(QDialog):
     def start_check(self):
         if self._finished:
             return
-        request = QNetworkRequest(QUrl(self.api_url))
+        request = QNetworkRequest(self._api_qurl)
         request.setTransferTimeout(self.timeout_ms)  # 毫秒
         request.setHeader(
             QNetworkRequest.KnownHeaders.UserAgentHeader,
@@ -178,13 +186,12 @@ class UpdateDialog(QDialog):
                 StateManager.log("WARNING", "check_update", error=reply.errorString())
                 self._finish("update.failed")
                 return
-            try:
-                raw = reply.readAll().data().decode("utf-8", errors="replace")
-                payload = json.loads(raw)
-            except (ValueError, UnicodeDecodeError) as exc:
-                StateManager.log("ERROR", "check_update", error=str(exc))
+            document = QJsonDocument.fromJson(reply.readAll())
+            if document.isNull():
+                StateManager.log("ERROR", "check_update", error="invalid json")
                 self._finish("update.failed")
                 return
+            payload = document.toVariant()
             latest = payload.get("tag_name") if isinstance(payload, dict) else None
             if not isinstance(latest, str) or not latest.strip():
                 StateManager.log("ERROR", "check_update", error="missing tag_name")
@@ -207,11 +214,11 @@ class UpdateDialog(QDialog):
 
     def _manual_query(self):
         """手动查询：打开 Releases 页面，保持检测窗口开启。"""
-        QDesktopServices.openUrl(QUrl(self.releases_url))
+        QDesktopServices.openUrl(self._releases_qurl)
 
     def _open_releases_and_close(self):
         """确认更新：打开 Releases 页面并关闭检测窗口。"""
-        QDesktopServices.openUrl(QUrl(self.releases_url))
+        QDesktopServices.openUrl(self._releases_qurl)
         self.accept()
 
     def closeEvent(self, event):

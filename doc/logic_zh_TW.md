@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文記錄 randname 3.9.3 的實際行為、隱藏機制與邊界。簡體中文見
+本文記錄 randname 3.9.4 的實際行為、隱藏機制與邊界。簡體中文見
 `logic_zh_CN.md`，英文見 `logic_en_US.md`。
 
 ## 1. 術語與模式
@@ -32,7 +32,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路徑 | 職責 |
 | --- | --- |
 | `main.py` | 啟動、主視窗、選單、狀態列、頁面切換、記憶回填 |
-| `lib/version.py` | `APP_VERSION = "3.9.3"` |
+| `lib/version.py` | `APP_VERSION = "3.9.4"` |
 | `lib/Multi.py` | 多抽演算法 |
 | `lib/Lift.py` | 減量抽演算法 |
 | `lib/ScrollMulti.py` | 滾動多抽控制器 |
@@ -58,7 +58,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
    `.config.default.toml`，再失敗使用內建設定。
 4. 載入圖示與啟動畫面。
 5. 依 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 縮放，保持比例。
-6. `_draw_splash_version()` 在右下角繪製 `v3.9.3`；字號始終依圖片寬度的三分之一
+6. `_draw_splash_version()` 在右下角繪製 `v3.9.4`；字號始終依圖片寬度的三分之一
    自動縮放，文字固定為純白色，不提供字號或顏色設定。
 7. `_startup_file_check()` 收集可恢復檔案警告；`required` 目前恆為空。
 8. 匯入 `lib` 模組。
@@ -381,7 +381,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
    `.config.default.toml`、`.name.default.toml`、`config/`、`doc/`。
 3. 已刪除 `WidgetScrollSingle.ui`、`ui_widgetscrollsingle.py`、
    `ScrollSingle.py`、`randname-start_v3.6.png`、`randname-start_v3.7.png`。
-4. 版本在 `lib/version.py`；提交訊息使用 `3.9.3[upgrade]_...` 觸發發布。檢查更新使用 QtNetwork，建置時不再排除 `PySide6.QtNetwork`。
+4. 版本在 `lib/version.py`；提交訊息使用 `3.9.4[upgrade]_...` 觸發發布。檢查更新使用 QtNetwork，建置時不再排除 `PySide6.QtNetwork`。
 
 ## 18. 隱藏機制與邊界
 
@@ -444,7 +444,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-目前版本：**3.9.3**。
+目前版本：**3.9.4**。
 
 3.8.x 主要變更：
 
@@ -535,3 +535,11 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - 檢查更新使用 QtNetwork，三個建置設定皆移除 `--nofollow-import-to=PySide6.QtNetwork`。
 - 三語新增 `action.check_update`、`update.*` 文案；說明、README、歷史記錄同步到 3.9.2。
 - 新增最大化模式、數量夾緊、版本比較測試。
+
+## 28. 3.9.4 增補
+
+- `UpdateDialog` 改用 `QJsonDocument.fromJson()`/`toVariant()` 解析 GitHub 回應，消除 `QByteArray.data()` 的 `memoryview.decode` 型別警告。
+- 移除 `json`、`re`、`QFont` 與未使用的 `Qt`；`parse_version()` 改為手寫數字掃描，字型改用現有 `QFont` 副本。
+- 快取 GitHub API 與 Releases 的 `QUrl`；更新按鈕狀態、手動查詢與逾時行為不變。
+- 全專案 AST 掃描僅發現並移除上述 `Qt` 未使用 import。
+- 版本號更新到 3.9.4。

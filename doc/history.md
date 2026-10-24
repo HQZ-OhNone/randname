@@ -12,6 +12,26 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 This file is appended per session: completed work, unresolved findings, and
 verification results.
 
+## 2026-10-25 / 3.9.4
+
+### 已完成 / Completed
+
+- 修复检查更新窗口的 Pylance `memoryview.decode` 类型警告：改用 `QJsonDocument.fromJson()` 直接解析网络响应。
+- 精简 `UpdateDialog` 依赖：移除 `json`、`re`、`QFont` 与未使用的 `Qt`；手写版本号扫描、复用现有字体对象，并缓存 `QUrl`。
+- 全项目未使用 import 扫描后仅清理 `UpdateDialog` 的 `Qt`；其余模块无需改动。
+- 三语帮助、逻辑文档、README 与版本号同步到 `3.9.4`。
+
+### 发现但未解决 / Found but unresolved
+
+- 本环境未直接运行 Pylance/Pyright，仅以等价运行测试、`compileall` 与 AST 扫描验证。
+- 未进行打包后的 Windows/Linux 成品验证。
+
+### English summary
+
+- Fixed the Pylance `memoryview.decode` warning by parsing the network response with `QJsonDocument.fromJson()`.
+- Removed unused `json`, `re`, `QFont`, and `Qt` dependencies from the update dialog; added a manual version scanner, reused the existing font object, and cached `QUrl` values.
+- An AST scan found no other unused imports; version references and documentation are synchronized to 3.9.4.
+
 ## 2026-10-25 / 3.9.3
 
 ### 已完成 / Completed
