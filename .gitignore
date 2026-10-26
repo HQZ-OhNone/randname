@@ -1,11 +1,9 @@
 .venv
 build
 __pycache__
-test*
-/tests/
 # runtime artifacts
 doc/log.log
-# Ignore the former JSON log name as well, so an old runtime file is never committed.
-doc/log.json
 doc/memory.json
 doc/memory.json.tmp
+config49.toml
+name49.toml

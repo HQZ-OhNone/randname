@@ -17,7 +17,7 @@
 ### 技術實現
 - python3.12.10
 - qt6.11.1(pyside6)
-- 目前版本：3.10.1
+- 目前版本：3.10.2
 
 ### 許可證
 [GNU General Public License v3.0](./doc/gpl-3.0.md)
@@ -75,7 +75,7 @@ pip install nuitka==4.1.3 pyside6==6.11.1
 ```
 4. 使用 Nuitka 經行編譯，如：
 
-直接运行仓库中的 [`build_linux.sh`](./build_linux.sh) 或 [`build_windows.bat`](./build_windows.bat)。构建脚本会遍历 `ui/*.ui`，自动编译全套最新界面文件到 `lib/ui_*.py`。
+直接运行仓库中的 [`script/build.sh`](./script/build.sh) 或 [`script/build.bat`](./script/build.bat)。构建脚本会遍历 `ui/*.ui`，自动编译全套最新界面文件到 `lib/ui_*.py`。
 
 5. 找到 ```build``` 目錄下的可執行文件，運行即可。
 6. 編譯完成後亦可打包分發

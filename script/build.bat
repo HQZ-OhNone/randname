@@ -1,5 +1,23 @@
 @echo off
+REM Copyright (C) 2026 HQZ-OhNone <ohnone_hqz@outlook.com>
+REM
+REM This program is free software: you can redistribute it and/or modify it
+REM under the terms of the GNU General Public License as published by the
+REM Free Software Foundation, either version 3 of the License, or (at your
+REM option) any later version.
+REM
+REM This program is distributed in the hope that it will be useful, but
+REM WITHOUT ANY WARRANTY; without even the implied warranty of
+REM MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+REM General Public License for more details.
+REM
+REM You should have received a copy of the GNU General Public License
+REM along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 REM Windows build: compile every UI, package TOML data, and exclude unused Qt modules.
+
+REM 无论从哪个目录调用，都切换到仓库根目录。
+cd /d "%~dp0.."
 
 echo 編譯全部 .ui 為 Python 模塊到 lib\ ...
 if not exist lib mkdir lib
