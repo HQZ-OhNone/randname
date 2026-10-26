@@ -519,17 +519,17 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 19. Tests
 
-- `tests/test_output_fit.py`: non-rolling wrapping/shrinking; fixed rolling
+- `script/test_output_fit.py`: non-rolling wrapping/shrinking; fixed rolling
   slots, stable geometry, long-name re-layout, and layout reset.
-- `tests/test_memory.py`: result-only storage, legacy preference removal, and
+- `script/test_memory.py`: result-only storage, legacy preference removal, and
   import/export.
-- `tests/test_scroll_lift.py`: remaining pool, one-by-one stops, reset, and
+- `script/test_scroll_lift.py`: remaining pool, one-by-one stops, reset, and
   quantity clamping.
-- `tests/test_config.py`: configuration compatibility, invalid-value fallback,
+- `script/test_config.py`: configuration compatibility, invalid-value fallback,
   splash wait, version font sizing, maximum mode, and quantity clamping.
-- `tests/test_update.py`: version parsing and newer-version comparison.
+- `script/test_update.py`: version parsing and newer-version comparison.
 
-Run: `QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests`.
+Run: `QT_QPA_PLATFORM=offscreen python -m unittest discover -s script -p 'test_*.py'`.
 
 ## 20. Version
 
@@ -679,3 +679,12 @@ Main changes in the 3.8.x series:
 - Ubuntu jobs are pinned to `ubuntu-24.04` to avoid the Ubuntu 26.04 migration from October to November 2026.
 - The commit message is passed to shell steps through the `COMMIT_MSG` environment variable, avoiding expression interpolation and script-injection risk.
 - `actionlint v1.7.12` reports no issues. Version bumped to 3.10.1 with no `[upgrade]` tag, so no release is triggered.
+
+## 31. 3.10.2 structural changes
+
+- Build scripts moved to `script/build.sh` and `script/build.bat`; both return to the repository root automatically.
+- The six unit-test files moved to `script/` and run with `.venv/bin/python -m unittest discover -s script -p 'test_*.py'`; the unreferenced `tests/config_49/` was removed.
+- Added `doc/project-manifest.json` as the machine-readable index; consult it first, then read only the needed files.
+- Added `script/last-history-reader.sh`, which writes history summaries to `/tmp`; `doc/releasenote.md` is read only by CI and release tooling.
+- GitHub Release bodies are extracted from the matching version section in `doc/releasenote.md`, with a fallback body when absent.
+- Version bumped to 3.10.2.

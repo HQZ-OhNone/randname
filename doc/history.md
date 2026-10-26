@@ -12,6 +12,47 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 This file is appended per session: completed work, unresolved findings, and
 verification results.
 
+## 2026-10-27 / 3.10.2
+
+### 已完成 / Completed
+
+- 脚本整併：`build_linux.sh`、`build_windows.bat` 移至 `script/build.sh`、`script/build.bat`，两支脚本都会先切回仓库根目录，并补上 GPL 标头。
+- 测试整併：6 支 unittest 迁入 `script/`，删除无引用的 `tests/config_49/` 夹具；`.gitignore` 移除 `test*` 与 `/tests/`，测试脚本可由 Git 追踪。
+- 新增 `doc/project-manifest.json`，以机器可读 JSON 记录脚本、模块、文档、配置、工作流的功能、输入、输出、引用与读取策略。
+- 新增 `script/last-history-reader.sh`，按条数截取最新历史到 `/tmp`，终端只输出路径、行数与标题。
+- 新增 `doc/releasenote.md`：中英双语、最新版本置顶；依 `history.md` 与 git tag/commit 回填 3.0.4–3.10.1，并新增 3.10.2。
+- GitHub Release job 增加 checkout 与 release note 截取步骤，改用 `body_path` 读取对应版本段落；缺少段落时使用后备下载说明。
+- `AGENTS.md` 加入项目清单优先、测试脚本统一放 `script/`、必须以 `last-history-reader.sh` 读历史、release note 仅供 CI 读取等规则。
+- 版本号更新为 `3.10.2`，README 同步。
+
+### 发现但未解决 / Found but unresolved
+
+- `script/build.bat` 仅做人工复核，未在 Windows 上实际运行。
+- Release note 截取逻辑只在本机以 `awk` 验证，尚未在 GitHub Actions 中实际发布验证。
+- 3.0.4–3.7.0 的 release note 只能从 tag 日期与 commit 说明还原，细节可能不完整。
+- `script/config49.toml`、`script/name49.toml` 按要求保留，但仍被 `.gitignore` 忽略，未纳入版本库。
+- 本次未进行 Nuitka 打包验证。
+
+### 验证 / Verification
+
+- `.venv/bin/python -m unittest discover -s script -p 'test_*.py'`：38 项通过。
+- `bash -n script/build.sh`、`bash -n script/last-history-reader.sh` 通过。
+- `python3 -m json.tool doc/project-manifest.json` 通过。
+- `script/last-history-reader.sh` 默认与 `-n 1` 两种参数均正确生成 `/tmp` 输出。
+- 以 3.10.2、3.9.1 等版本测试 release note `awk` 截取，段落边界正确。
+
+### English summary
+
+- Moved the build scripts to `script/build.sh` and `script/build.bat`; both now return to the repository root, and GPL headers were added.
+- Moved all six unittest files into `script/` and removed the unused `tests/config_49/` fixtures; `.gitignore` no longer ignores test scripts.
+- Added the machine-readable `doc/project-manifest.json` covering scripts, modules, documents, configuration, and workflows.
+- Added `script/last-history-reader.sh`, which writes the newest history entries to `/tmp` and prints only the path, line count, and headings.
+- Added bilingual `doc/releasenote.md` with the newest version first, reconstructed 3.0.4–3.10.1, and added 3.10.2.
+- The GitHub Release job now checks out the repo, extracts the matching version section, and uses `body_path`, with a fallback body when no section exists.
+- Updated `AGENTS.md` with manifest-first navigation, the `script/` test policy, the required history reader, and the CI-only release-notes rule.
+- Bumped the version to `3.10.2` and synchronized README.
+- Unresolved: the Windows batch script was only reviewed manually; the release-note extraction has not run in GitHub Actions; older release notes rely on commit messages; the 49-person fixtures remain ignored; no Nuitka packaging was run.
+
 ## 2026-10-25 / 3.10.1
 
 ### 已完成 / Completed

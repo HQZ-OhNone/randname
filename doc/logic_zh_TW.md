@@ -434,13 +434,13 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 19. 測試
 
-- `tests/test_output_fit.py`：非滾動單行/多行/縮字號；滾動固定格子、位置穩定、超長姓名重排、重設佈局。
-- `tests/test_memory.py`：只保留結果、舊偏好丟棄、匯入/匯出結果。
-- `tests/test_scroll_lift.py`：剩餘池、逐個停止、重設、數量越界。
-- `tests/test_config.py`：設定相容、非法值回退、啟動畫面等待、版本號字號換算、最大化模式與數量夾緊。
-- `tests/test_update.py`：版本號解析與新版本比較。
+- `script/test_output_fit.py`：非滾動單行/多行/縮字號；滾動固定格子、位置穩定、超長姓名重排、重設佈局。
+- `script/test_memory.py`：只保留結果、舊偏好丟棄、匯入/匯出結果。
+- `script/test_scroll_lift.py`：剩餘池、逐個停止、重設、數量越界。
+- `script/test_config.py`：設定相容、非法值回退、啟動畫面等待、版本號字號換算、最大化模式與數量夾緊。
+- `script/test_update.py`：版本號解析與新版本比較。
 
-執行：`QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests`。
+執行：`QT_QPA_PLATFORM=offscreen python -m unittest discover -s script -p 'test_*.py'`。
 
 ## 20. 版本
 
@@ -557,3 +557,12 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - Ubuntu 任務固定為 `ubuntu-24.04`，避開 2026-10 至 2026-11 的 Ubuntu 26.04 遷移。
 - 提交訊息改由 `COMMIT_MSG` 環境變數傳入 shell，避免表達式直接內插造成腳本注入風險。
 - `actionlint v1.7.12` 校驗通過；版本更新到 3.10.1，提交不帶 `[upgrade]`，不觸發發佈。
+
+## 31. 3.10.2 結構調整
+
+- 建置腳本移至 `script/build.sh` 與 `script/build.bat`，執行時自動切回儲存庫根目錄。
+- 6 支單元測試移至 `script/`，執行方式為 `.venv/bin/python -m unittest discover -s script -p 'test_*.py'`；刪除無引用的 `tests/config_49/`。
+- 新增 `doc/project-manifest.json` 作為機器可讀索引，開發前先查此檔再按需讀取。
+- 新增 `script/last-history-reader.sh`，歷史摘要只寫入 `/tmp`；`doc/releasenote.md` 僅供 CI 與發佈流程讀取。
+- GitHub Release 正文改為從 `doc/releasenote.md` 截取對應版本段落，缺少時使用後備說明。
+- 版本更新為 3.10.2。
