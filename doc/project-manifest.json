@@ -7,7 +7,7 @@
     "license": "GPL-3.0-or-later",
     "entrypoint": "main.py",
     "version_file": "lib/version.py",
-    "app_version": "3.10.3",
+    "app_version": "3.11.0",
     "python": "3.12.10",
     "gui": "PySide6 6.11.1 (Qt 6)",
     "build_tool": "Nuitka 4.1.3",
@@ -53,8 +53,7 @@
         ".config.default.toml",
         ".name.default.toml",
         "config/",
-        "doc/",
-        "ui/background-example.png"
+        "doc/"
       ],
       "writes": [
         "lib/ui_*.py",
@@ -88,8 +87,7 @@
         ".config.default.toml",
         ".name.default.toml",
         "config/",
-        "doc/",
-        "ui/background-example.png"
+        "doc/"
       ],
       "writes": [
         "lib/ui_*.py",
@@ -251,42 +249,6 @@
       "writes": [],
       "tracked": false,
       "ignored_by": ".gitignore: name49.toml"
-    },
-    {
-      "path": "script/make_background_example.py",
-      "language": "python",
-      "purpose": "Generate ui/background-example.png from ui/randname-start.png with a cover crop.",
-      "invocation": ".venv/bin/python script/make_background_example.py",
-      "args": [
-        {
-          "flag": "--source",
-          "default": "ui/randname-start.png",
-          "meaning": "source image"
-        },
-        {
-          "flag": "--output",
-          "default": "ui/background-example.png",
-          "meaning": "output PNG"
-        },
-        {
-          "flag": "--width",
-          "default": "1920",
-          "meaning": "output width"
-        },
-        {
-          "flag": "--height",
-          "default": "1080",
-          "meaning": "output height"
-        }
-      ],
-      "reads": [
-        "ui/randname-start.png"
-      ],
-      "writes": [
-        "ui/background-example.png"
-      ],
-      "tracked": true,
-      "gpl_header": true
     },
     {
       "path": "script/test_background.py",
@@ -480,8 +442,7 @@
     "assets": [
       "ui/randname1.png",
       "ui/randname1.ico",
-      "ui/randname-start.png",
-      "ui/background-example.png"
+      "ui/randname-start.png"
     ],
     "generated": "build scripts and CI compile sources into lib/ui_*.py"
   },

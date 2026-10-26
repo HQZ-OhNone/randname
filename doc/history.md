@@ -12,6 +12,39 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 This file is appended per session: completed work, unresolved findings, and
 verification results.
 
+## 2026-10-27 / 3.11.0
+
+### 已完成 / Completed
+
+- 移除重複的背景示例資產 `ui/background-example.png` 與 `script/make_background_example.py`；`randname-bg-light` 直接使用既有的 `ui/randname-start.png`。
+- 移除建置腳本、GitHub Actions 與 manifest 中對 `background-example.png` 的引用。
+- 版本更新為 3.11.0，同步 README、manifest、三語邏輯文件與 `doc/releasenote.md`。
+- 以本機 `gh` 將 17 個由 `github-actions[bot]` 建立的舊 Release body 更新為 `doc/releasenote.md` 對應版本內容。
+- 更新 Release body 時保留原有的 `Built from commit: ...` 頁尾；`3.0.4`（作者 `HQZ-OhNone`）保持不變。
+- `doc/releasenote.md` 新增 v3.11.0 中英雙語摘要，涵蓋背景主題、模糊方向、初始化、滑桿修正、固定尺寸最大化與 Windows 標題欄。
+
+### 發現但未解決 / Found but unresolved
+
+- 舊 Release notes 以本機 `gh` 更新完成，尚未在 GitHub Actions 發布流程中重複驗證。
+- Windows DWM 標題欄與 Nuitka 打包仍需在 3.11.0 CI／Windows 實機確認。
+
+### 驗證 / Verification
+
+- `.venv/bin/python -m unittest discover -s script -p 'test_*.py'`：54 項通過。
+- `gh api` 檢查 17 個 bot Release 均含 `### 中文` 與 `Built from commit:`，`3.0.4` body 未變。
+- `python -m py_compile main.py lib/*.py script/*.py` 通過。
+- `python -m json.tool doc/project-manifest.json` 通過。
+- `git diff --check` 通過。
+
+### English summary
+
+- Removed the duplicate `ui/background-example.png` asset and `script/make_background_example.py`; `randname-bg-light` now uses the existing `ui/randname-start.png`.
+- Removed all build-script, GitHub Actions, and manifest references to `background-example.png`.
+- Bumped the version to 3.11.0 and synchronized README, manifest, all three logic documents, and `doc/releasenote.md`.
+- Used the local `gh` CLI to replace the bodies of the 17 bot-created releases with the matching sections from `doc/releasenote.md`.
+- Preserved each release's original `Built from commit: ...` footer; the user-written `3.0.4` release was left unchanged.
+- Added the bilingual v3.11.0 section to `doc/releasenote.md`, covering the background theme, blur directions, initialization, slider fix, oversized fixed-window maximize, and Windows title bar.
+
 ## 2026-10-27 / 3.10.3
 
 ### 已完成 / Completed

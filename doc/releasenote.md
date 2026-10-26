@@ -8,6 +8,30 @@
 3. 每个版本使用「中文 / English」两段，内容来自 doc/history.md 与 git 记录。
 -->
 
+## v3.11.0 — 2026-10-27
+
+### 中文
+
+- 新增主題背景圖：在 `config/theme.toml` 的 `[themes.<鍵名>.background]` 設定，支援 `cover`、`contain`、`center`、`tile` 自動裁切。
+- 模糊預設為整張均勻模糊，另支援 `horizontal`、`vertical`、`diagonal`、`center-out`、`out-center` 五種漸變方向；背景只覆蓋中央內容區，菜單列與狀態列保持主題底色並加陰影。
+- 新增 `randname-bg-light` 範例主題，直接使用既有的 `ui/randname-start.png`；預設 `randname-dark` 外觀不變。
+- 修正多抽與減量抽數量滑桿無法拖動的問題。
+- 新增「檔案 > 初始化」：清空記憶檔、四模式數量回到 1、清除已顯示結果與滾動池；日誌保留，初始化動作本身會寫入日誌。
+- 固定尺寸大於可用螢幕時暫時最大化，不改寫設定檔，還原時使用不超出螢幕的尺寸。
+- Windows 11 標題欄透過 DWM 跟隨主題色，Windows 10 回退為深淺色切換；非 Windows 平台不受影響。
+- 版本更新為 3.11.0。
+
+### English
+
+- Added theme background images through `[themes.<key>.background]` in `config/theme.toml`, with automatic `cover`, `contain`, `center`, and `tile` fitting.
+- Blur defaults to a uniform full-image blur; `horizontal`, `vertical`, `diagonal`, `center-out`, and `out-center` gradients are also supported. The image covers only the central content area, while the menu bar and status bar keep the theme background and receive a shadow.
+- Added the `randname-bg-light` example theme using the existing `ui/randname-start.png`; the default `randname-dark` appearance is unchanged.
+- Fixed the Multi and Lift quantity sliders when dragging.
+- Added **File > Initialize**, which clears the memory file, resets all four modes to quantity 1, and clears displayed results and rolling pools. Logs are preserved, and the initialization itself is logged.
+- Fixed-size windows larger than the available screen now start temporarily maximised without rewriting the configuration and use an on-screen size when restored.
+- On Windows 11 the title bar follows the theme through DWM; Windows 10 falls back to light/dark switching, and other platforms are unaffected.
+- Version bumped to 3.11.0.
+
 ## v3.10.2 — 2026-10-27
 
 ### 中文

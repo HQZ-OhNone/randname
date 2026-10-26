@@ -9,7 +9,7 @@ version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
 This document records the actual behaviour, hidden mechanisms, and edge cases
-of randname 3.10.3. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
+of randname 3.11.0. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 `logic_zh_TW.md`.
 
 ## 1. Terms and modes
@@ -34,7 +34,7 @@ of randname 3.10.3. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 | Path | Responsibility |
 | --- | --- |
 | `main.py` | Startup, main window, menus, status bar, page switching, memory restore |
-| `lib/version.py` | `APP_VERSION = "3.10.3"` |
+| `lib/version.py` | `APP_VERSION = "3.11.0"` |
 | `lib/Multi.py` | Multi draw algorithm |
 | `lib/Lift.py` | Lift draw algorithm |
 | `lib/ScrollMulti.py` | ScrollMulti controller |
@@ -62,7 +62,7 @@ of randname 3.10.3. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
    `.config.default.toml`, then the built-in configuration.
 4. Load the icon and create the splash screen.
 5. Scale the splash according to `[splash]`, keeping the image aspect ratio.
-6. `_draw_splash_version()` draws `v3.10.3` in the bottom-right corner. The
+6. `_draw_splash_version()` draws `v3.11.0` in the bottom-right corner. The
    font size always scales with the image width to one third of that width;
    the text is always pure white and has no size or colour configuration.
 7. `_startup_file_check()` collects recoverable-file warnings. `required` is
@@ -535,7 +535,7 @@ Run: `QT_QPA_PLATFORM=offscreen python -m unittest discover -s script -p 'test_*
 
 ## 20. Version
 
-Current version: **3.10.3**.
+Current version: **3.11.0**.
 
 Main changes in the 3.8.x series:
 
@@ -694,11 +694,18 @@ Main changes in the 3.8.x series:
 ## 32. 3.10.3 additions
 
 - Themes may define `[themes.<key>.background]`. `BackgroundWidget` paints the central content area and supports `cover`, `contain`, `center`, and `tile`; `blur_direction` accepts `uniform`, `horizontal`, `vertical`, `diagonal`, `center-out`, and `out-center`. A missing `blur_radius` defaults to 24, giving a uniformly blurred image. Relative `image` paths resolve under `ui/`.
-- The default `randname-dark` theme has no background table, so its appearance is unchanged. The new `randname-bg-light` example theme uses `ui/background-example.png`.
+- The default `randname-dark` theme has no background table, so its appearance is unchanged. The new `randname-bg-light` example theme uses `ui/randname-start.png`.
 - The image covers only the central content area. The menu bar and status bar keep their theme background and receive a gradient shadow drawn by the background layer.
 - In fixed-size mode, if the configured width or height exceeds the available screen, `_fixed_size_exceeds_screen()` temporarily maximises the window without rewriting the configuration; restoring uses an on-screen size.
 - **File > Initialize** calls `StateManager.reset_memory()`, returns all four modes to quantity 1, clears results and rolling pools, and clears Qt pixmap caches. Logs are preserved, and the initialization itself is written as an `initialize` log entry.
 - Fixed the Multi and Lift quantity sliders: `_prepare_quantity_slider()` passed lowercase `"multi"`/`"lift"` while `_set_quantity()` expects the canonical mode constants, so dragging had no effect.
 - `WindowTheme.apply_titlebar()` sets the Windows title bar through DWM: Windows 11 uses caption/text/border colors and Windows 10 falls back to immersive dark mode; non-Windows platforms are a no-op.
-- Added `ui/background-example.png` and `script/make_background_example.py`; the build scripts and CI package the new image. Test count is 54.
+- `randname-start.png` is already the splash asset and is reused directly; no extra background image is generated. Test count is 54.
 - Version bumped to 3.10.3.
+
+## 33. 3.11.0 background asset cleanup
+
+- Removed `ui/background-example.png` and `script/make_background_example.py`; `randname-bg-light` now uses the existing `ui/randname-start.png`.
+- `randname-start.png` was already packaged by the build scripts and CI, so the duplicate data-file entries are no longer needed.
+- The release workflow still extracts the matching section from `doc/releasenote.md` and keeps the `Built from commit: ...` footer.
+- Version bumped to 3.11.0.

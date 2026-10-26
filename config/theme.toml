@@ -303,7 +303,7 @@ button_pressed = "#92286FFF"
 border = "#BE439CFF"
 accent = "#C43398FF"
 [themes.randname-bg-light.background]
-image = "background-example.png"
+image = "randname-start.png"
 fit_mode = "cover"
 blur_radius = 24
 blur_direction = "uniform"
