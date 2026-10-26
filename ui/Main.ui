@@ -46,6 +46,8 @@
     <addaction name="action_inputconfig"/>
     <addaction name="action_outputconfig"/>
     <addaction name="separator"/>
+    <addaction name="action_init"/>
+    <addaction name="separator"/>
     <addaction name="action_reinputconfig"/>
     <addaction name="separator"/>
     <addaction name="action_exit"/>
@@ -193,6 +195,11 @@
   <action name="action_reinputconfig">
    <property name="text">
     <string>重新加载配置</string>
+   </property>
+  </action>
+  <action name="action_init">
+   <property name="text">
+    <string>初始化</string>
    </property>
   </action>
  </widget>

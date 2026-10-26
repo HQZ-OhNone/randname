@@ -30,6 +30,7 @@ it under certain conditions; check GPLv3 for details.
 """, end="\n\n")
 
 
+import gc
 import logging
 import sys
 import tomllib
@@ -46,6 +47,7 @@ from PySide6.QtGui import (
     QIcon,
     QPainter,
     QPixmap,
+    QPixmapCache,
 )
 from PySide6.QtWidgets import (
     QApplication,
@@ -78,6 +80,9 @@ MODE_SCROLL_MULTI = "ScrollMulti"
 MODE_SCROLL_LIFT = "ScrollLift"
 MODE_SINGLE = "Single"
 MODE_SCROLL_SINGLE = "ScrollSingle"
+# 这些模块在 main() 中导入；提前声明便于无 GUI 的测试导入 main。
+BackgroundWidget = None
+WindowTheme = None
 # 仓库与反馈地址固定不变，直接写在程序中，不放进配置文件。
 REPOSITORY_URL = "https://www.github.com/HQZ-OhNone/randname"
 RELEASES_URL = "https://github.com/HQZ-OhNone/randname/releases"
@@ -136,6 +141,19 @@ def _configured_size(section: dict, screen_width: int, screen_height: int, *, sp
 def _window_is_maximized(section: dict) -> bool:
     """判断窗口配置是否要求启动时最大化。"""
     return isinstance(section, dict) and section.get("size_mode") == "maximum"
+
+
+def _fixed_size_exceeds_screen(section: dict, screen_width: int, screen_height: int) -> bool:
+    """固定尺寸超出可用屏幕时返回 True，用于临时切换到最大化。"""
+    if not isinstance(section, dict) or section.get("size_mode") != "fixed":
+        return False
+    width = section.get("width")
+    height = section.get("height")
+    if isinstance(width, bool) or isinstance(height, bool):
+        return False
+    if not isinstance(width, int) or not isinstance(height, int):
+        return False
+    return width > screen_width or height > screen_height
 
 
 def _clamp_quantity(value, maximum) -> int:
@@ -306,6 +324,7 @@ class MainWindow(QMainWindow):
         self.action_help = None
         self.action_program_log = None
         self.action_check_update = None
+        self.action_init = None
         self.theme_actions = None
         self.language_actions = None
         self.roster_actions = None
@@ -349,8 +368,12 @@ class MainWindow(QMainWindow):
         self.status_container = None
         self.status_message_label = None
         self.viewer_dialogs = {}
+        self.background_layer = None
+        self._background_enabled = False
+        self._titlebar_applied = False
         self._resizable = True
         self._start_maximized = False
+        self._temporary_maximized = False
 
         self._build_ui()
         self._apply_config_window()
@@ -392,19 +415,29 @@ class MainWindow(QMainWindow):
         window = self._app_config().get("window", {})
         if not isinstance(window, dict):
             window = {}
-        screen = QApplication.primaryScreen()
+        screen = self.screen() or QApplication.primaryScreen()
         geometry = screen.availableGeometry() if screen is not None else None
         screen_width = geometry.width() if geometry is not None else 1280
         screen_height = geometry.height() if geometry is not None else 800
-        self._start_maximized = _window_is_maximized(window)
+        oversized_fixed = _fixed_size_exceeds_screen(window, screen_width, screen_height)
+        self._temporary_maximized = oversized_fixed
+        self._start_maximized = _window_is_maximized(window) or oversized_fixed
         self._resizable = window.get("resizable", True) is not False
+        if oversized_fixed:
+            # 固定尺寸大于可用屏幕时临时允许最大化与还原；不改写配置文件。
+            self._resizable = True
         if self._start_maximized:
             # 最大化模式只约束最小尺寸，实际显示时由 showMaximized() 完成。
             self.setMinimumSize(640, 480)
             self.setMaximumSize(16777215, 16777215)
+            if oversized_fixed:
+                width, height = _configured_size(window, screen_width, screen_height)
+                self.resize(min(width, screen_width), min(height, screen_height))
             if self.isVisible():
                 self.showMaximized()
             return
+        if self.isMaximized():
+            self.showNormal()
         width, height = _configured_size(window, screen_width, screen_height)
         self.resize(width, height)
         if self._resizable:
@@ -425,6 +458,19 @@ class MainWindow(QMainWindow):
             except Exception:
                 pass
         super().closeEvent(event)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        # Windows 标题栏需要在窗口句柄有效后才能设置。
+        QTimer.singleShot(0, self._apply_window_frame)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if self.background_layer is not None:
+            central = self.centralWidget()
+            if central is not None:
+                self.background_layer.setGeometry(central.rect())
+                self.background_layer.lower()
 
     # ------------------------------------------------------------------ UI build
     def _build_ui(self):
@@ -447,9 +493,11 @@ class MainWindow(QMainWindow):
             self._build_roster_menu()
             self._build_log_level_menu()
             self._load_pages()
+            self._setup_background_layer()
             self._bind_page_actions()
             self._build_status_widgets()
             self._apply_ui_config()
+            self._apply_theme_background(self.selected_theme)
         except Exception as exc:  # pragma: no cover - defensive path
             logging.exception("初始化界面控件失败: %s", exc)
             self._show_error(self._t("menu.about"), self._t("error.controls_init", error=str(exc)))
@@ -463,6 +511,7 @@ class MainWindow(QMainWindow):
         self.action_scroll_lift = getattr(self.ui_main, "action_ScrollLift", None)
         self.action_inputconfig = getattr(self.ui_main, "action_inputconfig", None)
         self.action_outputconfig = getattr(self.ui_main, "action_outputconfig", None)
+        self.action_init = getattr(self.ui_main, "action_init", None)
         self.action_reinputconfig = getattr(self.ui_main, "action_reinputconfig", None)
         self.action_exit = getattr(self.ui_main, "action_exit", None)
         self.action_license = getattr(self.ui_main, "action_license", None)
@@ -489,6 +538,8 @@ class MainWindow(QMainWindow):
             self.action_inputconfig.triggered.connect(self._on_import_memory)
         if self.action_outputconfig:
             self.action_outputconfig.triggered.connect(self._on_export_memory)
+        if self.action_init:
+            self.action_init.triggered.connect(self._on_initialize)
         if self.action_reinputconfig:
             self.action_reinputconfig.triggered.connect(self._on_reload_config)
         if self.action_exit:
@@ -633,6 +684,85 @@ class MainWindow(QMainWindow):
         layout.addStretch(1)
         self.statusBar().addPermanentWidget(container, 1)
 
+    # ------------------------------------------------------------------ background / frame
+    def _setup_background_layer(self):
+        """把背景图层放到中央区域最底层，菜单栏和状态栏不覆盖图片。"""
+        if BackgroundWidget is None:
+            return
+        central = self.centralWidget()
+        if central is None:
+            return
+        self.background_layer = BackgroundWidget(central)
+        self.background_layer.setObjectName("background_layer")
+        self.background_layer.setAttribute(
+            Qt.WidgetAttribute.WA_StyledBackground, False
+        )
+        self.background_layer.setAutoFillBackground(False)
+        self.background_layer.setGeometry(central.rect())
+        self.background_layer.show()
+        self.background_layer.lower()
+        if self.stacked_widget is not None:
+            self.stacked_widget.raise_()
+
+    def _set_background_style(self, enabled: bool):
+        """切换背景时刷新 QSS 的透明规则。"""
+        self._background_enabled = bool(enabled)
+        self.setProperty("hasBackgroundImage", self._background_enabled)
+        for widget in (self, self.centralWidget(), self.stacked_widget,
+                       self.page_multi, self.page_lift,
+                       self.page_scroll_multi, self.page_scroll_lift):
+            if widget is None:
+                continue
+            try:
+                widget.style().unpolish(widget)
+                widget.style().polish(widget)
+                widget.update()
+            except Exception:
+                pass
+        # 祖先属性变化后，Qt 不会自动重算所有后代的选择器；重设一次样式表。
+        app = QApplication.instance()
+        if isinstance(app, QApplication) and app.styleSheet():
+            app.setStyleSheet(app.styleSheet())
+
+    def _apply_theme_background(self, theme_name: str):
+        """主题切换时读取 [themes.<name>.background] 并应用。"""
+        if self.background_layer is None:
+            return
+        theme = self.themes.get(theme_name, {})
+        config = ThemeManager.background_config(theme)
+        if config is None:
+            self.background_layer.set_background(None)
+            self._set_background_style(False)
+            return
+        path = ThemeManager.resolve_background_image(config.get("image", ""))
+        settings = dict(config)
+        settings["path"] = str(path)
+        self.background_layer.set_background(settings)
+        if not self.background_layer.has_image():
+            StateManager.log("WARN", "background", error=f"missing {path}")
+            self._set_background_style(False)
+            return
+        self._set_background_style(True)
+
+    def _apply_window_frame(self):
+        """在 Windows 上让标题栏跟随当前主题色。"""
+        if WindowTheme is None:
+            return
+        try:
+            theme = self.themes.get(self.selected_theme, {})
+            colors = theme.get("colors", {}) if isinstance(theme, dict) else {}
+            color_format = theme.get("color_format", "Hex") if isinstance(theme, dict) else "Hex"
+            raw = theme.get("titlebar") if isinstance(theme, dict) else None
+            if not isinstance(raw, str) or not raw.strip():
+                raw = colors.get("titlebar")
+            if not isinstance(raw, str) or not raw.strip():
+                raw = colors.get("panel") or colors.get("background") or "#202124"
+            color = ThemeManager.parse_color(raw, color_format, allow_alpha=False)
+            if WindowTheme.apply_titlebar(int(self.winId()), color):
+                self._titlebar_applied = True
+        except Exception as exc:
+            logging.debug("应用窗口标题栏颜色失败: %s", exc)
+
     def _show_status_message(self, text, _timeout=0):
         """在状态栏最左侧显示临时消息；信息区保持左对齐。"""
         if self.status_message_label is not None:
@@ -748,6 +878,7 @@ class MainWindow(QMainWindow):
             (self.action_scroll_lift, "mode.ScrollLift"),
             (self.action_inputconfig, "action.import"),
             (self.action_outputconfig, "action.export"),
+            (self.action_init, "action.init"),
             (self.action_reinputconfig, "action.reload"),
             (self.action_exit, "action.exit"),
             (self.action_license, "action.license"),
@@ -806,6 +937,8 @@ class MainWindow(QMainWindow):
         try:
             self.selected_theme = ThemeManager.apply_theme(app, name, self.themes)
             StateManager.log("INFO", "theme", result=self.selected_theme)
+            self._apply_theme_background(self.selected_theme)
+            self._apply_window_frame()
             theme = self.themes.get(self.selected_theme, {})
             theme_name = LanguageManager.localized_name(
                 theme.get("name", {}), self.current_language, self.languages
@@ -886,7 +1019,7 @@ class MainWindow(QMainWindow):
         self.multi_up_button = getattr(self.ui_multi, "pushButton_MultiQuantityUp", None)
         self.multi_down_button = getattr(self.ui_multi, "pushButton_MultiQuantityDown", None)
         self.multi_quantity_slider = getattr(self.ui_multi, "verticalSlider_MultiQuantity", None)
-        self._prepare_quantity_slider(self.multi_quantity_slider, "multi")
+        self._prepare_quantity_slider(self.multi_quantity_slider, MODE_MULTI)
         self._set_quantity_label(self.multi_quantity_label, self.multi_quantity)
         if self.multi_up_button is not None:
             self.multi_up_button.clicked.connect(lambda: self._adjust_quantity(MODE_MULTI, 1))
@@ -906,7 +1039,7 @@ class MainWindow(QMainWindow):
         self.lift_up_button = getattr(self.ui_lift, "pushButton_LiftQuantityUp", None)
         self.lift_down_button = getattr(self.ui_lift, "pushButton_LiftQuantityDown", None)
         self.lift_quantity_slider = getattr(self.ui_lift, "verticalSlider_LiftQuantity", None)
-        self._prepare_quantity_slider(self.lift_quantity_slider, "lift")
+        self._prepare_quantity_slider(self.lift_quantity_slider, MODE_LIFT)
         self.lift_renew_button = getattr(self.ui_lift, "pushButton_LiftRenew", None)
         self._set_quantity_label(self.lift_quantity_label, self.lift_quantity)
         if self.lift_up_button is not None:
@@ -1496,6 +1629,8 @@ class MainWindow(QMainWindow):
                 app = QApplication.instance()
                 if isinstance(app, QApplication):
                     self.selected_theme = ThemeManager.apply_theme(app, self.selected_theme, self.themes)
+            self._apply_theme_background(self.selected_theme)
+            self._apply_window_frame()
             warnings = list(StateManager.CONFIG_WARNINGS)
             if importnames.ROSTER_FALLBACK_USED:
                 warnings.append("config/name.toml")
@@ -1516,6 +1651,50 @@ class MainWindow(QMainWindow):
             logging.exception("重新加载配置失败: %s", exc)
             QMessageBox.warning(
                 self, self._t("action.reload"),
+                self._t("dialog.operation_failed", error=str(exc)),
+            )
+
+    # ------------------------------------------------------------------ initialize
+    def _on_initialize(self):
+        """清空记忆与本次运行状态，所有模式回到数量 1。"""
+        answer = QMessageBox.question(
+            self,
+            self._t("dialog.init_title"),
+            self._t("dialog.init_confirm"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            StateManager.reset_memory()
+            for mode in (MODE_MULTI, MODE_LIFT, MODE_SCROLL_MULTI, MODE_SCROLL_LIFT):
+                self._set_quantity(mode, 1, log=False)
+            self.multi_result = None
+            self.multi_result_names = []
+            self.lift_current_dict = None
+            self.lift_result = None
+            self.lift_result_names = []
+            if self.multi_view is not None:
+                self.multi_view.set_message(self._t("state.waiting"))
+            if self.lift_view is not None:
+                self.lift_view.set_message(self._t("state.waiting"))
+            if self.scroll_multi_controller is not None:
+                self.scroll_multi_controller.reset()
+            if self.scroll_lift_controller is not None:
+                self.scroll_lift_controller.reset()
+            if self.background_layer is not None:
+                self.background_layer.clear_cache()
+            QPixmapCache.clear()
+            gc.collect()
+            self._update_status_info()
+            self._show_status_message(self._t("state.initialized"))
+            # 初始化本身要留痕，但不清空任何历史日志。
+            StateManager.log("INFO", "initialize", result="all modes reset")
+        except Exception as exc:
+            logging.exception("初始化失败: %s", exc)
+            QMessageBox.warning(
+                self, self._t("dialog.init_title"),
                 self._t("dialog.operation_failed", error=str(exc)),
             )
 
@@ -1703,6 +1882,7 @@ def main():
     global lift_module, multi_module, ScrollMulti, ScrollLift
     global StateManager, ThemeManager, importnames, OutputView, SlotOutputView, TextViewerDialog
     global LanguageManager
+    global BackgroundWidget, WindowTheme
     global ui_main, ui_widgetlift, ui_widgetmulti, ui_widgetscrollmulti, ui_widgetscrolllift
 
     app = QApplication(sys.argv)
@@ -1776,7 +1956,9 @@ def main():
         from lib import ThemeManager
         from lib import LanguageManager
         from lib.OutputView import OutputView, SlotOutputView
+        from lib.BackgroundWidget import BackgroundWidget
         from lib.TextViewer import TextViewerDialog
+        from lib import WindowTheme
         from lib import ui_main
         from lib import ui_widgetmulti
         from lib import ui_widgetlift

@@ -38,6 +38,18 @@ class MemoryTests(unittest.TestCase):
         self.assertIn("ScrollLift", memory["last_results"])
         self.assertNotIn("ScrollSingle", memory["last_results"])
 
+    def test_reset_memory_clears_results(self):
+        StateManager.save_memory({
+            "last_results": {
+                "Multi": {"result": {"outdict": {"0": {"name": "张三"}}}},
+                "Lift": {"result": {}},
+                "ScrollMulti": {"result": {}},
+                "ScrollLift": {"result": {}},
+            }
+        })
+        memory = StateManager.reset_memory()
+        self.assertTrue(all(value is None for value in memory["last_results"].values()))
+
     def test_old_preferences_are_dropped(self):
         StateManager.MEMORY_PATH.write_text(json.dumps({
             "preferences": {

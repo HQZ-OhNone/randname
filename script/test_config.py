@@ -73,6 +73,14 @@ class ConfigHelperTests(unittest.TestCase):
         self.assertFalse(main._window_is_maximized({"size_mode": "fixed"}))
         self.assertFalse(main._window_is_maximized({}))
 
+    def test_fixed_size_exceeding_screen(self):
+        oversized = {"size_mode": "fixed", "width": 2000, "height": 700}
+        self.assertTrue(main._fixed_size_exceeds_screen(oversized, 1920, 1080))
+        self.assertTrue(main._fixed_size_exceeds_screen(oversized, 2560, 600))
+        self.assertFalse(main._fixed_size_exceeds_screen(oversized, 2560, 1080))
+        self.assertFalse(main._fixed_size_exceeds_screen({"size_mode": "maximum"}, 800, 600))
+        self.assertFalse(main._fixed_size_exceeds_screen({"size_mode": "fixed", "width": True, "height": 700}, 800, 600))
+
     def test_mode_constants_are_canonical(self):
         self.assertEqual(
             (

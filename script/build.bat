@@ -33,6 +33,7 @@ nuitka ^
   --enable-plugin=pyside6 ^
   --include-data-file=ui\randname1.png=ui\randname1.png ^
   --include-data-file=ui\randname-start.png=ui\randname-start.png ^
+  --include-data-file=ui\background-example.png=ui\background-example.png ^
   --include-data-file=.config.default.toml=.config.default.toml ^
   --include-data-file=.name.default.toml=.name.default.toml ^
   --include-data-dir=config=config ^

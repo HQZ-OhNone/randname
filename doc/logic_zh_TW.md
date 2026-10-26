@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文記錄 randname 3.10.1 的實際行為、隱藏機制與邊界。簡體中文見
+本文記錄 randname 3.10.3 的實際行為、隱藏機制與邊界。簡體中文見
 `logic_zh_CN.md`，英文見 `logic_en_US.md`。
 
 ## 1. 術語與模式
@@ -32,7 +32,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路徑 | 職責 |
 | --- | --- |
 | `main.py` | 啟動、主視窗、選單、狀態列、頁面切換、記憶回填 |
-| `lib/version.py` | `APP_VERSION = "3.10.1"` |
+| `lib/version.py` | `APP_VERSION = "3.10.3"` |
 | `lib/Multi.py` | 多抽演算法 |
 | `lib/Lift.py` | 減量抽演算法 |
 | `lib/ScrollMulti.py` | 滾動多抽控制器 |
@@ -43,6 +43,8 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | `lib/StateManager.py` | 設定、記憶結果、日誌 |
 | `lib/importnames.py` | 名單載入 |
 | `lib/ThemeManager.py` | 主題與 QSS |
+| `lib/BackgroundWidget.py` | 主題背景圖、裁切、漸變模糊與陰影 |
+| `lib/WindowTheme.py` | Windows 標題欄顏色 |
 | `lib/LanguageManager.py` | 語言包與回退 |
 | `ui/*.ui` | Qt Designer 原始檔 |
 | `lib/ui_*.py` | `pyside6-uic` 產物，建置前重新產生 |
@@ -58,7 +60,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
    `.config.default.toml`，再失敗使用內建設定。
 4. 載入圖示與啟動畫面。
 5. 依 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 縮放，保持比例。
-6. `_draw_splash_version()` 在右下角繪製 `v3.10.1`；字號始終依圖片寬度的三分之一
+6. `_draw_splash_version()` 在右下角繪製 `v3.10.3`；字號始終依圖片寬度的三分之一
    自動縮放，文字固定為純白色，不提供字號或顏色設定。
 7. `_startup_file_check()` 收集可恢復檔案警告；`required` 目前恆為空。
 8. 匯入 `lib` 模組。
@@ -444,7 +446,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-目前版本：**3.10.1**。
+目前版本：**3.10.3**。
 
 3.8.x 主要變更：
 
@@ -566,3 +568,15 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - 新增 `script/last-history-reader.sh`，歷史摘要只寫入 `/tmp`；`doc/releasenote.md` 僅供 CI 與發佈流程讀取。
 - GitHub Release 正文改為從 `doc/releasenote.md` 截取對應版本段落，缺少時使用後備說明。
 - 版本更新為 3.10.2。
+
+## 32. 3.10.3 增補
+
+- 主題可選 `[themes.<鍵名>.background]`：`BackgroundWidget` 在中央內容區自繪背景，支援 `cover`、`contain`、`center`、`tile`；`blur_direction` 支援 `uniform`、`horizontal`、`vertical`、`diagonal`、`center-out`、`out-center`。未寫 `blur_radius` 時預設 24，整張均勻模糊。相對 `image` 路徑以 `ui/` 為基準。
+- 預設主題 `randname-dark` 沒有 background 表，外觀不變；新增 `randname-bg-light` 範例主題使用 `ui/background-example.png`。
+- 背景圖只覆蓋中央內容區；選單列與狀態列保持主題底色，並由背景圖層在上下邊緣繪製漸層陰影。
+- 固定尺寸模式若寬或高大於可用螢幕，`_fixed_size_exceeds_screen()` 會讓視窗暫時最大化；不改寫設定檔，還原時使用不超出螢幕的尺寸。
+- 「檔案 > 初始化」呼叫 `StateManager.reset_memory()`，四模式數量回到 1、清除結果與滾動池，並清理 Qt pixmap 快取；不清除日誌，初始化動作寫入 `initialize` 日誌。
+- 修正多抽與減量抽滑桿：`_prepare_quantity_slider()` 原本傳入小寫 `"multi"`／`"lift"`，與 `_set_quantity()` 的標準模式常數不符，導致拖動無效。
+- Windows 標題欄由 `WindowTheme.apply_titlebar()` 透過 DWM 設定；Win11 使用 caption/text/border color，Win10 回退 immersive dark mode，非 Windows 直接跳過。
+- 新增 `ui/background-example.png` 與 `script/make_background_example.py`；建置腳本與 CI 一併打包新圖。測試總數 54。
+- 版本更新為 3.10.3。

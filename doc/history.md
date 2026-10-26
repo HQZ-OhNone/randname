@@ -12,6 +12,46 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 This file is appended per session: completed work, unresolved findings, and
 verification results.
 
+## 2026-10-27 / 3.10.3
+
+### 已完成 / Completed
+
+- 修正多抽與減量抽數量滑桿：`_prepare_quantity_slider()` 改傳 `MODE_MULTI`／`MODE_LIFT`，拖動後數量、標籤與控制器同步更新。
+- 新增主題背景圖層 `lib/BackgroundWidget.py`：中央內容區自動 cover 裁切，支援 contain/center/tile、pixmap 快取、六種模糊方向（uniform/horizontal/vertical/diagonal/center-out/out-center）與透明度/暗化。
+- 背景設定只從 `config/theme.toml` 的 `[themes.<鍵名>.background]` 讀取；預設 `randname-dark` 不含背景，外觀不變。
+- 新增範例主題 `randname-bg-light` 與 `ui/background-example.png`；`script/make_background_example.py` 可從 `ui/randname-start.png` 重新產生。
+- 背景圖只覆蓋中央內容區；選單列與狀態列維持主題底色，並由背景圖層繪製上下漸層陰影。
+- 新增「檔案 > 初始化」：清空 `doc/memory.json`、四模式數量回到 1、清除結果與滾動池、清理 Qt pixmap 快取；不清日誌，初始化動作寫入 `initialize` 日誌。
+- `size_mode = "fixed"` 且尺寸大於可用螢幕時，啟動/重載會暫時最大化，不改寫配置；還原時使用不超出螢幕的尺寸。
+- 新增 `lib/WindowTheme.py`：Windows 11 以 DWM caption/text/border color 跟隨主題，Windows 10 回退深淺色，非 Windows 無作用。
+- 建置腳本、CI、manifest、三語說明與邏輯文件同步；版本更新為 3.10.3。
+
+### 發現但未解決 / Found but unresolved
+
+- Windows 11/10 的 DWM 標題欄行為僅以程式碼與非 Windows 回退測試驗證，尚未在實機 Windows 上確認。
+- 背景圖漸層模糊只以離屏 Qt 測試渲染成功，尚未量測大尺寸圖片在低階設備上的即時效能。
+- `script/make_background_example.py` 產生的示例圖目前為固定 1920×1080；未加入自動跟隨 DPI 或螢幕尺寸的變體。
+- 本次未執行 Nuitka 打包與 GitHub Actions 實機發布驗證。
+
+### 驗證 / Verification
+
+- `.venv/bin/python -m unittest discover -s script -p 'test_*.py'`：54 項通過。
+- `python -m py_compile` 檢查 `main.py`、`lib/BackgroundWidget.py`、`lib/WindowTheme.py`、`lib/ThemeManager.py`、`lib/StateManager.py` 與新測試腳本通過。
+- `python -m json.tool doc/project-manifest.json` 通過。
+- 離屏 Qt 實測：背景主題切換、六種模糊方向渲染、`randname-dark` 無背景、多抽/減量抽滑桿、初始化重置皆正常。
+- `ui/Main.ui` 已用 `pyside6-uic` 重新產生 `lib/ui_main.py`。
+
+### English summary
+
+- Fixed the Multi and Lift quantity sliders by passing the canonical `MODE_MULTI`/`MODE_LIFT` keys to `_prepare_quantity_slider()`.
+- Added `lib/BackgroundWidget.py` with cover/contain/center/tile fitting, cached rendering, six blur directions, opacity, dimming, and menu/status shadows.
+- Background images are configured only through `[themes.<key>.background]` in `config/theme.toml`; `randname-dark` is unchanged by default.
+- Added the `randname-bg-light` example theme, `ui/background-example.png`, and `script/make_background_example.py`.
+- Added **File > Initialize**, which resets memory and all mode states to quantity 1, clears results and rolling pools, and preserves logs while logging the reset itself.
+- Fixed-size windows larger than the available screen now start temporarily maximised without rewriting the configuration.
+- Added `lib/WindowTheme.py` for DWM title-bar colours on Windows 11, with a Windows 10 light/dark fallback and a no-op on other platforms.
+- Updated build scripts, CI, the manifest, help/logic documents, and the version to 3.10.3.
+
 ## 2026-10-27 / 3.10.2
 
 ### 已完成 / Completed

@@ -7,7 +7,7 @@
     "license": "GPL-3.0-or-later",
     "entrypoint": "main.py",
     "version_file": "lib/version.py",
-    "app_version": "3.10.2",
+    "app_version": "3.10.3",
     "python": "3.12.10",
     "gui": "PySide6 6.11.1 (Qt 6)",
     "build_tool": "Nuitka 4.1.3",
@@ -53,7 +53,8 @@
         ".config.default.toml",
         ".name.default.toml",
         "config/",
-        "doc/"
+        "doc/",
+        "ui/background-example.png"
       ],
       "writes": [
         "lib/ui_*.py",
@@ -87,7 +88,8 @@
         ".config.default.toml",
         ".name.default.toml",
         "config/",
-        "doc/"
+        "doc/",
+        "ui/background-example.png"
       ],
       "writes": [
         "lib/ui_*.py",
@@ -249,11 +251,76 @@
       "writes": [],
       "tracked": false,
       "ignored_by": ".gitignore: name49.toml"
+    },
+    {
+      "path": "script/make_background_example.py",
+      "language": "python",
+      "purpose": "Generate ui/background-example.png from ui/randname-start.png with a cover crop.",
+      "invocation": ".venv/bin/python script/make_background_example.py",
+      "args": [
+        {
+          "flag": "--source",
+          "default": "ui/randname-start.png",
+          "meaning": "source image"
+        },
+        {
+          "flag": "--output",
+          "default": "ui/background-example.png",
+          "meaning": "output PNG"
+        },
+        {
+          "flag": "--width",
+          "default": "1920",
+          "meaning": "output width"
+        },
+        {
+          "flag": "--height",
+          "default": "1080",
+          "meaning": "output height"
+        }
+      ],
+      "reads": [
+        "ui/randname-start.png"
+      ],
+      "writes": [
+        "ui/background-example.png"
+      ],
+      "tracked": true,
+      "gpl_header": true
+    },
+    {
+      "path": "script/test_background.py",
+      "language": "python",
+      "purpose": "Unit tests for cover/contain geometry, theme background normalization, and Windows titlebar color helpers.",
+      "invocation": ".venv/bin/python -m unittest discover -s script -p 'test_*.py'",
+      "args": [],
+      "reads": [
+        "lib/BackgroundWidget.py",
+        "lib/ThemeManager.py",
+        "lib/WindowTheme.py"
+      ],
+      "writes": [],
+      "tracked": true,
+      "gpl_header": true
+    },
+    {
+      "path": "script/test_quantity.py",
+      "language": "python",
+      "purpose": "Offscreen regression tests for the Multi/Lift quantity sliders and initialize reset.",
+      "invocation": ".venv/bin/python -m unittest discover -s script -p 'test_*.py'",
+      "args": [],
+      "reads": [
+        "main.py",
+        "lib/"
+      ],
+      "writes": [],
+      "tracked": true,
+      "gpl_header": true
     }
   ],
   "tests": {
     "runner": ".venv/bin/python -m unittest discover -s script -p 'test_*.py'",
-    "count_at_2026_10_27": 38,
+    "count_at_2026_10_27": 54,
     "status_at_2026_10_27": "pass",
     "headless_env": "QT_QPA_PLATFORM=offscreen (set inside GUI tests)",
     "policy": "logic changes must update the matching test file"
@@ -380,6 +447,24 @@
       "generated_from": "ui/*.ui",
       "generator": "pyside6-uic",
       "editable": false
+    },
+    {
+      "path": "lib/BackgroundWidget.py",
+      "purpose": "Theme background layer with cover/contain/center/tile fitting, six blur directions, cache, and menu/status shadows.",
+      "provides": [
+        "BackgroundWidget",
+        "cover_source_rect",
+        "contain_target_rect"
+      ]
+    },
+    {
+      "path": "lib/WindowTheme.py",
+      "purpose": "Apply theme colors to the Windows title bar through DWM, with a dark/light fallback.",
+      "provides": [
+        "apply_titlebar",
+        "colorref",
+        "is_dark"
+      ]
     }
   ],
   "ui": {
@@ -395,7 +480,8 @@
     "assets": [
       "ui/randname1.png",
       "ui/randname1.ico",
-      "ui/randname-start.png"
+      "ui/randname-start.png",
+      "ui/background-example.png"
     ],
     "generated": "build scripts and CI compile sources into lib/ui_*.py"
   },
@@ -417,7 +503,7 @@
     },
     {
       "path": "config/theme.toml",
-      "purpose": "Theme colors, localized theme names, and default theme.",
+      "purpose": "Theme colors, localized theme names, optional per-theme background images, and default theme.",
       "runtime": true
     },
     {

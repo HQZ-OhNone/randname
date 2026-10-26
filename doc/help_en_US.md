@@ -38,11 +38,13 @@ Select a language from Language. Available language packs are listed in `config/
 
 Themes are stored in `config/theme.toml`. Its `default` key selects the fallback theme. Theme names use the same current-language, system-language, English, key fallback order as roster names.
 
+Add a `[themes.<key>.background]` table to any theme to show a background image; `image` is resolved relative to `ui/`. Supported fit modes are `cover`, `contain`, `center`, and `tile`; supported blur directions are `uniform`, `horizontal`, `vertical`, `diagonal`, `center-out`, and `out-center`. Themes without an image keep the normal background. `randname-bg-light` is a selectable example theme, while the default `randname-dark` appearance is unchanged. The image appears only in the central content area; the menu bar and status bar keep the theme background and draw a shadow. On Windows 11 the title bar follows the theme through DWM; Windows 10 only switches between light and dark.
+
 randname does not remember the theme, roster, log level, mode, language, quantity, or window size from the last session. Every startup reads the configuration and dedicated theme/language files so the interface state is consistent. The memory file is used only to store and import/export recent results.
 
 ## Window and Status Bar
 
-The main window can be resized by dragging its edges, but the next startup still uses the initial size configured in `[window]`; the last resized size is not remembered. Long names and memory imports never change the window size. Set `size_mode` to `"maximum"` to start maximised.
+The main window can be resized by dragging its edges, but the next startup still uses the initial size configured in `[window]`; the last resized size is not remembered. Long names and memory imports never change the window size. Set `size_mode` to `"maximum"` to start maximised. If `size_mode = "fixed"` and the configured width or height exceeds the available screen, randname temporarily maximises without rewriting the configuration and uses an on-screen size when restored.
 
 The left side of the status bar shows temporary messages such as "Multi complete"; the right side shows the current mode, roster, quantity, theme, language, log level, and version. Each item can be hidden in `[statusbar]`.
 
@@ -78,6 +80,8 @@ Use **File > Refresh application data** after editing configuration, rosters, la
 Choose a threshold under **About > Log level**: Debug, Information, Warning, Error, or Critical. The threshold controls only what is written to `doc/log.log`; the program log window always shows every level from the current run and highlights the level tag at the start of each line.
 
 File > Import memory and File > Export memory exchange recent results as JSON. They do not replace configuration, roster, or interface state. The runtime memory file is `doc/memory.json` and stores only each mode's most recent result.
+
+**File > Initialize** clears `doc/memory.json`, returns every mode's quantity to 1, and removes displayed results. It does not delete `doc/log.log`; the initialization itself is written to the log.
 
 Help, the license, and the program log all use randname's own read-only viewer. The viewer is clamped to the available desktop area so the taskbar remains accessible; it supports touch-drag scrolling, and its font size and refresh interval can be adjusted in `[viewer]`.
 

@@ -8,6 +8,12 @@ default = "randname-dark"
 # colors 字段含 background 页面底色、foreground 文字、panel 状态栏、display_* 结果框、
 # button/button_hover/button_pressed 按钮状态、border 边框、accent 菜单选中强调色。
 # HexA 使用 #RRGGBBAA；Hex 使用 #RRGGBB；RGBA/RGB 使用逗号分隔的 0-255 通道。
+#
+# 可选 titlebar 指定 Windows 标题栏颜色；省略时使用 panel 颜色。
+# 可选背景图：在主题内新增 [themes.<键名>.background] 表。省略该表则不启用背景。
+# image 相对 ui/ 或使用绝对路径；blur_direction 可选 uniform、horizontal、vertical、
+# diagonal、center-out、out-center。未写 blur_radius 时默认 24（整张均匀模糊）。
+# 菜单栏和状态栏始终使用主题底色，不显示背景图。
 [themes.amber-dark]
 color_format = "HexA"
 [themes.amber-dark.name]
@@ -275,3 +281,33 @@ button_hover = "#D44EADFF"
 button_pressed = "#92286FFF"
 border = "#BE439CFF"
 accent = "#C43398FF"
+
+# 背景图示例主题：默认仍使用顶部的 randname-dark，本主题需从“主题”菜单手动选择。
+[themes.randname-bg-light]
+color_format = "HexA"
+[themes.randname-bg-light.name]
+en_US = "Randname Background Light"
+zh_CN = "随机名背景浅色示例"
+zh_TW = "隨機名背景淺色範例"
+[themes.randname-bg-light.colors]
+background = "#FBF4FAFF"
+foreground = "#382B37FF"
+panel = "#F1E4EEFF"
+display_background = "#FFFFFFFF"
+display_foreground = "#382B37FF"
+display_border = "#D44EADFF"
+button = "#B93492FF"
+button_foreground = "#FFFFFFFF"
+button_hover = "#D44EADFF"
+button_pressed = "#92286FFF"
+border = "#BE439CFF"
+accent = "#C43398FF"
+[themes.randname-bg-light.background]
+image = "background-example.png"
+fit_mode = "cover"
+blur_radius = 24
+blur_direction = "uniform"
+opacity = 1.0
+dim = 0.05
+shadow_size = 12
+shadow_opacity = 0.35

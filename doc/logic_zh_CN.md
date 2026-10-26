@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文记录 randname 3.10.1 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
+本文记录 randname 3.10.3 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
 `logic_en_US.md`，正體中文版见 `logic_zh_TW.md`。
 
 ## 1. 术语与模式
@@ -31,7 +31,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路径 | 职责 |
 | --- | --- |
 | `main.py` | 启动、主窗口、菜单、状态栏、页面切换、记忆回填、查看器入口 |
-| `lib/version.py` | `APP_VERSION = "3.10.1"` |
+| `lib/version.py` | `APP_VERSION = "3.10.3"` |
 | `lib/Multi.py` | 多抽算法 |
 | `lib/Lift.py` | 减量抽算法 |
 | `lib/ScrollMulti.py` | 滚动多抽控制器 |
@@ -42,6 +42,8 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | `lib/StateManager.py` | 配置、记忆结果、日志 |
 | `lib/importnames.py` | 启动时加载名单 |
 | `lib/ThemeManager.py` | 主题读取、样式表 |
+| `lib/BackgroundWidget.py` | 主题背景图、裁切、渐变模糊与阴影 |
+| `lib/WindowTheme.py` | Windows 标题栏颜色 |
 | `lib/LanguageManager.py` | 语言包、翻译、回退 |
 | `ui/*.ui` | Qt Designer 源文件 |
 | `lib/ui_*.py` | `pyside6-uic` 编译产物，构建前重新生成 |
@@ -60,7 +62,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 3. `_bootstrap_config()` 读取 `config/config.toml`；失败时读取 `.config.default.toml`，再失败使用内建配置。
 4. 读取图标；创建启动画面。
 5. 启动画面按 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 缩放，保持宽高比。
-6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.10.1`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
+6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.10.3`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
 7. `_startup_file_check()` 检查可恢复文件；缺失项加入启动警告。`required` 当前恒为空，因此“启动检查失败”分支不可达。
 8. 导入 `lib` 模块。
 9. 图标、启动图、帮助、许可证、日志与记忆路径固定于代码，不再有可配置路径段。
@@ -481,7 +483,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-当前版本：**3.10.1**。
+当前版本：**3.10.3**。
 
 3.8.x 主要变化：
 
@@ -597,3 +599,15 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - 新增 `script/last-history-reader.sh`，历史摘要只写入 `/tmp`；`doc/releasenote.md` 仅供 CI 与发布流程读取。
 - GitHub Release 的正文改为从 `doc/releasenote.md` 截取对应版本段落，缺少时使用后备说明。
 - 版本更新为 3.10.2。
+
+## 32. 3.10.3 补充
+
+- 主题可选 `[themes.<键名>.background]`：`BackgroundWidget` 在中央内容区自绘背景，支持 `cover`、`contain`、`center`、`tile`；`blur_direction` 支持 `uniform`、`horizontal`、`vertical`、`diagonal`、`center-out`、`out-center`。未写 `blur_radius` 时默认 24，整张均匀模糊。相对 `image` 路径以 `ui/` 为基准。
+- 默认主题 `randname-dark` 没有 background 表，外观不变；新增 `randname-bg-light` 示例主题使用 `ui/background-example.png`。
+- 背景图只覆盖中央内容区；菜单栏与状态栏保持主题底色，并由背景图层在上下边缘绘制渐变阴影。
+- 固定尺寸模式若宽或高大于可用屏幕，`_fixed_size_exceeds_screen()` 会让窗口临时最大化；不改写配置文件，还原时使用不超出屏幕的尺寸。
+- “文件 > 初始化”调用 `StateManager.reset_memory()`，四模式数量回到 1、清除结果与滚动池，并清理 Qt pixmap 缓存；不清除日志，初始化动作写入 `initialize` 日志。
+- 修复多抽与减量抽滑条：`_prepare_quantity_slider()` 原本传入小写 `"multi"`／`"lift"`，与 `_set_quantity()` 的标准模式常量不符，导致拖动无效。
+- Windows 标题栏由 `WindowTheme.apply_titlebar()` 通过 DWM 设置；Win11 使用 caption/text/border color，Win10 回退 immersive dark mode，非 Windows 直接跳过。
+- 新增 `ui/background-example.png` 与 `script/make_background_example.py`；构建脚本与 CI 一并打包新图。测试总数 54。
+- 版本更新为 3.10.3。

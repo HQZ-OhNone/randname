@@ -105,6 +105,12 @@ def load_theme(name: str) -> dict:
 
 
 def _color(value: str, color_format: str, allow_alpha: bool = True) -> str:
+    color = parse_color(value, color_format, allow_alpha)
+    return f"rgba({color.red()}, {color.green()}, {color.blue()}, {color.alpha() / 255:.3f})"
+
+
+def parse_color(value: str, color_format: str, allow_alpha: bool = True) -> QColor:
+    """把主题文件中的颜色解析为 QColor，兼容 HexA/Hex/RGBA/RGB。"""
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"Invalid {color_format} color: {value!r}")
     if color_format in {"RGB", "RGBA"}:
@@ -115,7 +121,7 @@ def _color(value: str, color_format: str, allow_alpha: bool = True) -> str:
             raise ValueError(f"Invalid {color_format} color: {value}")
         if not allow_alpha:
             channels[3] = 255
-        return f"rgba({channels[0]}, {channels[1]}, {channels[2]}, {channels[3] / 255:.3f})"
+        return QColor(channels[0], channels[1], channels[2], channels[3])
     if color_format in {"Hex", "HexA"}:
         if color_format == "HexA" and value.startswith("#") and len(value) == 9:
             color = QColor(
@@ -130,8 +136,78 @@ def _color(value: str, color_format: str, allow_alpha: bool = True) -> str:
             raise ValueError(f"Invalid {color_format} color: {value}")
         if not allow_alpha:
             color.setAlpha(255)
-        return f"rgba({color.red()}, {color.green()}, {color.blue()}, {color.alpha() / 255:.3f})"
+        return color
     raise ValueError(f"Unsupported color format: {color_format}")
+
+
+BACKGROUND_DEFAULTS = {
+    "fit_mode": "cover",
+    "blur_radius": 24.0,
+    "blur_direction": "uniform",
+    "opacity": 1.0,
+    "dim": 0.0,
+    "shadow_size": 12.0,
+    "shadow_opacity": 0.35,
+}
+BLUR_DIRECTIONS = (
+    "uniform",
+    "horizontal",
+    "vertical",
+    "diagonal",
+    "center-out",
+    "out-center",
+)
+FIT_MODES = ("cover", "contain", "center", "tile")
+
+
+def _number(value, default, minimum, maximum):
+    try:
+        result = float(value)
+    except (TypeError, ValueError):
+        return default
+    if result != result or result in (float("inf"), float("-inf")):
+        return default
+    return max(minimum, min(maximum, result))
+
+
+def background_config(theme: dict) -> dict | None:
+    """读取并规范化主题内的 [background] 表；没有图片时返回 None。"""
+    raw = theme.get("background") if isinstance(theme, dict) else None
+    if not isinstance(raw, dict):
+        return None
+    image = raw.get("image")
+    if not isinstance(image, str) or not image.strip():
+        return None
+    fit_mode = raw.get("fit_mode", BACKGROUND_DEFAULTS["fit_mode"])
+    if fit_mode not in FIT_MODES:
+        fit_mode = BACKGROUND_DEFAULTS["fit_mode"]
+    direction = raw.get("blur_direction", BACKGROUND_DEFAULTS["blur_direction"])
+    if direction not in BLUR_DIRECTIONS:
+        direction = BACKGROUND_DEFAULTS["blur_direction"]
+    return {
+        "image": image.strip(),
+        "fit_mode": fit_mode,
+        "blur_radius": _number(
+            raw.get("blur_radius"), BACKGROUND_DEFAULTS["blur_radius"], 0.0, 80.0
+        ),
+        "blur_direction": direction,
+        "opacity": _number(raw.get("opacity"), BACKGROUND_DEFAULTS["opacity"], 0.0, 1.0),
+        "dim": _number(raw.get("dim"), BACKGROUND_DEFAULTS["dim"], 0.0, 1.0),
+        "shadow_size": _number(
+            raw.get("shadow_size"), BACKGROUND_DEFAULTS["shadow_size"], 0.0, 64.0
+        ),
+        "shadow_opacity": _number(
+            raw.get("shadow_opacity"), BACKGROUND_DEFAULTS["shadow_opacity"], 0.0, 1.0
+        ),
+    }
+
+
+def resolve_background_image(image: str) -> Path:
+    """相对路径一律以 ui/ 为基准，绝对路径原样返回。"""
+    path = Path(image).expanduser()
+    if path.is_absolute():
+        return path
+    return ROOT / "ui" / path
 
 
 def _stylesheet(theme: dict) -> str:
@@ -177,6 +253,12 @@ def _stylesheet(theme: dict) -> str:
         background-color: {accent};
     }}
     QStatusBar {{ background-color: {panel}; }}
+    QWidget#background_layer {{ background-color: transparent; }}
+    QMainWindow[hasBackgroundImage="true"] QWidget#centralwidget,
+    QMainWindow[hasBackgroundImage="true"] QStackedWidget,
+    QMainWindow[hasBackgroundImage="true"] QStackedWidget > QWidget {{
+        background-color: transparent;
+    }}
     """
 
 

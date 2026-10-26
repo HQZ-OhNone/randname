@@ -163,6 +163,14 @@ def _default_memory() -> dict:
     }
 
 
+def reset_memory() -> dict:
+    """把记忆文件恢复为初始状态，仅保留空的最近结果。"""
+    memory = _default_memory()
+    save_memory(memory)
+    log("INFO", "reset_memory", result="default")
+    return memory
+
+
 def _normalize_memory(memory: Any) -> dict:
     """只保留最近结果；旧记忆中的偏好与配置快照会被忽略。"""
     default = _default_memory()
