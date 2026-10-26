@@ -350,8 +350,14 @@ jobs:
               echo "- windows: 解压后运行 \`randname.exe\`"
             } > release_notes.md
           fi
-          # 去掉重复的自身标题，追加构建来源。
-          tail -n +2 release_notes.md > release_notes.body
+          # 去掉重复的自身标题与首尾空行，再追加构建来源。
+          awk 'NR > 1 { lines[++n] = $0 }
+               END {
+                 start = 1
+                 while (start <= n && lines[start] == "") start++
+                 while (n >= start && lines[n] == "") n--
+                 for (i = start; i <= n; i++) print lines[i]
+               }' release_notes.md > release_notes.body
           {
             echo
             echo "---"
