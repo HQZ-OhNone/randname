@@ -322,6 +322,44 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Extract release notes
+        shell: bash
+        run: |
+          VERSION="${{ needs.extract-version.outputs.version }}"
+          # 从 doc/releasenote.md 截取 `## vX.Y.Z` 到下一个版本标题之间的内容。
+          awk -v heading="## v${VERSION} " '
+            /^## / { in_section = (index($0, heading) == 1) }
+            in_section { print }
+          ' doc/releasenote.md > release_notes.md
+          if [ ! -s release_notes.md ]; then
+            echo "WARNING: doc/releasenote.md 中未找到 v${VERSION}，使用后备内容。"
+            {
+              echo "## randname v${VERSION}"
+              echo
+              echo "### 下载"
+              echo "- **linux x64**: \`randname-${VERSION}.linux.x64.tar.xz\`"
+              echo "- **windows x64**: \`randname-${VERSION}.windows.x64.7z\`"
+              echo
+              echo "### 使用方式"
+              echo "- linux: 解压后运行 \`./randname\`"
+              echo "- windows: 解压后运行 \`randname.exe\`"
+            } > release_notes.md
+          fi
+          # 去掉重复的自身标题，追加构建来源。
+          tail -n +2 release_notes.md > release_notes.body
+          {
+            echo
+            echo "---"
+            echo "Built from commit: ${{ github.sha }}"
+          } >> release_notes.body
+          echo "===== Release notes ====="
+          cat release_notes.body
+
       - name: Download all artifacts
         uses: actions/download-artifact@v8.0.2
         with:
@@ -342,19 +380,7 @@ jobs:
         with:
           tag_name: v${{ needs.extract-version.outputs.version }}
           name: randname v${{ needs.extract-version.outputs.version }}
-          body: |
-            ## randname v${{ needs.extract-version.outputs.version }}
-
-            ### 下载
-            - **linux x64**: `randname-${{ needs.extract-version.outputs.version }}.linux.x64.tar.xz`
-            - **windows x64**: `randname-${{ needs.extract-version.outputs.version }}.windows.x64.7z`
-
-            ### 使用方式
-            - linux: 解压后运行 `./randname`
-            - windows: 解压后运行 `randname.exe`
-
-            ---
-            Built from commit: ${{ github.sha }}
+          body_path: release_notes.body
           files: |
             randname-${{ needs.extract-version.outputs.version }}.linux.x64.tar.xz
             randname-${{ needs.extract-version.outputs.version }}.windows.x64.7z
