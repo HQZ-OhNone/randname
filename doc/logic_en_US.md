@@ -9,7 +9,7 @@ version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
 This document records the actual behaviour, hidden mechanisms, and edge cases
-of randname 3.11.0. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
+of randname 3.11.1. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 `logic_zh_TW.md`.
 
 ## 1. Terms and modes
@@ -34,7 +34,7 @@ of randname 3.11.0. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 | Path | Responsibility |
 | --- | --- |
 | `main.py` | Startup, main window, menus, status bar, page switching, memory restore |
-| `lib/version.py` | `APP_VERSION = "3.11.0"` |
+| `lib/version.py` | `APP_VERSION = "3.11.1"` |
 | `lib/Multi.py` | Multi draw algorithm |
 | `lib/Lift.py` | Lift draw algorithm |
 | `lib/ScrollMulti.py` | ScrollMulti controller |
@@ -62,7 +62,7 @@ of randname 3.11.0. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
    `.config.default.toml`, then the built-in configuration.
 4. Load the icon and create the splash screen.
 5. Scale the splash according to `[splash]`, keeping the image aspect ratio.
-6. `_draw_splash_version()` draws `v3.11.0` in the bottom-right corner. The
+6. `_draw_splash_version()` draws `v3.11.1` in the bottom-right corner. The
    font size always scales with the image width to one third of that width;
    the text is always pure white and has no size or colour configuration.
 7. `_startup_file_check()` collects recoverable-file warnings. `required` is
@@ -535,7 +535,7 @@ Run: `QT_QPA_PLATFORM=offscreen python -m unittest discover -s script -p 'test_*
 
 ## 20. Version
 
-Current version: **3.11.0**.
+Current version: **3.11.1**.
 
 Main changes in the 3.8.x series:
 
@@ -709,3 +709,15 @@ Main changes in the 3.8.x series:
 - `randname-start.png` was already packaged by the build scripts and CI, so the duplicate data-file entries are no longer needed.
 - The release workflow still extracts the matching section from `doc/releasenote.md` and keeps the `Built from commit: ...` footer.
 - Version bumped to 3.11.0.
+
+## 34. 3.11.1 UI refresh
+
+- The Theme menu now shows dark and light themes in two columns. `ThemeManager.is_light_theme()` classifies themes by the lightness of `colors.background`, and `_build_theme_menu()` renders them with `QWidgetAction` + `QToolButton`, rebuilding on language changes.
+- Removed the Neutral Dark and Neutral Light themes, taking the catalog from 15 to 13 themes.
+- Every light theme now uses a softer, tinted background (page, panel, buttons, borders, and accent adjusted together) instead of near-white surfaces.
+- Output-box colours come from `[themes.<key>.output]` (`background`, `foreground`, `border`). The hard-coded result-box background, white text, and blue border were removed from `ui/Widget*.ui`. Dark themes use `#141414FF`/`#FFFFFFFF`/`#4A90E2FF`, matching the previous look, and the legacy `colors.display_*` keys still work as fallbacks.
+- The update dialog's headline follows the theme foreground colour, and its history box uses the `panel` background with the theme `border`; the hard-coded dark styling is gone.
+- `lib/WindowTheme.apply_titlebar()` now calls `SetWindowPos(..., SWP_FRAMECHANGED)` and `DwmFlush()` after setting DWM attributes to force a title-bar repaint. `_select_theme()` colours the title bar before refreshing the background and re-applies it once the event loop is idle, removing the delay when switching themes.
+- `[window]` gained `fullscreen`. When true, startup calls `showFullScreen()` and it takes precedence over `size_mode`; reloading the configuration with it disabled calls `showNormal()` and re-applies the size mode.
+- `OutputView` and `SlotOutputView` gained `_OutputExpansion`: when even the minimum font size does not fit, the output row's stretch becomes 1 so the box uses the blank space above and below, restoring on `set_message()`, `clear_round()`, or fewer names. A re-entry guard prevents layout recursion.
+- Version bumped to 3.11.1.

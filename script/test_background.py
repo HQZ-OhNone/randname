@@ -90,6 +90,72 @@ class ThemeBackgroundTests(unittest.TestCase):
         self.assertEqual(ThemeManager.resolve_background_image(str(absolute)), absolute)
 
 
+class ThemeColumnTests(unittest.TestCase):
+    def test_neutral_themes_removed(self):
+        themes = ThemeManager.discover_themes()
+        self.assertNotIn("light-dark", themes)
+        self.assertNotIn("light-light", themes)
+
+    def test_theme_is_split_into_dark_and_light(self):
+        themes = ThemeManager.discover_themes()
+        light = {key for key, theme in themes.items() if ThemeManager.is_light_theme(theme)}
+        self.assertEqual(
+            light,
+            {"amber-light", "blue-light", "dark-light", "green-light",
+             "purple-light", "randname-light", "randname-bg-light"},
+        )
+        self.assertNotIn("randname-dark", light)
+        self.assertNotIn("amber-dark", light)
+
+    def test_every_theme_defines_output_colors(self):
+        themes = ThemeManager.discover_themes()
+        for key, theme in themes.items():
+            with self.subTest(theme=key):
+                output = ThemeManager.output_config(theme)
+                self.assertIn("background", output)
+                self.assertIn("foreground", output)
+                self.assertIn("border", output)
+                for value in output.values():
+                    self.assertTrue(value.startswith("#"))
+
+    def test_dark_themes_keep_existing_display_color(self):
+        themes = ThemeManager.discover_themes()
+        for key, theme in themes.items():
+            if ThemeManager.is_light_theme(theme):
+                continue
+            with self.subTest(theme=key):
+                output = ThemeManager.output_config(theme)
+                self.assertEqual(output["background"], "#141414FF")
+                self.assertEqual(output["foreground"], "#FFFFFFFF")
+                self.assertEqual(output["border"], "#4A90E2FF")
+
+    def test_output_config_falls_back_to_legacy_keys(self):
+        output = ThemeManager.output_config({
+            "colors": {
+                "display_background": "#112233FF",
+                "display_foreground": "#445566FF",
+                "display_border": "#778899FF",
+            }
+        })
+        self.assertEqual(output["background"], "#112233FF")
+        self.assertEqual(output["foreground"], "#445566FF")
+        self.assertEqual(output["border"], "#778899FF")
+
+    def test_theme_file_has_no_legacy_display_keys(self):
+        text = (ThemeManager.ROOT / "config" / "theme.toml").read_text(encoding="utf-8")
+        active = [line for line in text.splitlines() if not line.lstrip().startswith("#")]
+        for key in ("display_background", "display_foreground", "display_border"):
+            self.assertFalse(any(line.startswith(key) for line in active))
+
+    def test_output_stylesheet_uses_theme_colors(self):
+        themes = ThemeManager.discover_themes()
+        dark = ThemeManager._stylesheet(themes["randname-dark"])
+        self.assertIn("rgba(20, 20, 20, 1.000)", dark)
+        self.assertIn("border: 2px solid", dark)
+        light = ThemeManager._stylesheet(themes["randname-light"])
+        self.assertNotIn("rgba(20, 20, 20, 1.000)", light)
+
+
 class WindowThemeTests(unittest.TestCase):
     def test_colorref_is_bgr(self):
         self.assertEqual(colorref(QColor(1, 2, 3)), 0x00030201)

@@ -64,6 +64,70 @@ def pack_names(names, metrics, max_width):
     return lines or [""]
 
 
+class _OutputExpansion:
+    """在最小字号仍放不下时，让输出框临时占用上下空白。
+
+    只对放在 QGridLayout 里的输出框生效：把所在行的 stretch 设为 1，
+    布局会先压缩上下 spacer，再重新分配高度；人少时恢复为 0。
+    """
+
+    def __init__(self, label):
+        self.label = label
+        self._layout = None
+        self._row = None
+        self._base_height = 0
+        self._expanded = False
+        self._resolve()
+
+    def _resolve(self):
+        parent = self.label.parentWidget()
+        layout = parent.layout() if parent is not None else None
+        if layout is None or not hasattr(layout, "getItemPosition"):
+            return
+        index = layout.indexOf(self.label)
+        if index < 0:
+            return
+        try:
+            row = layout.getItemPosition(index)[0]
+        except (RuntimeError, IndexError, TypeError):
+            return
+        self._layout = layout
+        self._row = row
+
+    @property
+    def available(self) -> bool:
+        return self._layout is not None and self._row is not None
+
+    @property
+    def expanded(self) -> bool:
+        return self._expanded
+
+    def note_resize(self):
+        """未展开时记录布局给出的基准高度。"""
+        if not self._expanded and self.label.height() > 32:
+            self._base_height = self.label.height()
+
+    @property
+    def base_height(self) -> int:
+        if self._base_height <= 0 and self.label.height() > 32:
+            self._base_height = self.label.height()
+        return max(1, self._base_height)
+
+    def set_expanded(self, expanded: bool) -> bool:
+        """切换展开状态；返回是否真的发生了变化。"""
+        expanded = bool(expanded) and self.available
+        if expanded == self._expanded:
+            return False
+        if expanded and self._base_height <= 0:
+            self._base_height = max(1, self.label.height())
+        self._expanded = expanded
+        if not self.available:
+            return False
+        self._layout.setRowStretch(self._row, 1 if expanded else 0)
+        self._layout.activate()
+        return True
+
+
 class OutputView(QObject):
     """包装一个 QLabel，负责单行/多行/缩字号显示。"""
 
@@ -91,6 +155,8 @@ class OutputView(QObject):
         policy.setVerticalStretch(0)
         self.label.setSizePolicy(policy)
         self.label.setMinimumSize(0, 0)
+        self._expansion = _OutputExpansion(label)
+        self._relayout_guard = False
         self.configure(config, fallback_point_size)
         self.label.installEventFilter(self)
         self.set_message("")
@@ -122,6 +188,8 @@ class OutputView(QObject):
         self._message_mode = True
         self._names = []
         self._locked_point_size = None
+        if getattr(self, "_expansion", None) is not None:
+            self._expansion.set_expanded(False)
         self._text = str(text)
         font = QFont(self._base_font)
         font.setPointSizeF(self.base_point_size)
@@ -158,6 +226,7 @@ class OutputView(QObject):
     def clear_round(self):
         """结束本轮锁定，后续消息/结果恢复自动字号。"""
         self._locked_point_size = None
+        self._expansion.set_expanded(False)
 
     @property
     def current_text(self):
@@ -166,6 +235,7 @@ class OutputView(QObject):
     # ------------------------------------------------------------------ internals
     def eventFilter(self, watched, event):
         if watched is self.label and event.type() == QEvent.Type.Resize:
+            self._expansion.note_resize()
             self._relayout()
         return False
 
@@ -215,12 +285,32 @@ class OutputView(QObject):
             self.label.setText(text)
 
     def _relayout(self):
-        if self._message_mode or not self._names:
+        if self._relayout_guard:
             return
-        point_size = self._locked_point_size
-        if point_size is None:
-            point_size = self._font_size_for(self._names)
-        self._apply(self._names, point_size)
+        if self._message_mode or not self._names:
+            self._expansion.set_expanded(False)
+            return
+        self._relayout_guard = True
+        try:
+            point_size = self._locked_point_size
+            if point_size is None:
+                point_size = self._font_size_for(self._names)
+            # 先更新文字，避免旧文本的最小高度限制输出框回缩。
+            self._apply(self._names, point_size)
+            # 最小字号仍放不下时才扩展输出框，人数少时保持原尺寸。
+            needed = self._needed_height(self._names, self.min_point_size)
+            if self._expansion.set_expanded(needed > self._expansion.base_height):
+                point_size = self._locked_point_size
+                if point_size is None:
+                    point_size = self._font_size_for(self._names)
+                self._apply(self._names, point_size)
+        finally:
+            self._relayout_guard = False
+
+    def _needed_height(self, names, point_size):
+        """返回字号为 point_size 时显示这些姓名需要的总高度。"""
+        _font, _lines, _width, height = self._layout_for(names, point_size)
+        return height + int(self.padding * 2) + 4
 
 
 def _largest_font_for_grid(names, cell_width, cell_height, base_font,
@@ -430,6 +520,8 @@ class SlotOutputView(QObject):
         label.setMinimumSize(0, 0)
         self.grid = _SlotGrid(label)
         self.grid.setGeometry(label.contentsRect())
+        self._expansion = _OutputExpansion(label)
+        self._relayout_guard = False
         label.installEventFilter(self)
         self.configure(config, fallback_point_size)
         self.set_message("")
@@ -471,6 +563,7 @@ class SlotOutputView(QObject):
         self._cell_limit = None
         self._columns = 0
         self._rows = 0
+        self._expansion.set_expanded(False)
         self.grid.set_slot_count(0)
         self.grid.clear_cell_limit()
         self.grid.set_message(str(text))
@@ -518,6 +611,7 @@ class SlotOutputView(QObject):
         self._columns = 0
         self._rows = 0
         self._quantity = 0
+        self._expansion.set_expanded(False)
         self.grid.clear_cell_limit()
 
     @property
@@ -531,6 +625,7 @@ class SlotOutputView(QObject):
     # ------------------------------------------------------------------ internals
     def eventFilter(self, watched, event):
         if watched is self.label and event.type() == QEvent.Type.Resize:
+            self._expansion.note_resize()
             self.grid.setGeometry(self.label.contentsRect())
             if not self._message_mode and self._names:
                 self._ensure_layout()
@@ -569,9 +664,32 @@ class SlotOutputView(QObject):
             for name in names
         )
 
+    def _needs_expansion(self, columns, rows):
+        """最小字号仍放不进当前格子时返回 True。"""
+        width, height = self._available()
+        gap = self._gap()
+        cell_width = (width - (columns - 1) * gap) / max(1, columns)
+        cell_height = (height - (rows - 1) * gap) / max(1, rows)
+        if cell_width <= 1 or cell_height <= 1:
+            return True
+        metrics = QFontMetrics(_font_at_size(self._base_font, self.min_point_size))
+        if metrics.lineSpacing() > max(1.0, cell_height - 2.0):
+            return True
+        return any(
+            metrics.horizontalAdvance(name) > max(1.0, cell_width - 4.0)
+            for name in self._names
+        )
+
     def _ensure_layout(self):
-        if not self._names:
+        if not self._names or self._relayout_guard:
             return
+        self._relayout_guard = True
+        try:
+            self._layout_once()
+        finally:
+            self._relayout_guard = False
+
+    def _layout_once(self):
         if (
             self._columns
             and self._rows
@@ -595,6 +713,21 @@ class SlotOutputView(QObject):
             gap,
             count,
         )
+        # 最小字号仍放不下时，先让输出框占用上下空白，再按新高度重算。
+        if self._expansion.set_expanded(self._needs_expansion(columns, rows)):
+            width, height = self._available()
+            gap = self._gap()
+            columns, rows, size = choose_slot_layout(
+                self._names,
+                width,
+                height,
+                self._base_font,
+                self.base_point_size,
+                self.min_point_size,
+                self.font_step,
+                gap,
+                count,
+            )
         self._columns = columns
         self._rows = rows
         self._layout_point_size = size

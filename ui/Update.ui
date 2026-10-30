@@ -47,7 +47,6 @@
      </property>
      <property name="styleSheet">
       <string notr="true">QLabel#statusLabel {
-    color: #FFFFFF;
     padding: 8px;
 }
 </string>
@@ -71,14 +70,7 @@
       </font>
      </property>
      <property name="styleSheet">
-      <string notr="true">QPlainTextEdit {
-    background-color: rgba(20, 20, 20, 255);
-    border: 1px solid #5F6368;
-    border-radius: 6px;
-    padding: 8px;
-    color: #F5F5F5;
-}
-QScrollBar:vertical { width: 22px; }
+      <string notr="true">QScrollBar:vertical { width: 22px; }
 QScrollBar:horizontal { height: 22px; }
 </string>
      </property>

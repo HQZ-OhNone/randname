@@ -13,7 +13,7 @@ randname is a desktop app for classroom roll calls. The Mode menu contains Singl
 
 All four quantity pages provide a vertical slider from `1` to the current roster size. It supports dragging and touch input and stays synchronised with the buttons and quantity display. Changing rosters or refreshing configuration clamps an out-of-range quantity automatically.
 
-The output box never changes the window size. In non-rolling modes, names are shown on one line when possible, wrapped onto multiple lines when there is enough height, and the font is reduced for the current draw when the box is already full. Rolling modes keep every name in a fixed slot and reduce the font only when a name cannot fit its slot. Name spacing is compact, and on large screens the rolling grid is capped by its content width and centred instead of stretching names across the whole box.
+The output box never changes the window size. In non-rolling modes, names are shown on one line when possible, wrapped onto multiple lines when there is enough height, and the font is reduced for the current draw when the box is already full. If even the minimum font size does not fit, the box temporarily takes over the blank space above and below it and restores its normal size when fewer names are shown. Rolling modes keep every name in a fixed slot and reduce the font only when a name cannot fit its slot. Name spacing is compact, and on large screens the rolling grid is capped by its content width and centred instead of stretching names across the whole box.
 
 ## Rosters
 
@@ -36,15 +36,15 @@ Use a unique key for every person. Roster display names use the current interfac
 
 Select a language from Language. Available language packs are listed in `config/language.toml`; English is built in and remains available if that file is missing. The `preferred` value selects the first-startup language. A legacy `app.language` in `config/config.toml` is only a fallback; `language.toml`'s `preferred` wins. Switching language applies immediately and does not discard the current draw result.
 
-Themes are stored in `config/theme.toml`. Its `default` key selects the fallback theme. Theme names use the same current-language, system-language, English, key fallback order as roster names.
+Themes are stored in `config/theme.toml`. Its `default` key selects the fallback theme. Theme names use the same current-language, system-language, English, key fallback order as roster names. The Theme menu shows dark and light themes in two columns, and light themes use softer tinted backgrounds instead of glaring white.
 
-Add a `[themes.<key>.background]` table to any theme to show a background image; `image` is resolved relative to `ui/`. Supported fit modes are `cover`, `contain`, `center`, and `tile`; supported blur directions are `uniform`, `horizontal`, `vertical`, `diagonal`, `center-out`, and `out-center`. Themes without an image keep the normal background. `randname-bg-light` is a selectable example theme, while the default `randname-dark` appearance is unchanged. The image appears only in the central content area; the menu bar and status bar keep the theme background and draw a shadow. On Windows 11 the title bar follows the theme through DWM; Windows 10 only switches between light and dark.
+Add a `[themes.<key>.background]` table to any theme to show a background image; `image` is resolved relative to `ui/`. Supported fit modes are `cover`, `contain`, `center`, and `tile`; supported blur directions are `uniform`, `horizontal`, `vertical`, `diagonal`, `center-out`, and `out-center`. Themes without an image keep the normal background. `randname-bg-light` is a selectable example theme, while the default `randname-dark` appearance is unchanged. The image appears only in the central content area; the menu bar and status bar keep the theme background and draw a shadow. On Output-box colours come from each theme's `[themes.<key>.output]` table: `background`, `foreground`, and `border`; the legacy `colors.display_*` keys still work as fallbacks. The menu bar and status bar always use the theme background. On Windows 11 the title bar follows the theme through DWM; Windows 10 only switches between light and dark.
 
 randname does not remember the theme, roster, log level, mode, language, quantity, or window size from the last session. Every startup reads the configuration and dedicated theme/language files so the interface state is consistent. The memory file is used only to store and import/export recent results.
 
 ## Window and Status Bar
 
-The main window can be resized by dragging its edges, but the next startup still uses the initial size configured in `[window]`; the last resized size is not remembered. Long names and memory imports never change the window size. Set `size_mode` to `"maximum"` to start maximised. If `size_mode = "fixed"` and the configured width or height exceeds the available screen, randname temporarily maximises without rewriting the configuration and uses an on-screen size when restored.
+The main window can be resized by dragging its edges, but the next startup still uses the initial size configured in `[window]`; the last resized size is not remembered. Long names and memory imports never change the window size. Set `size_mode` to `"maximum"` to start maximised. If `size_mode = "fixed"` and the configured width or height exceeds the available screen, randname temporarily maximises without rewriting the configuration and uses an on-screen size when restored. Set `fullscreen = true` under `[window]` to start in full screen; it takes precedence over `size_mode`.
 
 The left side of the status bar shows temporary messages such as "Multi complete"; the right side shows the current mode, roster, quantity, theme, language, log level, and version. Each item can be hidden in `[statusbar]`.
 
@@ -55,6 +55,7 @@ Edit `config/config.toml` to set the startup mode, roster, splash screen, window
 ```toml
 [window]
 size_mode = "screen_ratio"   # or "fixed", "maximum"
+fullscreen = false           # start in full screen when true
 screen_ratio = 0.75          # initial size as a share of the available screen
 aspect_ratio = 1.5
 width = 1000

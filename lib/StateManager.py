@@ -70,6 +70,7 @@ BUILTIN_CONFIG = {
         "width": 1000,
         "height": 600,
         "resizable": True,
+        "fullscreen": False,
     },
     "ui": {
         "font_family": "",

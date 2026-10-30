@@ -59,7 +59,10 @@ from PySide6.QtWidgets import (
     QMenu,
     QSplashScreen,
     QSlider,
+    QToolButton,
+    QVBoxLayout,
     QWidget,
+    QWidgetAction,
 )
 
 from lib.version import APP_VERSION
@@ -141,6 +144,11 @@ def _configured_size(section: dict, screen_width: int, screen_height: int, *, sp
 def _window_is_maximized(section: dict) -> bool:
     """判断窗口配置是否要求启动时最大化。"""
     return isinstance(section, dict) and section.get("size_mode") == "maximum"
+
+
+def _window_is_fullscreen(section: dict) -> bool:
+    """窗口配置是否要求启动后进入全屏。"""
+    return isinstance(section, dict) and section.get("fullscreen") is True
 
 
 def _fixed_size_exceeds_screen(section: dict, screen_width: int, screen_height: int) -> bool:
@@ -326,6 +334,7 @@ class MainWindow(QMainWindow):
         self.action_check_update = None
         self.action_init = None
         self.theme_actions = None
+        self._theme_menu_widget = None
         self.language_actions = None
         self.roster_actions = None
         self.log_level_actions = None
@@ -374,6 +383,7 @@ class MainWindow(QMainWindow):
         self._resizable = True
         self._start_maximized = False
         self._temporary_maximized = False
+        self._start_fullscreen = False
 
         self._build_ui()
         self._apply_config_window()
@@ -421,11 +431,21 @@ class MainWindow(QMainWindow):
         screen_height = geometry.height() if geometry is not None else 800
         oversized_fixed = _fixed_size_exceeds_screen(window, screen_width, screen_height)
         self._temporary_maximized = oversized_fixed
+        self._start_fullscreen = _window_is_fullscreen(window)
         self._start_maximized = _window_is_maximized(window) or oversized_fixed
         self._resizable = window.get("resizable", True) is not False
         if oversized_fixed:
             # 固定尺寸大于可用屏幕时临时允许最大化与还原；不改写配置文件。
             self._resizable = True
+        if self.isFullScreen() and not self._start_fullscreen:
+            self.showNormal()
+        if self._start_fullscreen:
+            # 全屏优先于 size_mode；只约束最小尺寸，退出全屏后按需还原。
+            self.setMinimumSize(640, 480)
+            self.setMaximumSize(16777215, 16777215)
+            if self.isVisible():
+                self.showFullScreen()
+            return
         if self._start_maximized:
             # 最大化模式只约束最小尺寸，实际显示时由 showMaximized() 完成。
             self.setMinimumSize(640, 480)
@@ -560,6 +580,7 @@ class MainWindow(QMainWindow):
             self.action_check_update.triggered.connect(self._open_update_check)
 
     def _build_theme_menu(self):
+        """把主题按深色/浅色分成左右两列，避免菜单过长。"""
         theme_menu = getattr(self.ui_main, "menu_theme", None)
         if theme_menu is None:
             theme_menu = next(
@@ -570,23 +591,62 @@ class MainWindow(QMainWindow):
             theme_menu = self.menuBar().addMenu("主题")
         else:
             theme_menu.clear()
+        if getattr(self, "_theme_menu_widget", None) is not None:
+            # theme_menu.clear() 可能已随 QWidgetAction 销毁旧容器。
+            try:
+                self._theme_menu_widget.deleteLater()
+            except RuntimeError:
+                pass
+            self._theme_menu_widget = None
         if self.theme_actions is not None:
             self.theme_actions.deleteLater()
         self.theme_actions = QActionGroup(theme_menu)
         self.theme_actions.setExclusive(True)
+
+        columns = {"dark": [], "light": []}
         for key, theme in self.themes.items():
-            display_name = LanguageManager.localized_name(
-                theme.get("name", {}), self.current_language, self.languages
-            ) or key
-            action = QAction(display_name, self)
-            action.setCheckable(True)
-            action.setChecked(key == self.selected_theme)
-            action.triggered.connect(
-                lambda _checked=False, theme_key=key: self._select_theme(theme_key)
-            )
-            action.setData(key)
-            self.theme_actions.addAction(action)
-            theme_menu.addAction(action)
+            column = "light" if ThemeManager.is_light_theme(theme) else "dark"
+            columns[column].append(key)
+
+        container = QWidget()
+        container.setObjectName("theme_menu_container")
+        layout = QHBoxLayout(container)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(16)
+        for column, title_key in (("dark", "menu.theme.dark"), ("light", "menu.theme.light")):
+            box = QVBoxLayout()
+            box.setSpacing(2)
+            header = QLabel(self._t(title_key), container)
+            header.setObjectName("theme_column_header")
+            box.addWidget(header)
+            for key in columns[column]:
+                theme = self.themes.get(key, {})
+                display_name = LanguageManager.localized_name(
+                    theme.get("name", {}), self.current_language, self.languages
+                ) or key
+                action = QAction(display_name, self)
+                action.setCheckable(True)
+                action.setChecked(key == self.selected_theme)
+                action.setData(key)
+                action.triggered.connect(
+                    lambda _checked=False, theme_key=key, menu=theme_menu: (
+                        self._select_theme(theme_key), menu.close()
+                    )
+                )
+                self.theme_actions.addAction(action)
+                button = QToolButton(container)
+                button.setDefaultAction(action)
+                button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+                button.setAutoRaise(True)
+                button.setCursor(Qt.CursorShape.PointingHandCursor)
+                box.addWidget(button)
+            box.addStretch(1)
+            layout.addLayout(box)
+        self._theme_menu_widget = container
+        container.adjustSize()
+        holder = QWidgetAction(theme_menu)
+        holder.setDefaultWidget(container)
+        theme_menu.addAction(holder)
 
     def _build_language_menu(self):
         language_menu = self.ui_main.menu_language
@@ -705,9 +765,11 @@ class MainWindow(QMainWindow):
             self.stacked_widget.raise_()
 
     def _set_background_style(self, enabled: bool):
-        """切换背景时刷新 QSS 的透明规则。"""
-        self._background_enabled = bool(enabled)
-        self.setProperty("hasBackgroundImage", self._background_enabled)
+        """切换背景时刷新 QSS 的透明规则；只有启用状态变化才重设样式表。"""
+        enabled = bool(enabled)
+        changed = enabled != self._background_enabled
+        self._background_enabled = enabled
+        self.setProperty("hasBackgroundImage", enabled)
         for widget in (self, self.centralWidget(), self.stacked_widget,
                        self.page_multi, self.page_lift,
                        self.page_scroll_multi, self.page_scroll_lift):
@@ -719,6 +781,8 @@ class MainWindow(QMainWindow):
                 widget.update()
             except Exception:
                 pass
+        if not changed:
+            return
         # 祖先属性变化后，Qt 不会自动重算所有后代的选择器；重设一次样式表。
         app = QApplication.instance()
         if isinstance(app, QApplication) and app.styleSheet():
@@ -937,8 +1001,10 @@ class MainWindow(QMainWindow):
         try:
             self.selected_theme = ThemeManager.apply_theme(app, name, self.themes)
             StateManager.log("INFO", "theme", result=self.selected_theme)
-            self._apply_theme_background(self.selected_theme)
+            # 先设置标题栏，避免被随后的整窗 QSS 重刷拖慢；重刷后再补一次。
             self._apply_window_frame()
+            self._apply_theme_background(self.selected_theme)
+            QTimer.singleShot(0, self._apply_window_frame)
             theme = self.themes.get(self.selected_theme, {})
             theme_name = LanguageManager.localized_name(
                 theme.get("name", {}), self.current_language, self.languages
@@ -2028,7 +2094,9 @@ def main():
         logging.exception("应用启动主题失败: %s", exc)
         StateManager.log("ERROR", "startup_theme", error=str(exc))
     def reveal_window():
-        if getattr(window, "_start_maximized", False):
+        if getattr(window, "_start_fullscreen", False):
+            window.showFullScreen()
+        elif getattr(window, "_start_maximized", False):
             window.showMaximized()
         else:
             window.show()

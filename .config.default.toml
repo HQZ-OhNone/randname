@@ -46,6 +46,10 @@ height = 600
 # true = 可拉伸；false = 窗口尺寸固定。
 resizable = true
 
+# 启动后是否进入全屏（不显示标题栏与边框）。
+# 为 true 时优先于 size_mode；不会改写本文件。
+fullscreen = false
+
 [ui]
 # 输出框字体。留空字符串表示使用界面默认字体。
 font_family = ""

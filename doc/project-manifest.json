@@ -7,7 +7,7 @@
     "license": "GPL-3.0-or-later",
     "entrypoint": "main.py",
     "version_file": "lib/version.py",
-    "app_version": "3.11.0",
+    "app_version": "3.11.1",
     "python": "3.12.10",
     "gui": "PySide6 6.11.1 (Qt 6)",
     "build_tool": "Nuitka 4.1.3",
@@ -282,7 +282,7 @@
   ],
   "tests": {
     "runner": ".venv/bin/python -m unittest discover -s script -p 'test_*.py'",
-    "count_at_2026_10_27": 54,
+    "count_at_2026_10_27": 65,
     "status_at_2026_10_27": "pass",
     "headless_env": "QT_QPA_PLATFORM=offscreen (set inside GUI tests)",
     "policy": "logic changes must update the matching test file"
@@ -383,7 +383,9 @@
       "provides": [
         "discover_themes",
         "resolve_startup_theme",
-        "apply_theme"
+        "apply_theme",
+        "output_config",
+        "is_light_theme"
       ]
     },
     {
@@ -464,7 +466,7 @@
     },
     {
       "path": "config/theme.toml",
-      "purpose": "Theme colors, localized theme names, optional per-theme background images, and default theme.",
+      "purpose": "Theme colors, localized theme names, per-theme output-box colors, optional per-theme background images, and default theme.",
       "runtime": true
     },
     {

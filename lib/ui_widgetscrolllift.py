@@ -95,14 +95,6 @@ class Ui_Form(object):
         font2.setFamilies([u"\u6587\u6cc9\u9a5b\u5fae\u7c73\u9ed1"])
         font2.setPointSize(33)
         self.label_ScrollLiftOutput.setFont(font2)
-        self.label_ScrollLiftOutput.setStyleSheet(u"QLabel {\n"
-"    background-color: rgba(20, 20, 20, 255);  /* \u6df1\u8272\u80cc\u666f */\n"
-"    border: 2px solid #4A90E2;                /* \u84dd\u8272\u8fb9\u6846 */\n"
-"    border-radius: 15px;                      /* \u5706\u89d2\u534a\u5f84 */\n"
-"    padding: 8px;                             /* \u5185\u8fb9\u8ddd */\n"
-"    color: white;                             /* \u5b57\u4f53\u989c\u8272 */\n"
-"}\n"
-"")
         self.label_ScrollLiftOutput.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.gridLayout.addWidget(self.label_ScrollLiftOutput, 1, 1, 1, 1)

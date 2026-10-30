@@ -37,7 +37,6 @@ class Ui_UpdateDialog(object):
         font.setBold(True)
         self.statusLabel.setFont(font)
         self.statusLabel.setStyleSheet(u"QLabel#statusLabel {\n"
-"    color: #FFFFFF;\n"
 "    padding: 8px;\n"
 "}\n"
 "")
@@ -51,14 +50,7 @@ class Ui_UpdateDialog(object):
         font1 = QFont()
         font1.setPointSize(12)
         self.historyEdit.setFont(font1)
-        self.historyEdit.setStyleSheet(u"QPlainTextEdit {\n"
-"    background-color: rgba(20, 20, 20, 255);\n"
-"    border: 1px solid #5F6368;\n"
-"    border-radius: 6px;\n"
-"    padding: 8px;\n"
-"    color: #F5F5F5;\n"
-"}\n"
-"QScrollBar:vertical { width: 22px; }\n"
+        self.historyEdit.setStyleSheet(u"QScrollBar:vertical { width: 22px; }\n"
 "QScrollBar:horizontal { height: 22px; }\n"
 "")
         self.historyEdit.setReadOnly(True)

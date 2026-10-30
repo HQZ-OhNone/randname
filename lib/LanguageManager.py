@@ -14,6 +14,8 @@ ENGLISH = {
     "menu.file": "File",
     "menu.mode": "Mode",
     "menu.theme": "Theme",
+    "menu.theme.dark": "Dark",
+    "menu.theme.light": "Light",
     "menu.language": "Language",
     "menu.roster": "Roster",
     "menu.about": "About",

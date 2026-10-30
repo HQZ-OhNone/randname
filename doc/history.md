@@ -12,6 +12,45 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 This file is appended per session: completed work, unresolved findings, and
 verification results.
 
+## 2026-10-27 / 3.11.1
+
+### 已完成 / Completed
+
+- 主題選單改為深色／淺色兩欄（`QWidgetAction` + `QToolButton`），並支援語言切換重建；新增 `menu.theme.dark`、`menu.theme.light` 三語字串。
+- 刪除「中性深色」「中性淺色」主題；主題總數由 15 減為 13。
+- 七個淺色主題改用帶主題色的柔和底色（頁面、面板、按鈕、邊框、強調色同步調整），降低純白刺眼感。
+- 輸出框顏色改由每個主題的 `[themes.<鍵名>.output]`（`background`／`foreground`／`border`）控制，移除 `ui/Widget*.ui` 中寫死的底色、白字與藍框；深色主題維持 `#141414FF`／`#FFFFFFFF`／`#4A90E2FF` 的原有外觀，舊 `colors.display_*` 保留為後備。
+- 檢查更新視窗的大字改為跟隨主題前景色，正文框改為主題 `panel` 底色與 `border` 邊框。
+- `WindowTheme.apply_titlebar()` 以 `SetWindowPos(SWP_FRAMECHANGED)` 與 `DwmFlush()` 強制重畫標題欄；`_select_theme()` 先上色、背景刷新後再補一次。
+- `[window]` 新增 `fullscreen`，啟動可直接全屏，優先於 `size_mode`。
+- 輸出框在最小字號仍放不下時，才臨時佔用上下空白（`_OutputExpansion`），人少時恢復原尺寸。
+- 版本更新為 3.11.1；同步三語說明、三語邏輯文件、README、manifest。
+
+### 發現但未解決 / Found but unresolved
+
+- Windows 11/10 的標題欄即時重繪僅以程式碼與非 Windows 回退測試驗證，尚未在實機 Windows 確認延遲是否完全消失。
+- 主題選單的兩欄按鈕在部分 Linux 桌面環境（Wayland + 非預設主題）可能仍保留原生選單邊距，尚未逐一實測。
+- `randname-bg-light` 的輸出框使用半透明底色，背景圖較亮時文字對比度仍需實機確認。
+
+### 驗證 / Verification
+
+- `.venv/bin/python -m unittest discover -s script -p 'test_*.py'`：65 項通過。
+- `python -m py_compile main.py lib/*.py script/*.py` 通過。
+- `python -m json.tool doc/project-manifest.json` 通過。
+- 離屏 Qt 實測：主題選單兩欄、淺色主題切換、輸出框 expand/collapse（Multi 與 ScrollMulti）、更新視窗文字與正文框跟隨主題、深色輸出框仍為 `#141414`。
+
+### English summary
+
+- Split the Theme menu into dark and light columns using `QWidgetAction` + `QToolButton`, rebuilding on language changes; added `menu.theme.dark`/`menu.theme.light` in all three languages.
+- Removed the Neutral Dark and Neutral Light themes, reducing the catalog from 15 to 13.
+- Retuned all seven light themes with softer, tinted backgrounds (page, panel, buttons, borders, and accent together) to avoid glaring white.
+- Output-box colours now come from each theme's `[themes.<key>.output]` table (`background`/`foreground`/`border`); the hard-coded colours were removed from `ui/Widget*.ui`. Dark themes keep `#141414FF`/`#FFFFFFFF`/`#4A90E2FF`, and the legacy `colors.display_*` keys remain as fallbacks.
+- The update dialog's headline follows the theme foreground, and its history box uses the theme `panel` background and `border`.
+- `WindowTheme.apply_titlebar()` forces a title-bar repaint with `SetWindowPos(SWP_FRAMECHANGED)` and `DwmFlush()`; `_select_theme()` applies the colour before the background refresh and re-applies it afterwards.
+- `[window]` gained `fullscreen`, which starts the app in full screen and takes precedence over `size_mode`.
+- The output box only borrows the blank space above and below when even the minimum font size does not fit (`_OutputExpansion`), restoring its normal size for fewer names.
+- Version bumped to 3.11.1; all three help/logic documents, the README, and the manifest were updated.
+
 ## 2026-10-27 / 3.11.0
 
 ### 已完成 / Completed

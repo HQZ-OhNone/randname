@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文记录 randname 3.11.0 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
+本文记录 randname 3.11.1 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
 `logic_en_US.md`，正體中文版见 `logic_zh_TW.md`。
 
 ## 1. 术语与模式
@@ -31,7 +31,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路径 | 职责 |
 | --- | --- |
 | `main.py` | 启动、主窗口、菜单、状态栏、页面切换、记忆回填、查看器入口 |
-| `lib/version.py` | `APP_VERSION = "3.11.0"` |
+| `lib/version.py` | `APP_VERSION = "3.11.1"` |
 | `lib/Multi.py` | 多抽算法 |
 | `lib/Lift.py` | 减量抽算法 |
 | `lib/ScrollMulti.py` | 滚动多抽控制器 |
@@ -62,7 +62,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 3. `_bootstrap_config()` 读取 `config/config.toml`；失败时读取 `.config.default.toml`，再失败使用内建配置。
 4. 读取图标；创建启动画面。
 5. 启动画面按 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 缩放，保持宽高比。
-6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.11.0`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
+6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.11.1`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
 7. `_startup_file_check()` 检查可恢复文件；缺失项加入启动警告。`required` 当前恒为空，因此“启动检查失败”分支不可达。
 8. 导入 `lib` 模块。
 9. 图标、启动图、帮助、许可证、日志与记忆路径固定于代码，不再有可配置路径段。
@@ -483,7 +483,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-当前版本：**3.11.0**。
+当前版本：**3.11.1**。
 
 3.8.x 主要变化：
 
@@ -618,3 +618,15 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - `randname-start.png` 原本已由构建脚本与 CI 打包，移除重复资源后不再需要额外的 data-file 条目。
 - Release 流程维持从 `doc/releasenote.md` 截取版本段落，并在 body 末尾保留 `Built from commit: ...`。
 - 版本更新为 3.11.0。
+
+## 34. 3.11.1 界面改版
+
+- 「主题」菜单改为深色/浅色两列：`ThemeManager.is_light_theme()` 依 `colors.background` 亮度分类，`_build_theme_menu()` 用 `QWidgetAction` + `QToolButton` 呈现，语言切换时重建。
+- 删除「中性深色」「中性浅色」两个主题，主题总数由 15 减为 13。
+- 全部浅色主题改为带主题色的柔和底色（页面、面板、按钮、边框与强调色同步调整），不再使用接近纯白的背景。
+- 输出框颜色改由 `[themes.<键名>.output]` 的 `background`/`foreground`/`border` 控制；移除 `ui/Widget*.ui` 中写死的结果框底色、白字与蓝色边框。深色主题统一取值 `#141414FF`/`#FFFFFFFF`/`#4A90E2FF`，外观与旧版一致；旧 `colors.display_*` 仍作为后备。
+- 检查更新窗口的大字改为跟随主题前景色，正文框改用 `panel` 底色与 `border` 边框，不再写死深色样式。
+- `lib/WindowTheme.apply_titlebar()` 设置 DWM 属性后再调用 `SetWindowPos(..., SWP_FRAMECHANGED)` 与 `DwmFlush()` 强制重画标题栏；`_select_theme()` 先上色再刷新背景，并在事件循环空闲时补一次，消除切换主题时标题栏的延迟。
+- `[window]` 新增 `fullscreen`：为 true 时启动直接 `showFullScreen()`，优先于 `size_mode`；运行中重载配置关闭该项会先 `showNormal()` 再按尺寸模式重排。
+- `OutputView` 与 `SlotOutputView` 新增 `_OutputExpansion`：仅在最小字号仍放不下时，把输出框所在行的 stretch 设为 1 以占用窗口上下空白；`set_message()`、`clear_round()` 或人数减少时恢复。使用重入旗标避免布局递归。
+- 版本更新为 3.11.1。

@@ -23,9 +23,11 @@ BUILTIN_THEME = {
         "background": "#211823FF",
         "foreground": "#F9EDF7FF",
         "panel": "#302333FF",
-        "display_background": "#38283BEE",
-        "display_foreground": "#FFF6FCFF",
-        "display_border": "#C47DB5FF",
+        "output": {
+            "background": "#141414FF",
+            "foreground": "#FFFFFFFF",
+            "border": "#4A90E2FF",
+        },
         "button": "#493149FF",
         "button_hover": "#633F60FF",
         "button_pressed": "#7A4B75FF",
@@ -210,6 +212,46 @@ def resolve_background_image(image: str) -> Path:
     return ROOT / "ui" / path
 
 
+def output_config(theme: dict) -> dict:
+    """读取输出框颜色；优先 [themes.<键名>.output]，兼容旧 display_* 键。"""
+    theme = theme if isinstance(theme, dict) else {}
+    colors = theme.get("colors", {})
+    colors = colors if isinstance(colors, dict) else {}
+    output = theme.get("output", {})
+    output = output if isinstance(output, dict) else {}
+
+    def pick(key, legacy, default):
+        value = output.get(key)
+        if isinstance(value, str) and value.strip():
+            return value
+        value = colors.get(legacy)
+        if isinstance(value, str) and value.strip():
+            return value
+        return default
+
+    return {
+        "background": pick("background", "display_background", "#141414"),
+        "foreground": pick("foreground", "display_foreground", "#FFFFFF"),
+        "border": pick("border", "display_border", "#4A90E2"),
+    }
+
+
+def is_light_theme(theme: dict) -> bool:
+    """按页面底色亮度判断主题属于浅色列还是深色列。"""
+    if not isinstance(theme, dict):
+        return False
+    colors = theme.get("colors", {})
+    if not isinstance(colors, dict):
+        return False
+    raw = colors.get("background", "#202124")
+    color_format = theme.get("color_format", "Hex")
+    try:
+        color = parse_color(raw, color_format, allow_alpha=False)
+    except (TypeError, ValueError):
+        return False
+    return color.lightnessF() >= 0.5
+
+
 def _stylesheet(theme: dict) -> str:
     colors = theme.get("colors", {})
     color_format = theme.get("color_format", "Hex")
@@ -222,9 +264,10 @@ def _stylesheet(theme: dict) -> str:
     button_pressed = _color(colors.get("button_pressed", "#5f6368"), color_format)
     border = _color(colors.get("border", "#5f6368"), color_format)
     accent = _color(colors.get("accent", "#3f51b5"), color_format)
-    display_background = _color(colors.get("display_background", "#292a2d"), color_format)
-    display_foreground = _color(colors.get("display_foreground", "#f5f5f5"), color_format)
-    display_border = _color(colors.get("display_border", "#5f6368"), color_format)
+    output = output_config(theme)
+    output_background = _color(output["background"], color_format)
+    output_foreground = _color(output["foreground"], color_format)
+    output_border = _color(output["border"], color_format)
     return f"""
     QMainWindow, QWidget, QStackedWidget, QFrame {{
         background-color: {background};
@@ -236,9 +279,37 @@ def _stylesheet(theme: dict) -> str:
     QLabel#label_MultiOutput,
     QLabel#label_LiftOutput, QLabel#label_ScrollMultiOutput,
     QLabel#label_ScrollLiftOutput {{
-        background-color: {display_background};
-        color: {display_foreground};
-        border: 1px solid {display_border};
+        background-color: {output_background};
+        color: {output_foreground};
+        border: 2px solid {output_border};
+        border-radius: 15px;
+        padding: 8px;
+    }}
+    QDialog {{
+        background-color: {background};
+        color: {foreground};
+    }}
+    QPlainTextEdit, QTextEdit, QLineEdit {{
+        background-color: {panel};
+        color: {foreground};
+        border: 1px solid {border};
+        border-radius: 6px;
+        padding: 8px;
+    }}
+    QMenu QToolButton {{
+        background-color: transparent;
+        color: {foreground};
+        border: none;
+        border-radius: 4px;
+        padding: 4px 10px;
+        text-align: left;
+    }}
+    QMenu QToolButton:hover {{ background-color: {accent}; }}
+    QMenu QToolButton:checked {{ font-weight: bold; }}
+    QLabel#theme_column_header {{
+        color: {foreground};
+        font-weight: bold;
+        padding: 4px 10px;
     }}
     QPushButton {{
         background-color: {button};

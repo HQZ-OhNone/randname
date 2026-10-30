@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文記錄 randname 3.11.0 的實際行為、隱藏機制與邊界。簡體中文見
+本文記錄 randname 3.11.1 的實際行為、隱藏機制與邊界。簡體中文見
 `logic_zh_CN.md`，英文見 `logic_en_US.md`。
 
 ## 1. 術語與模式
@@ -32,7 +32,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路徑 | 職責 |
 | --- | --- |
 | `main.py` | 啟動、主視窗、選單、狀態列、頁面切換、記憶回填 |
-| `lib/version.py` | `APP_VERSION = "3.11.0"` |
+| `lib/version.py` | `APP_VERSION = "3.11.1"` |
 | `lib/Multi.py` | 多抽演算法 |
 | `lib/Lift.py` | 減量抽演算法 |
 | `lib/ScrollMulti.py` | 滾動多抽控制器 |
@@ -60,7 +60,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
    `.config.default.toml`，再失敗使用內建設定。
 4. 載入圖示與啟動畫面。
 5. 依 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 縮放，保持比例。
-6. `_draw_splash_version()` 在右下角繪製 `v3.11.0`；字號始終依圖片寬度的三分之一
+6. `_draw_splash_version()` 在右下角繪製 `v3.11.1`；字號始終依圖片寬度的三分之一
    自動縮放，文字固定為純白色，不提供字號或顏色設定。
 7. `_startup_file_check()` 收集可恢復檔案警告；`required` 目前恆為空。
 8. 匯入 `lib` 模組。
@@ -446,7 +446,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-目前版本：**3.11.0**。
+目前版本：**3.11.1**。
 
 3.8.x 主要變更：
 
@@ -587,3 +587,15 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - `randname-start.png` 原本已由建置腳本與 CI 打包，移除重複資產後不再需要額外的 data-file 條目。
 - Release 流程維持從 `doc/releasenote.md` 截取版本段落，並在 body 末尾保留 `Built from commit: ...`。
 - 版本更新為 3.11.0。
+
+## 34. 3.11.1 介面改版
+
+- 「主題」選單改為深色/淺色兩欄：`ThemeManager.is_light_theme()` 依 `colors.background` 亮度分類，`_build_theme_menu()` 以 `QWidgetAction` + `QToolButton` 呈現，切換語言時重建。
+- 刪除「中性深色」「中性淺色」兩個主題，主題總數由 15 減為 13。
+- 全部淺色主題改為帶主題色的柔和底色（頁面、面板、按鈕、邊框與強調色同步調整），不再使用接近純白的背景。
+- 輸出框顏色改由 `[themes.<鍵名>.output]` 的 `background`/`foreground`/`border` 控制；移除 `ui/Widget*.ui` 中寫死的結果框底色、白字與藍色邊框。深色主題統一取值 `#141414FF`/`#FFFFFFFF`/`#4A90E2FF`，外觀與舊版一致；舊 `colors.display_*` 仍作為後備。
+- 檢查更新視窗的大字改為跟隨主題前景色，正文框改用 `panel` 底色與 `border` 邊框，不再寫死深色樣式。
+- `lib/WindowTheme.apply_titlebar()` 設定 DWM 屬性後再呼叫 `SetWindowPos(..., SWP_FRAMECHANGED)` 與 `DwmFlush()` 強制重畫標題欄；`_select_theme()` 先上色再刷新背景，並在事件迴圈閒置時補一次，消除切換主題時標題欄的延遲。
+- `[window]` 新增 `fullscreen`：為 true 時啟動直接 `showFullScreen()`，優先於 `size_mode`；執行中重新載入設定關閉該項會先 `showNormal()` 再依尺寸模式重排。
+- `OutputView` 與 `SlotOutputView` 新增 `_OutputExpansion`：僅在最小字號仍放不下時，把輸出框所在列的 stretch 設為 1 以佔用視窗上下空白；`set_message()`、`clear_round()` 或人數減少時恢復。使用重入旗標避免版面遞迴。
+- 版本更新為 3.11.1。

@@ -99,6 +99,20 @@ class QuantitySliderTests(unittest.TestCase):
         self.app.processEvents()
         self.assertEqual(self.window.multi_quantity, 1)
 
+    def test_theme_menu_has_dark_and_light_columns(self):
+        from PySide6.QtWidgets import QLabel, QToolButton
+
+        actions = self.window.ui_main.menu_theme.actions()
+        self.assertEqual(len(actions), 1)
+        container = actions[0].defaultWidget()
+        self.assertIsNotNone(container)
+        headers = [label.text() for label in container.findChildren(QLabel)]
+        self.assertEqual(headers, ["深色", "淺色"])
+        buttons = container.findChildren(QToolButton)
+        self.assertEqual(len(buttons), len(self.themes))
+        checked = [button.text() for button in buttons if button.isChecked()]
+        self.assertEqual(len(checked), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

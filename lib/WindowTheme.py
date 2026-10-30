@@ -46,6 +46,26 @@ def _set_attribute(dwmapi, hwnd: int, attribute: int, value: int) -> bool:
     return result == 0
 
 
+def _redraw_frame(hwnd: int) -> None:
+    """强制重画非客户区，避免标题栏颜色延迟生效。"""
+    import ctypes
+
+    SWP_NOSIZE = 0x0001
+    SWP_NOMOVE = 0x0002
+    SWP_NOZORDER = 0x0004
+    SWP_NOACTIVATE = 0x0010
+    SWP_FRAMECHANGED = 0x0020
+    flags = SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED
+    try:
+        ctypes.windll.user32.SetWindowPos(ctypes.c_void_p(hwnd), None, 0, 0, 0, 0, flags)
+    except Exception:
+        pass
+    try:
+        ctypes.windll.dwmapi.DwmFlush()
+    except Exception:
+        pass
+
+
 def apply_titlebar(hwnd: int, color: QColor, dark: bool | None = None) -> bool:
     """尝试把窗口标题栏设置为指定颜色，失败时静默返回 False。"""
     if sys.platform != "win32" or not hwnd:
@@ -74,13 +94,18 @@ def apply_titlebar(hwnd: int, color: QColor, dark: bool | None = None) -> bool:
     except Exception:
         applied = False
     if applied:
+        _redraw_frame(hwnd)
         return True
 
     # Windows 10/11 回退：只切换深色/浅色标题栏。
     try:
         if _set_attribute(dwmapi, hwnd, 20, 1 if dark else 0):
+            _redraw_frame(hwnd)
             return True
-        return _set_attribute(dwmapi, hwnd, 19, 1 if dark else 0)
+        if _set_attribute(dwmapi, hwnd, 19, 1 if dark else 0):
+            _redraw_frame(hwnd)
+            return True
+        return False
     except Exception:
         return False
 

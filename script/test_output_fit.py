@@ -66,6 +66,53 @@ class OutputFitTests(unittest.TestCase):
         self.assertTrue("\n" in label.text() or label.font().pointSizeF() < 30)
         self.assertGreaterEqual(label.font().pointSizeF(), 12)
 
+    def test_output_expands_only_when_min_font_does_not_fit(self):
+        from PySide6.QtWidgets import QGridLayout, QLabel as _QLabel, QWidget
+
+        page = QWidget()
+        page.resize(480, 220)
+        grid = QGridLayout(page)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setSpacing(8)
+        top = QLabel("top")
+        bottom = QLabel("bottom")
+        grid.addWidget(top, 0, 0)
+        label = QLabel()
+        label.setWordWrap(True)
+        grid.addWidget(label, 1, 0)
+        grid.addWidget(bottom, 2, 0)
+        view = OutputView(label, {"ui": {
+            "display_font_size": 30,
+            "display_min_font_size": 15,
+            "display_font_step": 1,
+            "display_padding": 8,
+            "display_line_spacing": 1.0,
+        }}, 30)
+        page.show()
+        self.app.processEvents()
+
+        view.set_names(["短名字", "短名字"], use_lock=False)
+        self.app.processEvents()
+        self.assertFalse(view._expansion.expanded)
+
+        many = [f"非常非常非常长的名字{i:02d}" for i in range(40)]
+        view.set_names(many, use_lock=False)
+        self.app.processEvents()
+        self.assertTrue(view._expansion.expanded)
+        self.assertEqual(grid.rowStretch(1), 1)
+        self.assertGreater(label.height(), 0)
+
+        view.set_names(["短名字", "短名字"], use_lock=False)
+        self.app.processEvents()
+        self.assertFalse(view._expansion.expanded)
+        self.assertEqual(grid.rowStretch(1), 0)
+        page.close()
+
+    def test_output_expansion_is_noop_without_grid_layout(self):
+        label, view = self.make_view()
+        view.set_names([f"名字{i}" for i in range(60)], use_lock=False)
+        self.assertFalse(view._expansion.expanded)
+
     def test_round_lock_keeps_font_stable(self):
         label, view = self.make_view()
         pool = ["短", "很长很长很长的名字"]

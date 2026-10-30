@@ -122,16 +122,6 @@
        <pointsize>33</pointsize>
       </font>
      </property>
-     <property name="styleSheet">
-      <string notr="true">QLabel {
-    background-color: rgba(20, 20, 20, 255);  /* 深色背景 */
-    border: 2px solid #4A90E2;                /* 蓝色边框 */
-    border-radius: 15px;                      /* 圆角半径 */
-    padding: 8px;                             /* 内边距 */
-    color: white;                             /* 字体颜色 */
-}
-</string>
-     </property>
      <property name="text">
       <string>滚动多抽</string>
      </property>
