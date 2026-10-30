@@ -24,6 +24,7 @@ verification results.
 - `WindowTheme.apply_titlebar()` 以 `SetWindowPos(SWP_FRAMECHANGED)` 與 `DwmFlush()` 強制重畫標題欄；`_select_theme()` 先上色、背景刷新後再補一次。
 - `[window]` 新增 `fullscreen`，啟動可直接全屏，優先於 `size_mode`。
 - 輸出框在最小字號仍放不下時，才臨時佔用上下空白（`_OutputExpansion`），人少時恢復原尺寸。
+- 「檢查更新」視窗正文改為顯示最新 Release 說明（查詢成功用 GitHub API 的 `body`，離線用 `doc/releasenote.md` 的最新版本段落），不再顯示 `history.md`；UI 元件由 `historyEdit` 更名為 `notesEdit`。
 - 版本更新為 3.11.1；同步三語說明、三語邏輯文件、README、manifest。
 
 ### 發現但未解決 / Found but unresolved
@@ -34,10 +35,11 @@ verification results.
 
 ### 驗證 / Verification
 
-- `.venv/bin/python -m unittest discover -s script -p 'test_*.py'`：65 項通過。
+- `.venv/bin/python -m unittest discover -s script -p 'test_*.py'`：69 項通過。
 - `python -m py_compile main.py lib/*.py script/*.py` 通過。
 - `python -m json.tool doc/project-manifest.json` 通過。
 - 離屏 Qt 實測：主題選單兩欄、淺色主題切換、輸出框 expand/collapse（Multi 與 ScrollMulti）、更新視窗文字與正文框跟隨主題、深色輸出框仍為 `#141414`。
+- `test_update.py` 新增 `latest_release_section()`、`clean_release_body()` 與離線載入版本說明的測試。
 
 ### English summary
 
@@ -49,6 +51,7 @@ verification results.
 - `WindowTheme.apply_titlebar()` forces a title-bar repaint with `SetWindowPos(SWP_FRAMECHANGED)` and `DwmFlush()`; `_select_theme()` applies the colour before the background refresh and re-applies it afterwards.
 - `[window]` gained `fullscreen`, which starts the app in full screen and takes precedence over `size_mode`.
 - The output box only borrows the blank space above and below when even the minimum font size does not fit (`_OutputExpansion`), restoring its normal size for fewer names.
+- The update window now shows the latest release notes (GitHub API `body` when available, otherwise the newest `doc/releasenote.md` section) instead of `history.md`; the UI widget `historyEdit` was renamed to `notesEdit`.
 - Version bumped to 3.11.1; all three help/logic documents, the README, and the manifest were updated.
 
 ## 2026-10-27 / 3.11.0

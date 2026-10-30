@@ -19,10 +19,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 - 异步请求 GitHub Releases，避免阻塞界面；
 - 大字显示检测状态；
-- 下方文本框展示 history.md 正文；
+- 下方文本框显示 doc/releasenote.md 的最新版本说明，查询成功后改用 GitHub Release 正文；
 - “更新”打开 Releases 页面并关闭，“确定”只关闭窗口。
 """
 
+import re
 from pathlib import Path
 
 from PySide6.QtCore import QJsonDocument, QTimer, QUrl
@@ -69,6 +70,31 @@ def is_newer_version(latest, current) -> bool:
     return latest_padded > current_padded
 
 
+def latest_release_section(text: str) -> str:
+    """从 releasenote.md 截取最上方的版本段落，忽略文件头注释。"""
+    lines = (text or "").splitlines()
+    collected = []
+    found = False
+    for line in lines:
+        if line.startswith("## v"):
+            if found:
+                break
+            found = True
+            continue
+        if found:
+            collected.append(line)
+    if not found:
+        return (text or "").strip()
+    return "\n".join(collected).strip()
+
+
+def clean_release_body(text: str) -> str:
+    """去掉 Release 正文末尾的构建来源页脚。"""
+    text = (text or "").strip()
+    text = re.sub(r"(?s)\n*-{3,}\s*\nBuilt from commit:.*$", "", text)
+    return text.strip()
+
+
 def _number(value, default, minimum=None, maximum=None):
     try:
         result = float(value)
@@ -90,13 +116,13 @@ def update_timeout_ms(config) -> int:
 
 
 class UpdateDialog(QDialog):
-    def __init__(self, parent, *, history_path: Path, translate=None, config=None,
+    def __init__(self, parent, *, notes_path: Path, translate=None, config=None,
                  releases_url: str = "", api_url: str = API_URL):
         super().__init__(parent)
         self.ui = ui_update.Ui_UpdateDialog()
         self.ui.setupUi(self)
         self.translate = translate or (lambda key, **values: key)
-        self.history_path = Path(history_path)
+        self.notes_path = Path(notes_path)
         self.releases_url = releases_url or "https://github.com/HQZ-OhNone/randname/releases"
         self.api_url = api_url
         self._releases_qurl = QUrl(self.releases_url)
@@ -119,19 +145,19 @@ class UpdateDialog(QDialog):
         self.ui.okButton.clicked.connect(self.reject)
         self.ui.manualButton.clicked.connect(self._manual_query)
         self.ui.updateButton.clicked.connect(self._open_releases_and_close)
-        history_font = self.ui.historyEdit.font()
-        history_font.setPointSize(int(font_size))
-        self.ui.historyEdit.setFont(history_font)
+        notes_font = self.ui.notesEdit.font()
+        notes_font.setPointSize(int(font_size))
+        self.ui.notesEdit.setFont(notes_font)
         if touch_scroll:
             try:
                 QScroller.grabGesture(
-                    self.ui.historyEdit.viewport(),
+                    self.ui.notesEdit.viewport(),
                     QScroller.ScrollerGestureType.LeftMouseButtonGesture,
                 )
             except Exception:
                 pass
 
-        self._load_history()
+        self._load_notes()
         self._set_status("update.checking")
         self._apply_geometry()
 
@@ -152,12 +178,12 @@ class UpdateDialog(QDialog):
             available.center().y() - self.height() // 2,
         )
 
-    def _load_history(self):
+    def _load_notes(self):
         try:
-            text = self.history_path.read_text(encoding="utf-8", errors="replace")
+            text = self.notes_path.read_text(encoding="utf-8", errors="replace")
         except OSError:
             text = ""
-        self.ui.historyEdit.setPlainText(text)
+        self.ui.notesEdit.setPlainText(clean_release_body(latest_release_section(text)))
 
     def _set_status(self, key):
         self.ui.statusLabel.setText(self.translate(key))
@@ -197,6 +223,9 @@ class UpdateDialog(QDialog):
                 StateManager.log("ERROR", "check_update", error="missing tag_name")
                 self._finish("update.failed")
                 return
+            body = payload.get("body") if isinstance(payload, dict) else None
+            if isinstance(body, str) and body.strip():
+                self.ui.notesEdit.setPlainText(clean_release_body(body))
             if is_newer_version(latest, APP_VERSION):
                 StateManager.log("INFO", "check_update", result=f"available:{latest}")
                 self._finish("update.available")
@@ -229,4 +258,11 @@ class UpdateDialog(QDialog):
         super().closeEvent(event)
 
 
-__all__ = ["UpdateDialog", "is_newer_version", "parse_version", "update_timeout_ms"]
+__all__ = [
+    "UpdateDialog",
+    "clean_release_body",
+    "is_newer_version",
+    "latest_release_section",
+    "parse_version",
+    "update_timeout_ms",
+]

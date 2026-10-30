@@ -282,7 +282,7 @@
   ],
   "tests": {
     "runner": ".venv/bin/python -m unittest discover -s script -p 'test_*.py'",
-    "count_at_2026_10_27": 65,
+    "count_at_2026_10_27": 69,
     "status_at_2026_10_27": "pass",
     "headless_env": "QT_QPA_PLATFORM=offscreen (set inside GUI tests)",
     "policy": "logic changes must update the matching test file"
@@ -390,12 +390,14 @@
     },
     {
       "path": "lib/UpdateDialog.py",
-      "purpose": "GitHub Releases update checker dialog and version comparison helpers.",
+      "purpose": "GitHub Releases update checker that shows the latest release notes, plus version comparison helpers.",
       "provides": [
         "UpdateDialog",
         "parse_version",
         "is_newer_version",
-        "update_timeout_ms"
+        "update_timeout_ms",
+        "latest_release_section",
+        "clean_release_body"
       ]
     },
     {

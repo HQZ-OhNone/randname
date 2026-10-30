@@ -75,7 +75,7 @@ DOC_DIR = ROOT_DIR / "doc"
 ICON_PATH = UI_DIR / "randname1.png"
 SPLASH_IMAGE_PATH = UI_DIR / "randname-start.png"
 LICENSE_PATH = DOC_DIR / "gpl-3.0.md"
-HISTORY_PATH = DOC_DIR / "history.md"
+RELEASENOTE_PATH = DOC_DIR / "releasenote.md"
 # 模式名称与配置、记忆和界面文案共用同一套标准写法。
 MODE_MULTI = "Multi"
 MODE_LIFT = "Lift"
@@ -1883,7 +1883,7 @@ class MainWindow(QMainWindow):
 
         dialog = UpdateDialog(
             self,
-            history_path=HISTORY_PATH,
+            notes_path=RELEASENOTE_PATH,
             translate=self._t,
             config=config,
             releases_url=RELEASES_URL,

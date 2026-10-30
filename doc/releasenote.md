@@ -8,6 +8,32 @@
 3. 每个版本使用「中文 / English」两段，内容来自 doc/history.md 与 git 记录。
 -->
 
+## v3.11.1 — 2026-10-30
+
+### 中文
+
+- 「主题」菜单改为深色／浅色两栏显示，切换语言后同步重建。
+- 删除「中性深色」「中性浅色」主题，主题总数由 15 减为 13。
+- 调整全部浅色主题：改用带主题色的柔和底色，页面、面板、按钮与边框同步协调，不再刺眼。
+- 输出框颜色改由每个主题的 `[themes.<键名>.output]` 配置控制，移除界面中写死的底色、白字与蓝色边框；深色主题外观保持不变。
+- 「检查更新」窗口改为跟随主题配色，并显示最新 Release 说明（离线时显示 `doc/releasenote.md` 的最新版本段落），不再显示变更历史。
+- 修复 Windows 切换深浅主题时标题栏颜色延迟生效的问题。
+- `[window]` 新增 `fullscreen`，设为 `true` 时启动即进入全屏，优先于 `size_mode`。
+- 同一次抽取名字过多时，输出框会临时占用窗口上下的空白区域，人数减少后自动恢复。
+- 版本更新为 3.11.1。
+
+### English
+
+- The Theme menu now shows dark and light themes in two columns and rebuilds after a language change.
+- Removed the Neutral Dark and Neutral Light themes, reducing the catalog from 15 to 13.
+- Retuned every light theme with softer, tinted surfaces so the page, panel, buttons, and borders feel coordinated instead of glaring.
+- Output-box colours now come from each theme's `[themes.<key>.output]` table, removing the hard-coded background, white text, and blue border; dark themes look unchanged.
+- The update window follows the active theme and shows the latest release notes (falling back to the newest `doc/releasenote.md` section when offline) instead of the change history.
+- Fixed the delayed Windows title-bar colour change when switching between dark and light themes.
+- Added `[window] fullscreen`; when `true`, the app starts in full screen and it takes precedence over `size_mode`.
+- When a single draw shows too many names, the output box temporarily uses the blank space above and below, then restores its normal size.
+- Version bumped to 3.11.1.
+
 ## v3.11.0 — 2026-10-27
 
 ### 中文

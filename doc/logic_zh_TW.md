@@ -594,7 +594,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - 刪除「中性深色」「中性淺色」兩個主題，主題總數由 15 減為 13。
 - 全部淺色主題改為帶主題色的柔和底色（頁面、面板、按鈕、邊框與強調色同步調整），不再使用接近純白的背景。
 - 輸出框顏色改由 `[themes.<鍵名>.output]` 的 `background`/`foreground`/`border` 控制；移除 `ui/Widget*.ui` 中寫死的結果框底色、白字與藍色邊框。深色主題統一取值 `#141414FF`/`#FFFFFFFF`/`#4A90E2FF`，外觀與舊版一致；舊 `colors.display_*` 仍作為後備。
-- 檢查更新視窗的大字改為跟隨主題前景色，正文框改用 `panel` 底色與 `border` 邊框，不再寫死深色樣式。
+- 檢查更新視窗的大字改為跟隨主題前景色，正文框改用 `panel` 底色與 `border` 邊框，不再寫死深色樣式；正文改為顯示最新 Release 說明（查詢成功用 API 的 `body`，離線用 `doc/releasenote.md` 的最新版本段落），不再顯示 `history.md`。
 - `lib/WindowTheme.apply_titlebar()` 設定 DWM 屬性後再呼叫 `SetWindowPos(..., SWP_FRAMECHANGED)` 與 `DwmFlush()` 強制重畫標題欄；`_select_theme()` 先上色再刷新背景，並在事件迴圈閒置時補一次，消除切換主題時標題欄的延遲。
 - `[window]` 新增 `fullscreen`：為 true 時啟動直接 `showFullScreen()`，優先於 `size_mode`；執行中重新載入設定關閉該項會先 `showNormal()` 再依尺寸模式重排。
 - `OutputView` 與 `SlotOutputView` 新增 `_OutputExpansion`：僅在最小字號仍放不下時，把輸出框所在列的 stretch 設為 1 以佔用視窗上下空白；`set_message()`、`clear_round()` 或人數減少時恢復。使用重入旗標避免版面遞迴。

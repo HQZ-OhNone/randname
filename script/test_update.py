@@ -25,7 +25,14 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication
 
-from lib.UpdateDialog import UpdateDialog, is_newer_version, parse_version, update_timeout_ms
+from lib.UpdateDialog import (
+    UpdateDialog,
+    clean_release_body,
+    is_newer_version,
+    latest_release_section,
+    parse_version,
+    update_timeout_ms,
+)
 
 
 class UpdateVersionTests(unittest.TestCase):
@@ -51,6 +58,32 @@ class UpdateVersionTests(unittest.TestCase):
         self.assertEqual(update_timeout_ms({"update": {"timeout_ms": "bad"}}), 15000)
 
 
+class ReleaseNoteTests(unittest.TestCase):
+    def test_latest_section_uses_first_version(self):
+        text = """# Release Notes
+
+<!-- 注释 -->
+## v3.11.1 — 2026-10-30
+
+- 最新
+
+## v3.11.0 — 2026-10-27
+
+- 旧版
+"""
+        section = latest_release_section(text)
+        self.assertTrue(section.startswith("- 最新"))
+        self.assertNotIn("v3.11.0", section)
+        self.assertNotIn("注释", section)
+
+    def test_latest_section_without_heading_returns_text(self):
+        self.assertEqual(latest_release_section("纯文本"), "纯文本")
+
+    def test_clean_release_body_removes_footer(self):
+        body = "### 中文\n\n- 内容\n\n---\nBuilt from commit: abc123\n"
+        self.assertEqual(clean_release_body(body), "### 中文\n\n- 内容")
+
+
 class UpdateDialogStateTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -59,7 +92,7 @@ class UpdateDialogStateTests(unittest.TestCase):
     def test_update_button_only_enabled_for_available(self):
         dialog = UpdateDialog(
             None,
-            history_path=Path("doc/history.md"),
+            notes_path=Path("doc/releasenote.md"),
             translate=lambda key, **values: key,
             config={},
         )
@@ -70,6 +103,19 @@ class UpdateDialogStateTests(unittest.TestCase):
         self.assertFalse(dialog.ui.updateButton.isEnabled())
         dialog._finish("update.available")
         self.assertTrue(dialog.ui.updateButton.isEnabled())
+        dialog.close()
+
+    def test_dialog_shows_local_release_note(self):
+        dialog = UpdateDialog(
+            None,
+            notes_path=Path("doc/releasenote.md"),
+            translate=lambda key, **values: key,
+            config={},
+        )
+        text = dialog.ui.notesEdit.toPlainText()
+        self.assertTrue(text.strip())
+        self.assertNotIn("Built from commit", text)
+        self.assertNotIn("## v", text)
         dialog.close()
 
 

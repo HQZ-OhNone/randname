@@ -45,18 +45,18 @@ class Ui_UpdateDialog(object):
 
         self.verticalLayout.addWidget(self.statusLabel)
 
-        self.historyEdit = QPlainTextEdit(UpdateDialog)
-        self.historyEdit.setObjectName(u"historyEdit")
+        self.notesEdit = QPlainTextEdit(UpdateDialog)
+        self.notesEdit.setObjectName(u"notesEdit")
         font1 = QFont()
         font1.setPointSize(12)
-        self.historyEdit.setFont(font1)
-        self.historyEdit.setStyleSheet(u"QScrollBar:vertical { width: 22px; }\n"
+        self.notesEdit.setFont(font1)
+        self.notesEdit.setStyleSheet(u"QScrollBar:vertical { width: 22px; }\n"
 "QScrollBar:horizontal { height: 22px; }\n"
 "")
-        self.historyEdit.setReadOnly(True)
-        self.historyEdit.setUndoRedoEnabled(False)
+        self.notesEdit.setReadOnly(True)
+        self.notesEdit.setUndoRedoEnabled(False)
 
-        self.verticalLayout.addWidget(self.historyEdit)
+        self.verticalLayout.addWidget(self.notesEdit)
 
         self.buttonLayout = QHBoxLayout()
         self.buttonLayout.setSpacing(12)

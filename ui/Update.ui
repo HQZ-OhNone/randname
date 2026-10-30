@@ -63,7 +63,7 @@
     </widget>
    </item>
    <item>
-    <widget class="QPlainTextEdit" name="historyEdit">
+    <widget class="QPlainTextEdit" name="notesEdit">
      <property name="font">
       <font>
        <pointsize>12</pointsize>

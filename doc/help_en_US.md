@@ -86,7 +86,7 @@ File > Import memory and File > Export memory exchange recent results as JSON. T
 
 Help, the license, and the program log all use randname's own read-only viewer. The viewer is clamped to the available desktop area so the taskbar remains accessible; it supports touch-drag scrolling, and its font size and refresh interval can be adjusted in `[viewer]`.
 
-**About > Check for updates** queries GitHub Releases asynchronously. A large label at the top shows checking, up to date, a new version found, or a failed check; the text below shows `doc/history.md`. Update is enabled only when a newer release is found, opens the Releases page, and closes the window. Manual check always opens the Releases page without closing the window, and OK only closes it. If the network is unavailable or GitHub rate-limits the request, use Manual check.
+**About > Check for updates** queries GitHub Releases asynchronously. A large label at the top shows checking, up to date, a new version found, or a failed check; the text below shows the latest release notes, starting with the newest `doc/releasenote.md` section until the query completes. Update is enabled only when a newer release is found, opens the Releases page, and closes the window. Manual check always opens the Releases page without closing the window, and OK only closes it. If the network is unavailable or GitHub rate-limits the request, use Manual check.
 
 ## Startup and Troubleshooting
 
