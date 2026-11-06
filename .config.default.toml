@@ -143,3 +143,12 @@ level = "INFO"
 [update]
 # 检查更新时访问 GitHub API 的超时时间，单位毫秒，范围 1000 到 120000。
 timeout_ms = 15000
+# 是否同时发起直连与镜像请求；任一通道成功即采用。设为 false 时按顺序回退。
+parallel = true
+
+# GitHub 镜像前缀，程序会把完整 API 地址接在后面。
+# 可在网络受限或直连失败时补充自建镜像；留空列表表示只使用直连。
+mirror_prefixes = [
+  "https://gh-proxy.com/",
+  "https://ghfast.top/",
+]

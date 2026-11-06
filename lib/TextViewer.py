@@ -31,9 +31,10 @@ from pathlib import Path
 
 from PySide6.QtCore import QFileSystemWatcher, QTimer, Qt
 from PySide6.QtGui import QDesktopServices, QFont, QTextCursor
-from PySide6.QtWidgets import QApplication, QDialog, QDialogButtonBox, QScroller
+from PySide6.QtWidgets import QApplication, QDialog, QDialogButtonBox
 
 from lib import ui_textviewer
+from lib.Scrolling import install_smooth_scrolling
 
 _LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 _LOG_COLORS = {
@@ -82,10 +83,11 @@ def _number(value, default, minimum=None, maximum=None):
 class TextViewerDialog(QDialog):
     def __init__(self, parent, title, path: Path, *, markdown=False, config=None,
                  translate=None, empty_text="", close_text="Close",
-                 text_provider=None, highlight_log=False):
+                 text_provider=None, highlight_log=False, start_at_top=True):
         super().__init__(parent)
         self.path = Path(path)
         self.markdown = bool(markdown)
+        self.start_at_top = bool(start_at_top)
         self.translate = translate or (lambda key, **values: key)
         self.empty_text = empty_text or self.translate("state.no_logs")
         self.text_provider = text_provider
@@ -126,18 +128,7 @@ class TextViewerDialog(QDialog):
             flags &= ~Qt.TextInteractionFlag.LinksAccessibleByMouse
         self.text_view.setTextInteractionFlags(flags)
         self.text_view.setFont(QFont(self.text_view.font().family(), int(self.font_size)))
-        self.text_view.setStyleSheet(
-            "QScrollBar:vertical { width: 22px; }"
-            "QScrollBar:horizontal { height: 22px; }"
-        )
-        if self.touch_scroll:
-            try:
-                QScroller.grabGesture(
-                    self.text_view.viewport(),
-                    QScroller.ScrollerGestureType.LeftMouseButtonGesture,
-                )
-            except Exception:
-                pass
+        install_smooth_scrolling(self.text_view, self.touch_scroll)
 
         buttons = self.ui.buttonBox
         close_button = buttons.button(QDialogButtonBox.StandardButton.Close)
@@ -231,6 +222,11 @@ class TextViewerDialog(QDialog):
     def showEvent(self, event):
         super().showEvent(event)
         self._refresh(force=True)
+        if self.start_at_top:
+            # 每次打开都从头显示，不记忆上一次的滚动位置。
+            bar = self.text_view.verticalScrollBar()
+            self.text_view.moveCursor(QTextCursor.MoveOperation.Start)
+            bar.setValue(bar.minimum())
 
     def closeEvent(self, event):
         self._closing = True

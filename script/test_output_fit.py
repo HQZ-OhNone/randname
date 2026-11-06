@@ -108,6 +108,96 @@ class OutputFitTests(unittest.TestCase):
         self.assertEqual(grid.rowStretch(1), 0)
         page.close()
 
+    def test_output_layout_survives_stylesheet_change(self):
+        from PySide6.QtWidgets import QGridLayout, QWidget
+
+        page = QWidget()
+        page.resize(520, 460)
+        grid = QGridLayout(page)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setSpacing(8)
+        top = QWidget()
+        bottom = QWidget()
+        label = QLabel()
+        label.setWordWrap(True)
+        grid.addWidget(top, 0, 0)
+        grid.addWidget(label, 1, 0)
+        grid.addWidget(bottom, 2, 0)
+        page.show()
+        self.app.processEvents()
+        view = OutputView(label, {"ui": {
+            "display_font_size": 30,
+            "display_min_font_size": 15,
+            "display_font_step": 1,
+            "display_padding": 8,
+            "display_line_spacing": 1.0,
+        }}, 30)
+        names = [f"非常非常非常长的名字{i:02d}" for i in range(40)]
+        view.set_names(names, use_lock=False)
+        for _ in range(4):
+            self.app.processEvents()
+        self.assertTrue(view._expansion.expanded)
+        before = len(label.text().splitlines())
+        self.app.setStyleSheet("QLabel { border: 2px solid red; padding: 8px; }")
+        for _ in range(8):
+            self.app.processEvents()
+        self.assertTrue(view._expansion.expanded)
+        self.assertEqual(len(label.text().splitlines()), before)
+        self.app.setStyleSheet("")
+        page.close()
+
+    def test_slot_layout_survives_stylesheet_change(self):
+        from PySide6.QtWidgets import QGridLayout, QWidget
+
+        page = QWidget()
+        page.resize(520, 460)
+        grid = QGridLayout(page)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setSpacing(8)
+        top = QWidget()
+        bottom = QWidget()
+        label = QLabel()
+        grid.addWidget(top, 0, 0)
+        grid.addWidget(label, 1, 0)
+        grid.addWidget(bottom, 2, 0)
+        page.show()
+        self.app.processEvents()
+        view = SlotOutputView(label, {"ui": {
+            "display_font_size": 30,
+            "display_min_font_size": 12,
+            "display_font_step": 1,
+            "display_padding": 8,
+            "display_line_spacing": 1.0,
+        }}, 30)
+        names = [f"学生{i:02d}号" for i in range(1, 46)]
+        view.begin_round(names, 45)
+        view.set_names(names)
+        for _ in range(6):
+            self.app.processEvents()
+        self.assertTrue(view._expansion.expanded)
+        before = (view._columns, view._rows)
+        self.app.setStyleSheet("QLabel { border: 2px solid red; padding: 8px; }")
+        for _ in range(10):
+            self.app.processEvents()
+        self.assertTrue(view._expansion.expanded)
+        self.assertEqual((view._columns, view._rows), before)
+        self.app.setStyleSheet("")
+        page.close()
+
+    def test_refresh_layout_recomputes_slot_grid(self):
+        label, view = self.make_slot_view()
+        names = [f"学生{i:02d}号" for i in range(1, 13)]
+        view.begin_round(names, 12)
+        view.set_names(names)
+        self.app.processEvents()
+        view._columns = 0
+        view._rows = 0
+        view.refresh_layout()
+        for _ in range(3):
+            self.app.processEvents()
+        self.assertGreater(view._columns, 0)
+        self.assertGreater(view._rows, 0)
+
     def test_output_expansion_is_noop_without_grid_layout(self):
         label, view = self.make_view()
         view.set_names([f"名字{i}" for i in range(60)], use_lock=False)

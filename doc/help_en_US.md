@@ -4,6 +4,7 @@ randname is a desktop app for classroom roll calls. The Mode menu contains Singl
 
 ## Drawing
 
+- Switching modes initialises the target mode before showing its page: Multi and ScrollMulti clear the previous result, while Lift and ScrollLift keep the drawn pool; quantities are preserved.
 - **Single:** A shortcut that opens Multi and sets the quantity to `1`; it has no separate page.
 - **Multi:** Set the quantity with the increase/decrease buttons or the vertical slider, then select Draw. A draw contains no duplicate names; later draws start from the full roster again.
 - **Lift:** Each draw removes selected people from the remaining pool for the current run. Reset restores the active roster. Changing rosters or refreshing changed roster data also resets the remaining pool.
@@ -30,11 +31,11 @@ zh_TW = "一班"
 "student-002" = "Taylor Chen"
 ```
 
-Use a unique key for every person. Roster display names use the current interface language, the system language, English, then the roster key. If the main roster file is unavailable, randname tries `.name.default.toml` and then a built-in one-person roster.
+Use a unique key for every person. Roster display names use the current interface language, its Simplified/Traditional Chinese sibling, the system language, English, then the roster key. If the main roster file is unavailable, randname tries `.name.default.toml` and then a built-in one-person roster.
 
 ## Language and Themes
 
-Select a language from Language. Available language packs are listed in `config/language.toml`; English is built in and remains available if that file is missing. The `preferred` value selects the first-startup language. A legacy `app.language` in `config/config.toml` is only a fallback; `language.toml`'s `preferred` wins. Switching language applies immediately and does not discard the current draw result.
+Select a language from Language. Available language packs are listed in `config/language.toml`; English is built in and remains available if that file is missing. Simplified and Traditional Chinese back each other up: a missing pack or key automatically uses the other one before falling back to English. The `preferred` value selects the first-startup language. A legacy `app.language` in `config/config.toml` is only a fallback; `language.toml`'s `preferred` wins. Switching language applies immediately and does not discard the current draw result.
 
 Themes are stored in `config/theme.toml`. Its `default` key selects the fallback theme. Theme names use the same current-language, system-language, English, key fallback order as roster names. The Theme menu shows dark and light themes in two columns, and light themes use softer tinted backgrounds instead of glaring white.
 
@@ -82,14 +83,14 @@ Choose a threshold under **About > Log level**: Debug, Information, Warning, Err
 
 File > Import memory and File > Export memory exchange recent results as JSON. They do not replace configuration, roster, or interface state. The runtime memory file is `doc/memory.json` and stores only each mode's most recent result.
 
-**File > Initialize** clears `doc/memory.json`, returns every mode's quantity to 1, and removes displayed results. It does not delete `doc/log.log`; the initialization itself is written to the log.
+**File > Initialize** now runs immediately without a confirmation dialog. It clears `doc/memory.json`, returns every mode's quantity to 1, and removes displayed results. It does not delete `doc/log.log`; the initialization is written to the log and reported in the status bar.
 
 Help, the license, and the program log all use randname's own read-only viewer. The viewer is clamped to the available desktop area so the taskbar remains accessible; it supports touch-drag scrolling, and its font size and refresh interval can be adjusted in `[viewer]`.
 
-**About > Check for updates** queries GitHub Releases asynchronously. A large label at the top shows checking, up to date, a new version found, or a failed check; the text below shows the latest release notes, starting with the newest `doc/releasenote.md` section until the query completes. Update is enabled only when a newer release is found, opens the Releases page, and closes the window. Manual check always opens the Releases page without closing the window, and OK only closes it. If the network is unavailable or GitHub rate-limits the request, use Manual check.
+**About > Check for updates** queries GitHub directly and through every `[update].mirror_prefixes` entry at the same time, then uses the first valid response. A large label at the top shows checking, up to date, a new version found, or a failed check; the area below renders the complete `doc/releasenote.md` as Markdown with every version heading, scrolls from the top, and syncs the matching version with the online release body when the query succeeds. Update is enabled only when a newer release is found; if the system cannot open a browser, the dialog stays open and shows the selectable URL. Mirrors are configured under `[update]` in `config/config.toml`.
 
 ## Startup and Troubleshooting
 
-The splash screen appears before data checks and window initialization. Missing configuration, roster, language, or theme files use their available backup or built-in data; randname reports these cases in the status bar and log without an extra dialog. Missing executable components stop startup and show a detailed error.
+Only one window exists per version: launching the same version again activates the existing window, while different portable versions can run together. The splash screen appears before data checks and window initialization. Missing configuration, roster, language, or theme files use their available backup or built-in data; randname reports these cases in the status bar and log without an extra dialog. Missing executable components stop startup and show a detailed error.
 
 If a configured choice is unavailable after editing files, use **File > Refresh application data**. If the selected help translation is unavailable, the Help command opens this English document. **About > Feedback** contains GitHub Issues and Email; if no mail client can be opened, a dialog shows the email address.

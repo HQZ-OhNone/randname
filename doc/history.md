@@ -12,6 +12,46 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 This file is appended per session: completed work, unresolved findings, and
 verification results.
 
+## 2026-11-07 / 3.11.2
+
+### 已完成 / Completed
+
+- 新增 `lib/SingleInstance.py`：以 `QLocalServer`/`QLocalSocket` 實作單實例，服務名包含版本與使用者雜湊；同一版本即使複製到不同目錄也只保留一個視窗，不同版本可並存。第二次啟動會喚起既有視窗，Windows 追加 `SetForegroundWindow` 回退。
+- 檢查更新改為併發查詢直連與 `[update].mirror_prefixes` 鏡像，首個有效回應取勝；`parallel = false` 時依序回退。新增 `lib/UrlOpener.py`，瀏覽器開啟失敗時改用 `os.startfile`／`cmd start`／`xdg-open`，仍失敗則保留視窗並顯示可選取網址。
+- `ui/Update.ui` 的說明框改為 `QTextBrowser`，`UpdateDialog` 以 Markdown 渲染**完整** `doc/releasenote.md`（保留所有 `## vX.Y.Z` 標題），查詢成功時把線上最新 Release 正文合併到對應版本或置頂。新增 `release_notes_document()`、`merge_release_section()`、`parse_release_payload()`、`request_urls()`。
+- 新增 `lib/Scrolling.py`：統一逐像素滾動、觸屏 `TouchGesture`／滑鼠拖曳、`QScrollerProperties` 與 22px 滾動條；更新視窗與文字檢視器共用。
+- 「檔案 > 初始化」移除確認彈窗；`dialog.init_confirm` 三語字串移除，狀態列與日誌保留。
+- 新增 `_switch_mode()`／`_reset_mode_state()`：切換模式先重置目標模式；Multi、ScrollMulti 清結果與滾動池，Lift 保留 `lift_current_dict`、ScrollLift 以 `reset_keep_pool()` 保留 `lift_pool`；數量不變。
+- `TextViewerDialog` 新增 `start_at_top`，說明與授權每次顯示回頂端；程式日誌傳 `start_at_top=False` 維持跟隨底部。
+- `LanguageManager` 新增 `SIBLING_LANGUAGES`、`language_chain()`：語言包缺失時以對方合成，單一詞條缺失時先找簡繁對方再回英文；名單、主題名稱、`_open_help()` 路徑同步互備。
+- 修正 `lib/OutputView.py` 輸出框誤收合：`_layout_fits()` 移除最小字號短路、新增尺寸快取 `_layout_size`、展開判定改用收合基準高度，展開狀態變更後延遲重排；`MainWindow._select_theme()`、重載設定與切換模式後呼叫 `_refresh_output_layouts()`。
+- 版本更新為 3.11.2，同步 README、manifest、三語說明／邏輯文件與 `doc/releasenote.md`。
+
+### 發現但未解決 / Found but unresolved
+
+- Windows 10 希沃白板的瀏覽器開啟回退僅以單元測試與程式路徑驗證，未在實機確認。
+- Windows 11/10 的 DWM 標題欄仍待實機確認。
+- 觸屏手勢在真實觸控裝置上的手感尚未實測。
+
+### 驗證 / Verification
+
+- `.venv/bin/python -m unittest discover -s script -p 'test_*.py'`：94 項通過。
+- `python -m py_compile`、`python -m json.tool doc/project-manifest.json`、`git diff --check` 通過。
+- 離屏 Qt 實測：單實例喚醒、更新視窗 Markdown 完整版本列表、45 人輸出框切換主題後仍維持 5×9、初始化免彈窗、切換模式保留 Lift/ScrollLift 池與數量。
+
+### English summary
+
+- Added `lib/SingleInstance.py` (QLocalServer/QLocalSocket with a version+user hashed name): one window per version, different versions can coexist, second launch activates the existing window with a Windows foreground fallback.
+- Update checks now race direct GitHub and `[update].mirror_prefixes`; the first valid response wins, with sequential fallback when `parallel = false`. Added `lib/UrlOpener.py` with shell/command-line fallbacks and a selectable URL on failure.
+- `ui/Update.ui` now uses `QTextBrowser`; the dialog renders the full `doc/releasenote.md` as Markdown with every version heading and merges the latest online release body into its version.
+- Added `lib/Scrolling.py` for per-pixel, touch-friendly scrolling shared by the update dialog and text viewer.
+- Removed the Initialize confirmation while keeping the status-bar message and log entry.
+- Added `_switch_mode()`/`_reset_mode_state()`: target modes reset before switching; Lift and ScrollLift keep their drawn pools; quantities are preserved.
+- Documents open at the top; the program log keeps following the newest line.
+- Simplified and Traditional Chinese packs and keys fall back to each other; roster names, theme names, and help files follow the same chain.
+- Fixed the output box collapsing bug by measuring against the collapsed height, removing the minimum-font shortcut, caching the layout size, and deferring relayout after expansion changes.
+- Version bumped to 3.11.2.
+
 ## 2026-10-27 / 3.11.1
 
 ### 已完成 / Completed

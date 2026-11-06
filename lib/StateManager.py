@@ -99,7 +99,14 @@ BUILTIN_CONFIG = {
         "show_version": True,
     },
     "logging": {"level": "INFO"},
-    "update": {"timeout_ms": 15000},
+    "update": {
+        "timeout_ms": 15000,
+        "parallel": True,
+        "mirror_prefixes": [
+            "https://gh-proxy.com/",
+            "https://ghfast.top/",
+        ],
+    },
 }
 
 

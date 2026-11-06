@@ -90,6 +90,47 @@ class QuantitySliderTests(unittest.TestCase):
         self.assertEqual(self.window.lift_quantity, target)
         self.assertEqual(self.window.lift_quantity_label.text(), str(target))
 
+    def test_initialize_does_not_show_confirmation(self):
+        from unittest import mock
+        from PySide6.QtWidgets import QMessageBox
+
+        window = self.window
+        window.multi_quantity = 3
+        with mock.patch.object(
+            main.StateManager, "reset_memory", return_value={"last_results": {}}
+        ):
+            with mock.patch.object(
+                QMessageBox, "question", side_effect=AssertionError("confirm dialog")
+            ):
+                window._on_initialize()
+        self.assertEqual(window.multi_quantity, 1)
+        self.assertEqual(
+            window.status_message_label.text(), window._t("state.initialized")
+        )
+
+    def test_mode_switch_resets_display_keeps_lift_pool_and_quantity(self):
+        window = self.window
+        window.multi_result_names = ["甲"]
+        window.lift_quantity = 3
+        window._set_quantity_label(window.lift_quantity_label, 3)
+        window.lift_current_dict = {"a": "甲"}
+        window._show_multi_page()
+        self.assertEqual(window.multi_result_names, [])
+        self.assertEqual(window.current_mode, "Multi")
+        window._show_lift_page()
+        self.assertEqual(window.current_mode, "Lift")
+        self.assertEqual(window.lift_current_dict, {"a": "甲"})
+        self.assertEqual(window.lift_quantity, 3)
+        self.assertEqual(window.lift_quantity_label.text(), "3")
+
+    def test_mode_switch_keeps_scroll_lift_pool(self):
+        window = self.window
+        controller = window.scroll_lift_controller
+        self.assertIsNotNone(controller)
+        controller.lift_pool = {"x": "X"}
+        window._show_scroll_lift_page()
+        self.assertEqual(controller.lift_pool, {"x": "X"})
+
     def test_buttons_still_work(self):
         self.window.multi_quantity_slider.setValue(1)
         self.window.multi_up_button.click()

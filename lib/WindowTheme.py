@@ -110,4 +110,18 @@ def apply_titlebar(hwnd: int, color: QColor, dark: bool | None = None) -> bool:
         return False
 
 
-__all__ = ["apply_titlebar", "colorref", "is_dark"]
+def activate_window(hwnd: int) -> bool:
+    """把窗口带回前台；Windows 上补充还原与置顶调用。"""
+    if sys.platform != "win32" or not hwnd:
+        return False
+    try:
+        import ctypes
+
+        user32 = ctypes.windll.user32
+        user32.ShowWindow(ctypes.c_void_p(hwnd), 9)  # SW_RESTORE
+        return bool(user32.SetForegroundWindow(ctypes.c_void_p(hwnd)))
+    except Exception:
+        return False
+
+
+__all__ = ["activate_window", "apply_titlebar", "colorref", "is_dark"]

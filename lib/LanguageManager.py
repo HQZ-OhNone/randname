@@ -10,6 +10,14 @@ ROOT = Path(__file__).resolve().parent.parent
 LANGUAGE_PATH = ROOT / "config" / "language.toml"
 LOGGER = logging.getLogger(__name__)
 
+# 简体与繁体互为备援：一方缺少语言包或词条时自动使用另一方。
+SIBLING_LANGUAGES = {"zh_CN": "zh_TW", "zh_TW": "zh_CN"}
+DEFAULT_DISPLAY_NAMES = {
+    "en_US": "English (United States)",
+    "zh_CN": "简体中文",
+    "zh_TW": "繁體中文",
+}
+
 ENGLISH = {
     "menu.file": "File",
     "menu.mode": "Mode",
@@ -43,6 +51,7 @@ ENGLISH = {
     "update.button_update": "Update",
     "update.button_manual": "Manual check",
     "update.button_ok": "OK",
+    "update.open_failed": "Could not open the browser. Please open this page manually: {url}",
     "mode.Multi": "Multi",
     "mode.Single": "Single",
     "mode.Lift": "Lift",
@@ -89,7 +98,6 @@ ENGLISH = {
     "dialog.export_success": "Memory exported: {path}",
     "dialog.operation_failed": "Operation failed: {error}",
     "dialog.init_title": "Initialize",
-    "dialog.init_confirm": "Reset memory and all mode states? Quantities will return to 1 and displayed results will be cleared. Logs are kept.",
     "dialog.email_fallback": "Could not open your mail app. Please send an email to: {email}",
     "log.DEBUG": "Debug",
     "log.INFO": "Information",
@@ -111,7 +119,13 @@ ENGLISH = {
 def load_languages(path: Path = LANGUAGE_PATH) -> tuple[dict, str, str | None]:
     # ``preferred`` stays empty when the dedicated language file does not
     # specify one, so callers can fall back to config.toml's [app].language.
-    languages = {"en_US": {"display_name": "English (United States)", "text": ENGLISH}}
+    languages = {
+        "en_US": {
+            "display_name": DEFAULT_DISPLAY_NAMES["en_US"],
+            "text": ENGLISH,
+            "own": dict(ENGLISH),
+        }
+    }
     preferred = ""
     warning = None
     try:
@@ -124,9 +138,11 @@ def load_languages(path: Path = LANGUAGE_PATH) -> tuple[dict, str, str | None]:
             if not isinstance(pack, dict) or not isinstance(pack.get("text", {}), dict):
                 LOGGER.warning("Ignoring invalid language pack %s", code)
                 continue
+            own_text = dict(pack.get("text", {}))
             languages[code] = {
                 "display_name": str(pack.get("display_name", code)),
-                "text": {**ENGLISH, **pack.get("text", {})},
+                "text": {**ENGLISH, **own_text},
+                "own": own_text,
             }
         configured_preferred = data.get("preferred", "")
         if isinstance(configured_preferred, str):
@@ -134,6 +150,17 @@ def load_languages(path: Path = LANGUAGE_PATH) -> tuple[dict, str, str | None]:
     except (OSError, tomllib.TOMLDecodeError, ValueError) as exc:
         warning = f"{path.name}: {exc}"
         LOGGER.warning("Using built-in English language: %s", warning)
+    for code, sibling in SIBLING_LANGUAGES.items():
+        if code in languages or sibling not in languages:
+            continue
+        source = languages[sibling]
+        languages[code] = {
+            "display_name": DEFAULT_DISPLAY_NAMES.get(code, code),
+            "text": dict(source["text"]),
+            "own": dict(source["own"]),
+            "fallback_from": sibling,
+        }
+        LOGGER.warning("Language %s is unavailable; using %s", code, sibling)
     return languages, preferred, warning
 
 
@@ -148,9 +175,24 @@ def system_language(languages: dict) -> str:
     )
 
 
+def language_chain(language: str, languages: dict) -> list[str]:
+    """返回翻译查找顺序：自身、简繁备援、系统语言、英文。"""
+    chain = []
+    for code in (
+        language,
+        SIBLING_LANGUAGES.get(language),
+        system_language(languages),
+        "en_US",
+    ):
+        if isinstance(code, str) and code in languages and code not in chain:
+            chain.append(code)
+    return chain
+
+
 def resolve_language(requested: str, languages: dict) -> str:
-    if requested in languages:
-        return requested
+    for code in (requested, SIBLING_LANGUAGES.get(requested)):
+        if code in languages:
+            return code
     return system_language(languages)
 
 
@@ -164,14 +206,23 @@ def resolve_startup_language(languages: dict, preferred: str = "", configured: s
     final fallback.
     """
     for candidate in (preferred, configured):
-        if isinstance(candidate, str) and candidate in languages:
-            return candidate
+        if not isinstance(candidate, str):
+            continue
+        for code in (candidate, SIBLING_LANGUAGES.get(candidate)):
+            if code in languages:
+                return code
     return system_language(languages)
 
 
 def translate(languages: dict, language: str, key: str, **values) -> str:
-    pack = languages.get(language, languages["en_US"])
-    text = pack["text"].get(key, ENGLISH.get(key, key))
+    text = None
+    for code in language_chain(language, languages):
+        own = languages.get(code, {}).get("own")
+        if isinstance(own, dict) and key in own:
+            text = own[key]
+            break
+    if text is None:
+        text = ENGLISH.get(key, key)
     try:
         return text.format(**values)
     except (KeyError, ValueError):
@@ -181,8 +232,7 @@ def translate(languages: dict, language: str, key: str, **values) -> str:
 def localized_name(names: object, language: str, languages: dict) -> str:
     if not isinstance(names, dict):
         return ""
-    preference = (language, system_language(languages), "en_US")
-    for code in preference:
+    for code in language_chain(language, languages):
         value = names.get(code)
         if isinstance(value, str) and value:
             return value

@@ -63,7 +63,7 @@
     </widget>
    </item>
    <item>
-    <widget class="QPlainTextEdit" name="notesEdit">
+    <widget class="QTextBrowser" name="notesEdit">
      <property name="font">
       <font>
        <pointsize>12</pointsize>
@@ -75,6 +75,9 @@ QScrollBar:horizontal { height: 22px; }
 </string>
      </property>
      <property name="readOnly">
+      <bool>true</bool>
+     </property>
+     <property name="openExternalLinks">
       <bool>true</bool>
      </property>
      <property name="undoRedoEnabled">

@@ -9,7 +9,7 @@ version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
 This document records the actual behaviour, hidden mechanisms, and edge cases
-of randname 3.11.1. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
+of randname 3.11.2. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 `logic_zh_TW.md`.
 
 ## 1. Terms and modes
@@ -34,7 +34,7 @@ of randname 3.11.1. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 | Path | Responsibility |
 | --- | --- |
 | `main.py` | Startup, main window, menus, status bar, page switching, memory restore |
-| `lib/version.py` | `APP_VERSION = "3.11.1"` |
+| `lib/version.py` | `APP_VERSION = "3.11.2"` |
 | `lib/Multi.py` | Multi draw algorithm |
 | `lib/Lift.py` | Lift draw algorithm |
 | `lib/ScrollMulti.py` | ScrollMulti controller |
@@ -62,7 +62,7 @@ of randname 3.11.1. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
    `.config.default.toml`, then the built-in configuration.
 4. Load the icon and create the splash screen.
 5. Scale the splash according to `[splash]`, keeping the image aspect ratio.
-6. `_draw_splash_version()` draws `v3.11.1` in the bottom-right corner. The
+6. `_draw_splash_version()` draws `v3.11.2` in the bottom-right corner. The
    font size always scales with the image width to one third of that width;
    the text is always pure white and has no size or colour configuration.
 7. `_startup_file_check()` collects recoverable-file warnings. `required` is
@@ -394,17 +394,17 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 `lib/TextViewer.py`:
 
 - Help/license: `QTextBrowser` + `setMarkdown()`.
-- Log: `QPlainTextEdit` + `setPlainText()`.
+- Log: `QTextBrowser` + `setHtml()` with level highlighting.
 - Read-only; undo/redo disabled.
 - Non-modal, so the main program can keep running.
 - `QFileSystemWatcher` watches the file and parent directory; a `QTimer`
   provides a fallback.
-- Scroll position is preserved; if the user was at the bottom, the viewer
-  follows new content; if the user scrolled up, it does not jump.
+- Help and licence documents start at the top on every open. The log keeps
+  following new content at the bottom; if the user scrolled up, it does not jump.
 - Size: based on the parent screen's `availableGeometry()`; at most
   `max_screen_ratio` of the available area minus 24 px margins, capped at
   900×680, and shrunk on small screens.
-- Touch: `QScroller` left-mouse gesture, 22 px scrollbars, 40 px close button.
+- Touch: `lib/Scrolling.py` selects a touch or left-mouse gesture, sets a 24 px step and 22 px scrollbars, and the close button is 40 px high.
 - Reopening the same path activates the existing window.
 - Help/license files refresh live when edited.
 
@@ -419,7 +419,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
   (`label_MultiOutput`, `label_LiftOutput`, `label_ScrollMultiOutput`,
   `label_ScrollLiftOutput`), buttons, menu selection, and the status bar.
 - ID selectors override the inline `QLabel` element styles from `.ui` files.
-- Theme names fall back through current language, system language, English,
+- Theme names fall back through current language, its Chinese sibling, system language, English,
   and the key.
 
 ### Languages
@@ -427,7 +427,8 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - `language.toml` `preferred` is the first-startup language; legacy
   `app.language` is only a fallback.
 - `LanguageManager.ENGLISH` is the built-in fallback.
-- Missing translation keys fall back to English, then the key itself.
+- Missing translation keys first use the other Chinese variant, then English, then the key itself.
+- A missing zh_CN or zh_TW pack is synthesized from the other one.
 - Placeholders such as `{count}` and `{name}` must be preserved.
 - Switching language refreshes menus, buttons, placeholders, and the status bar
   immediately; current results are kept.
@@ -535,7 +536,7 @@ Run: `QT_QPA_PLATFORM=offscreen python -m unittest discover -s script -p 'test_*
 
 ## 20. Version
 
-Current version: **3.11.1**.
+Current version: **3.11.2**.
 
 Main changes in the 3.8.x series:
 
@@ -721,3 +722,17 @@ Main changes in the 3.8.x series:
 - `[window]` gained `fullscreen`. When true, startup calls `showFullScreen()` and it takes precedence over `size_mode`; reloading the configuration with it disabled calls `showNormal()` and re-applies the size mode.
 - `OutputView` and `SlotOutputView` gained `_OutputExpansion`: when even the minimum font size does not fit, the output row's stretch becomes 1 so the box uses the blank space above and below, restoring on `set_message()`, `clear_round()`, or fewer names. A re-entry guard prevents layout recursion.
 - Version bumped to 3.11.1.
+
+
+## 35. 3.11.2 startup and update improvements
+
+- Added a single-instance guard: one window per version. Copies of the same version in other directories connect to that same window, while different versions can run side by side.
+- Update checks now query GitHub directly and through every `[update].mirror_prefixes` entry at the same time; the first valid response wins, and failures are logged per channel.
+- The update window renders the complete `doc/releasenote.md` as Markdown, keeping every `## vX.Y.Z` heading. A successful query syncs the matching version with the online release body.
+- The update window uses per-pixel smooth scrolling and touch gestures. If the Update button cannot open a browser, the dialog stays open and shows the selectable URL instead of closing silently.
+- **File > Initialize** no longer asks for confirmation; it still resets all modes, clears memory, and reports in the status bar and log.
+- Switching modes resets the target mode first: Multi and ScrollMulti clear results and rolling pools, while Lift and ScrollLift keep the drawn pool and quantity.
+- Help and licence documents start at the top every time; the program log still follows the newest line.
+- Simplified and Traditional Chinese language packs back each other up for missing packs or individual keys, including roster and theme names.
+- Fixed the output box collapsing incorrectly and squeezing text at the minimum font size when many names are drawn; theme or stylesheet repaints now trigger a clean relayout.
+- Version bumped to 3.11.2.

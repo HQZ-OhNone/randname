@@ -1005,6 +1005,7 @@ class MainWindow(QMainWindow):
             self._apply_window_frame()
             self._apply_theme_background(self.selected_theme)
             QTimer.singleShot(0, self._apply_window_frame)
+            QTimer.singleShot(0, self._refresh_output_layouts)
             theme = self.themes.get(self.selected_theme, {})
             theme_name = LanguageManager.localized_name(
                 theme.get("name", {}), self.current_language, self.languages
@@ -1063,14 +1064,7 @@ class MainWindow(QMainWindow):
                 self.multi_quantity = quantity
             elif normalized == MODE_SCROLL_MULTI:
                 self.scroll_multi_quantity = quantity
-        if normalized == MODE_LIFT:
-            self._show_lift_page()
-        elif normalized == MODE_SCROLL_MULTI:
-            self._show_scroll_multi_page()
-        elif normalized == MODE_SCROLL_LIFT:
-            self._show_scroll_lift_page()
-        else:
-            self._show_multi_page()
+        self._set_current_page(normalized)
 
     def _bind_page_actions(self):
         config = self._app_config()
@@ -1192,37 +1186,83 @@ class MainWindow(QMainWindow):
 
         self._refresh_quantity_ranges()
 
-    def _show_multi_page(self):
-        if self.stacked_widget is not None:
-            self.stacked_widget.setCurrentWidget(self.page_multi)
-        self.current_mode = MODE_MULTI
+    def _set_current_page(self, mode):
+        """只切换页面，不重置状态；启动时使用。"""
+        pages = {
+            MODE_MULTI: self.page_multi,
+            MODE_LIFT: self.page_lift,
+            MODE_SCROLL_MULTI: self.page_scroll_multi,
+            MODE_SCROLL_LIFT: self.page_scroll_lift,
+        }
+        page = pages.get(mode)
+        if self.stacked_widget is not None and page is not None:
+            self.stacked_widget.setCurrentWidget(page)
+        self.current_mode = mode
         self._update_status_info()
+
+    def _switch_mode(self, mode, quantity=None):
+        """切换模式前先重置目标模式的显示状态，再切换页面。"""
+        target = self._normalize_mode(mode)[0]
+        if quantity is not None:
+            self._set_quantity(target, quantity, log=False)
+        self._reset_mode_state(target)
+        self._set_current_page(target)
+        StateManager.log("INFO", "mode_switch", result=target)
+        QTimer.singleShot(0, self._refresh_output_layouts)
+
+    def _reset_mode_state(self, mode):
+        """重置指定模式的显示；减量抽保留已抽名单。"""
+        if mode == MODE_MULTI:
+            self.multi_result = None
+            self.multi_result_names = []
+            if self.multi_view is not None:
+                self.multi_view.set_message(self._t("state.waiting"))
+        elif mode == MODE_LIFT:
+            # lift_current_dict 是减量抽尚未抽到的人，切页时保留。
+            self.lift_result = None
+            self.lift_result_names = []
+            if self.lift_view is not None:
+                self.lift_view.set_message(self._t("state.waiting"))
+        elif mode == MODE_SCROLL_MULTI:
+            if self.scroll_multi_controller is not None:
+                self.scroll_multi_controller.reset()
+            elif self.scroll_multi_view is not None:
+                self.scroll_multi_view.set_message(self._t("state.waiting"))
+        elif mode == MODE_SCROLL_LIFT:
+            if self.scroll_lift_controller is not None:
+                self.scroll_lift_controller.reset_keep_pool()
+            elif self.scroll_lift_view is not None:
+                self.scroll_lift_view.set_message(self._t("state.waiting"))
+
+    def _show_multi_page(self):
+        self._switch_mode(MODE_MULTI)
 
     def _show_single_page(self):
-        self._set_quantity(MODE_MULTI, 1, log=False)
-        self._show_multi_page()
+        self._switch_mode(MODE_MULTI, 1)
 
     def _show_lift_page(self):
-        if self.stacked_widget is not None:
-            self.stacked_widget.setCurrentWidget(self.page_lift)
-        self.current_mode = MODE_LIFT
-        self._update_status_info()
+        self._switch_mode(MODE_LIFT)
 
     def _show_scroll_single_page(self):
-        self._set_quantity(MODE_SCROLL_MULTI, 1, log=False)
-        self._show_scroll_multi_page()
+        self._switch_mode(MODE_SCROLL_MULTI, 1)
 
     def _show_scroll_multi_page(self):
-        if self.stacked_widget is not None:
-            self.stacked_widget.setCurrentWidget(self.page_scroll_multi)
-        self.current_mode = MODE_SCROLL_MULTI
-        self._update_status_info()
+        self._switch_mode(MODE_SCROLL_MULTI)
 
     def _show_scroll_lift_page(self):
-        if self.stacked_widget is not None:
-            self.stacked_widget.setCurrentWidget(self.page_scroll_lift)
-        self.current_mode = MODE_SCROLL_LIFT
-        self._update_status_info()
+        self._switch_mode(MODE_SCROLL_LIFT)
+
+    def _refresh_output_layouts(self):
+        """主题、字体或页面尺寸变化后刷新四个输出框。"""
+        for view in (
+            self.multi_view,
+            self.lift_view,
+            self.scroll_multi_view,
+            self.scroll_lift_view,
+        ):
+            refresh = getattr(view, "refresh_layout", None)
+            if callable(refresh):
+                refresh()
 
     # ------------------------------------------------------------------ status bar
     def _current_quantity(self):
@@ -1713,6 +1753,7 @@ class MainWindow(QMainWindow):
             else:
                 self._show_status_message(previous_status)
             self._update_status_info()
+            QTimer.singleShot(0, self._refresh_output_layouts)
         except Exception as exc:
             logging.exception("重新加载配置失败: %s", exc)
             QMessageBox.warning(
@@ -1723,15 +1764,6 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------ initialize
     def _on_initialize(self):
         """清空记忆与本次运行状态，所有模式回到数量 1。"""
-        answer = QMessageBox.question(
-            self,
-            self._t("dialog.init_title"),
-            self._t("dialog.init_confirm"),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if answer != QMessageBox.StandardButton.Yes:
-            return
         try:
             StateManager.reset_memory()
             for mode in (MODE_MULTI, MODE_LIFT, MODE_SCROLL_MULTI, MODE_SCROLL_LIFT):
@@ -1769,7 +1801,8 @@ class MainWindow(QMainWindow):
         return self._app_config()
 
     def _open_viewer(self, title, path: Path, *, markdown: bool, empty_text: str = "",
-                     text_provider=None, highlight_log: bool = False):
+                     text_provider=None, highlight_log: bool = False,
+                     start_at_top: bool = True):
         key = str(path.resolve()) if path.exists() else str(path)
         if text_provider is not None:
             key = f"{key}#session"
@@ -1786,6 +1819,7 @@ class MainWindow(QMainWindow):
             self, title, path, markdown=markdown, config=self._viewer_option(),
             translate=self._t, empty_text=empty_text, close_text=self._t("action.close"),
             text_provider=text_provider, highlight_log=highlight_log,
+            start_at_top=start_at_top,
         )
         self.viewer_dialogs[key] = dialog
         dialog.destroyed.connect(lambda _obj=None, k=key: self.viewer_dialogs.pop(k, None))
@@ -1809,13 +1843,18 @@ class MainWindow(QMainWindow):
             empty_text=self._t("state.no_logs"),
             text_provider=StateManager.session_log_text,
             highlight_log=True,
+            start_at_top=False,
         )
 
     def _open_help(self):
         language = self.current_language if self.current_language in {"en_US", "zh_CN", "zh_TW"} else "en_US"
-        help_paths = [DOC_DIR / f"help_{language}.md"]
-        if language != "en_US":
-            help_paths.append(DOC_DIR / "help_en_US.md")
+        sibling = LanguageManager.SIBLING_LANGUAGES.get(language)
+        codes = [language]
+        if sibling:
+            codes.append(sibling)
+        if "en_US" not in codes:
+            codes.append("en_US")
+        help_paths = [DOC_DIR / f"help_{code}.md" for code in codes]
         for help_path in help_paths:
             if help_path.is_file():
                 self._show_document(self._t("action.help"), help_path, markdown=True)
@@ -1952,6 +1991,18 @@ def main():
     global ui_main, ui_widgetlift, ui_widgetmulti, ui_widgetscrollmulti, ui_widgetscrolllift
 
     app = QApplication(sys.argv)
+
+    # 单实例：同一版本已经在运行时，唤醒已有窗口并退出。
+    from lib.SingleInstance import SingleInstanceServer, notify_running
+
+    if notify_running():
+        return 0
+    instance_server = SingleInstanceServer()
+    if not instance_server.listening and notify_running():
+        return 0
+    activation_requests = []
+    instance_server.activated.connect(lambda: activation_requests.append(True))
+
     bootstrap_config, bootstrap_warnings = _bootstrap_config()
     icon_path = ICON_PATH
     app_icon = QIcon(str(icon_path))
@@ -2093,6 +2144,35 @@ def main():
     except (OSError, ValueError, KeyError) as exc:
         logging.exception("应用启动主题失败: %s", exc)
         StateManager.log("ERROR", "startup_theme", error=str(exc))
+    revealed = []
+
+    def activate_window():
+        if not revealed:
+            # 启动画面还没结束时先记下请求，等主窗口显示后再唤醒。
+            activation_requests.append(True)
+            return
+        if window.isMinimized():
+            window.showNormal()
+        elif getattr(window, "_start_fullscreen", False):
+            window.showFullScreen()
+        else:
+            window.show()
+        window.raise_()
+        window.activateWindow()
+        try:
+            handle = window.windowHandle()
+            if handle is not None:
+                handle.requestActivate()
+        except Exception:
+            pass
+        if WindowTheme is not None:
+            WindowTheme.activate_window(int(window.winId()))
+        if splash is not None:
+            splash.finish(window)
+        StateManager.log("INFO", "single_instance", result="activated")
+
+    instance_server.activated.connect(activate_window)
+
     def reveal_window():
         if getattr(window, "_start_fullscreen", False):
             window.showFullScreen()
@@ -2102,6 +2182,10 @@ def main():
             window.show()
         if splash is not None:
             splash.finish(window)
+        revealed.append(True)
+        if activation_requests:
+            activation_requests.clear()
+            activate_window()
 
     if splash is None:
         reveal_window()

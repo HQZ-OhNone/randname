@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文记录 randname 3.11.1 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
+本文记录 randname 3.11.2 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
 `logic_en_US.md`，正體中文版见 `logic_zh_TW.md`。
 
 ## 1. 术语与模式
@@ -31,7 +31,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路径 | 职责 |
 | --- | --- |
 | `main.py` | 启动、主窗口、菜单、状态栏、页面切换、记忆回填、查看器入口 |
-| `lib/version.py` | `APP_VERSION = "3.11.1"` |
+| `lib/version.py` | `APP_VERSION = "3.11.2"` |
 | `lib/Multi.py` | 多抽算法 |
 | `lib/Lift.py` | 减量抽算法 |
 | `lib/ScrollMulti.py` | 滚动多抽控制器 |
@@ -62,7 +62,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 3. `_bootstrap_config()` 读取 `config/config.toml`；失败时读取 `.config.default.toml`，再失败使用内建配置。
 4. 读取图标；创建启动画面。
 5. 启动画面按 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 缩放，保持宽高比。
-6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.11.1`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
+6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.11.2`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
 7. `_startup_file_check()` 检查可恢复文件；缺失项加入启动警告。`required` 当前恒为空，因此“启动检查失败”分支不可达。
 8. 导入 `lib` 模块。
 9. 图标、启动图、帮助、许可证、日志与记忆路径固定于代码，不再有可配置路径段。
@@ -347,11 +347,11 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 `lib/TextViewer.py`：
 
-- 帮助/许可证使用 `QTextBrowser` + `setMarkdown()`；日志使用 `QPlainTextEdit` + `setPlainText()`。
+- 帮助/许可证使用 `QTextBrowser` + `setMarkdown()`；日志使用 `QTextBrowser` + `setHtml()` 高亮等级。
 - 只读：`setReadOnly(True)`、禁用撤销/重做。
 - 非模态：`setModal(False)`，可一边运行主程序一边查看。
 - `QFileSystemWatcher` 监听文件和父目录；同时用 `QTimer` 轮询兜底。
-- 刷新前记录滚动条位置；若原本在底部，刷新后自动跟随到底部；用户上滚后不强制跳到底部。
+- 帮助与许可证每次打开都回到顶部；日志保持跟随底部，用户上滚后不强制跳回。
 - 尺寸：
   - 使用父窗口所在屏幕的 `availableGeometry()`；
   - 宽高不超过 `available * max_screen_ratio`，再减 24px 边距；
@@ -375,13 +375,14 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
   - 菜单选中强调色；
   - 状态栏背景。
 - ID 选择器优先级高于控件内联的 `QLabel` 元素选择器，因此主题色会覆盖 `.ui` 中的默认背景。
-- 主题名按当前语言、系统语言、英语、主题键回退。
+- 主题名按当前语言、简繁备援语言、系统语言、英语、主题键回退。
 
 ### 15.2 语言
 
 - `config/language.toml` 的 `preferred` 是首次启动首选；旧 `app.language` 仅作为后备。
 - `LanguageManager.ENGLISH` 是内建兜底包；语言文件缺失时仍可用英语。
-- 翻译键缺失时回退到 `ENGLISH`，再回退键名。
+- 翻译键缺失时先找简体/繁体对方，再回退到 `ENGLISH`，最后回退键名。
+- 缺少整个简体或繁体语言包时，用另一方合成该语言包。
 - `{count}`、`{name}` 等占位符必须保留；格式化失败时返回原文。
 - 切换语言立即刷新菜单、按钮、占位文案和状态栏，不清除当前结果。
 
@@ -483,7 +484,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-当前版本：**3.11.1**。
+当前版本：**3.11.2**。
 
 3.8.x 主要变化：
 
@@ -630,3 +631,17 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - `[window]` 新增 `fullscreen`：为 true 时启动直接 `showFullScreen()`，优先于 `size_mode`；运行中重载配置关闭该项会先 `showNormal()` 再按尺寸模式重排。
 - `OutputView` 与 `SlotOutputView` 新增 `_OutputExpansion`：仅在最小字号仍放不下时，把输出框所在行的 stretch 设为 1 以占用窗口上下空白；`set_message()`、`clear_round()` 或人数减少时恢复。使用重入旗标避免布局递归。
 - 版本更新为 3.11.1。
+
+
+## 35. 3.11.2 启动与更新改进
+
+- 新增单实例保护：同一版本的 randname 只会存在一个窗口；即使把相同版本复制到其他目录，也会连接到同一个窗口。不同版本可同时运行。
+- 检查更新同时向 GitHub 直连与 `[update].mirror_prefixes` 镜像发起请求，首个有效响应即采用；全部失败才显示失败并记录各通道错误。
+- 更新窗口改用 Markdown 渲染完整的 `doc/releasenote.md`，保留所有 `## vX.Y.Z` 版本标题；查询成功时用线上最新 Release 正文同步对应版本。
+- 更新窗口改用逐像素平滑滚动与触屏手势；“更新”按钮打开浏览器失败时不再静默关闭，会留在窗口显示可选中的网址。
+- “文件 > 初始化”不再弹窗询问，仍会重置四模式、清空记忆并在状态栏与日志记录。
+- 切换模式时先重置目标模式的显示；Multi、ScrollMulti 清空结果与滚动池，Lift、ScrollLift 保留已抽名单与数量。
+- 帮助与许可证文件每次打开都回到顶部；程序日志仍自动跟随最新行。
+- 简体与繁体语言包互为备援：缺少语言包或单一词条时自动使用另一方，名单与主题名称同样适用。
+- 修复名字过多时输出框被误收合、改用最小字号挤压的问题；主题或样式重绘后会重新排版并保持正常格子。
+- 版本更新为 3.11.2。

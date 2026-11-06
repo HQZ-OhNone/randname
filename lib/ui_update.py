@@ -16,7 +16,7 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QDialog, QHBoxLayout, QLabel,
-    QPlainTextEdit, QPushButton, QSizePolicy, QSpacerItem,
+    QPushButton, QSizePolicy, QSpacerItem, QTextBrowser,
     QVBoxLayout, QWidget)
 
 class Ui_UpdateDialog(object):
@@ -45,7 +45,7 @@ class Ui_UpdateDialog(object):
 
         self.verticalLayout.addWidget(self.statusLabel)
 
-        self.notesEdit = QPlainTextEdit(UpdateDialog)
+        self.notesEdit = QTextBrowser(UpdateDialog)
         self.notesEdit.setObjectName(u"notesEdit")
         font1 = QFont()
         font1.setPointSize(12)
@@ -54,6 +54,7 @@ class Ui_UpdateDialog(object):
 "QScrollBar:horizontal { height: 22px; }\n"
 "")
         self.notesEdit.setReadOnly(True)
+        self.notesEdit.setOpenExternalLinks(True)
         self.notesEdit.setUndoRedoEnabled(False)
 
         self.verticalLayout.addWidget(self.notesEdit)

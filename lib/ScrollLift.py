@@ -104,6 +104,11 @@ class ScrollLiftController(ScrollMultiController):
         self.lift_pool = dict(self.names)
         self.round_available = 0
 
+    def reset_keep_pool(self) -> None:
+        """停止滚动并清空本轮显示，但保留已抽后的剩余名单。"""
+        super().reset()
+        self.round_available = 0
+
     def show_result(self, result) -> None:
         """显示记忆中的 ScrollLift 结果，并恢复剩余名单。"""
         if not isinstance(result, dict):

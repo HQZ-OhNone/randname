@@ -36,6 +36,28 @@ class ConfigHelperTests(unittest.TestCase):
         self.assertEqual(width, 800)
         self.assertEqual(height, 400)
 
+    def test_update_defaults_and_mirrors(self):
+        from lib import StateManager
+        from lib.UpdateDialog import request_urls, update_parallel
+
+        update = StateManager.BUILTIN_CONFIG["update"]
+        self.assertTrue(update["parallel"])
+        self.assertTrue(update["mirror_prefixes"])
+        self.assertTrue(update_parallel({}))
+        urls = request_urls("https://api.github.com/x", {})
+        self.assertEqual(urls[0], "https://api.github.com/x")
+        self.assertGreater(len(urls), 1)
+
+    def test_config_file_declares_update_mirrors(self):
+        import tomllib
+        from pathlib import Path
+
+        path = Path(main.ROOT_DIR) / "config" / "config.toml"
+        with path.open("rb") as handle:
+            config = tomllib.load(handle)
+        self.assertIn("timeout_ms", config["update"])
+        self.assertIn("mirror_prefixes", config["update"])
+
     def test_rate_uses_scroll_section(self):
         self.assertEqual(main._rate_from_config({"scroll": {"rate": 45}}), 45)
 

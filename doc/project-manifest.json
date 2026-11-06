@@ -7,7 +7,7 @@
     "license": "GPL-3.0-or-later",
     "entrypoint": "main.py",
     "version_file": "lib/version.py",
-    "app_version": "3.11.1",
+    "app_version": "3.11.2",
     "python": "3.12.10",
     "gui": "PySide6 6.11.1 (Qt 6)",
     "build_tool": "Nuitka 4.1.3",
@@ -278,11 +278,51 @@
       "writes": [],
       "tracked": true,
       "gpl_header": true
+    },
+    {
+      "path": "script/test_single_instance.py",
+      "language": "python",
+      "purpose": "Unit tests for the single-instance server name, wake-up notification, and stale-socket cleanup.",
+      "invocation": ".venv/bin/python -m unittest discover -s script -p 'test_*.py'",
+      "args": [],
+      "reads": [
+        "lib/SingleInstance.py"
+      ],
+      "writes": [],
+      "tracked": true,
+      "gpl_header": true
+    },
+    {
+      "path": "script/test_language.py",
+      "language": "python",
+      "purpose": "Unit tests for Simplified/Traditional Chinese sibling fallback in packs, keys, names, and language resolution.",
+      "invocation": ".venv/bin/python -m unittest discover -s script -p 'test_*.py'",
+      "args": [],
+      "reads": [
+        "lib/LanguageManager.py"
+      ],
+      "writes": [],
+      "tracked": true,
+      "gpl_header": true
+    },
+    {
+      "path": "script/test_desktop.py",
+      "language": "python",
+      "purpose": "Unit tests for external URL opening fallbacks and smooth-scrolling setup.",
+      "invocation": ".venv/bin/python -m unittest discover -s script -p 'test_*.py'",
+      "args": [],
+      "reads": [
+        "lib/UrlOpener.py",
+        "lib/Scrolling.py"
+      ],
+      "writes": [],
+      "tracked": true,
+      "gpl_header": true
     }
   ],
   "tests": {
     "runner": ".venv/bin/python -m unittest discover -s script -p 'test_*.py'",
-    "count_at_2026_10_27": 69,
+    "count_at_2026_10_27": 102,
     "status_at_2026_10_27": "pass",
     "headless_env": "QT_QPA_PLATFORM=offscreen (set inside GUI tests)",
     "policy": "logic changes must update the matching test file"
@@ -371,7 +411,7 @@
     },
     {
       "path": "lib/TextViewer.py",
-      "purpose": "Read-only, live-refreshing internal text viewer and log highlighting.",
+      "purpose": "Read-only, live-refreshing internal text viewer that opens documents from the top and keeps logs at the bottom.",
       "provides": [
         "TextViewerDialog",
         "highlight_log_text"
@@ -390,12 +430,18 @@
     },
     {
       "path": "lib/UpdateDialog.py",
-      "purpose": "GitHub Releases update checker that shows the latest release notes, plus version comparison helpers.",
+      "purpose": "GitHub Releases update checker with direct/mirror racing, Markdown release notes, and robust URL opening.",
       "provides": [
         "UpdateDialog",
         "parse_version",
         "is_newer_version",
         "update_timeout_ms",
+        "update_parallel",
+        "update_mirror_prefixes",
+        "request_urls",
+        "release_notes_document",
+        "merge_release_section",
+        "parse_release_payload",
         "latest_release_section",
         "clean_release_body"
       ]
@@ -431,6 +477,31 @@
         "colorref",
         "is_dark"
       ]
+    },
+    {
+      "path": "lib/SingleInstance.py",
+      "purpose": "Single-instance guard: wakes the existing window of the same version through QLocalServer, while different versions can run side by side.",
+      "provides": [
+        "SingleInstanceServer",
+        "notify_running",
+        "server_name"
+      ]
+    },
+    {
+      "path": "lib/UrlOpener.py",
+      "purpose": "Open external URLs through Qt, Windows shell APIs, or command-line fallbacks for systems without a registered browser.",
+      "provides": [
+        "browser_commands",
+        "open_url"
+      ]
+    },
+    {
+      "path": "lib/Scrolling.py",
+      "purpose": "Shared touch and mouse smooth-scrolling setup for read-only text views.",
+      "provides": [
+        "install_smooth_scrolling",
+        "has_touch_screen"
+      ]
     }
   ],
   "ui": {
@@ -453,7 +524,7 @@
   "config": [
     {
       "path": "config/config.toml",
-      "purpose": "Main runtime configuration: mode, roster, window, splash, UI, scroll, logging, status bar, update timeout.",
+      "purpose": "Main runtime configuration: mode, roster, window, splash, UI, scroll, viewer, logging, status bar, update mirrors, and timeouts.",
       "runtime": true
     },
     {

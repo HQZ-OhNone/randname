@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文記錄 randname 3.11.1 的實際行為、隱藏機制與邊界。簡體中文見
+本文記錄 randname 3.11.2 的實際行為、隱藏機制與邊界。簡體中文見
 `logic_zh_CN.md`，英文見 `logic_en_US.md`。
 
 ## 1. 術語與模式
@@ -32,7 +32,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路徑 | 職責 |
 | --- | --- |
 | `main.py` | 啟動、主視窗、選單、狀態列、頁面切換、記憶回填 |
-| `lib/version.py` | `APP_VERSION = "3.11.1"` |
+| `lib/version.py` | `APP_VERSION = "3.11.2"` |
 | `lib/Multi.py` | 多抽演算法 |
 | `lib/Lift.py` | 減量抽演算法 |
 | `lib/ScrollMulti.py` | 滾動多抽控制器 |
@@ -60,7 +60,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
    `.config.default.toml`，再失敗使用內建設定。
 4. 載入圖示與啟動畫面。
 5. 依 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 縮放，保持比例。
-6. `_draw_splash_version()` 在右下角繪製 `v3.11.1`；字號始終依圖片寬度的三分之一
+6. `_draw_splash_version()` 在右下角繪製 `v3.11.2`；字號始終依圖片寬度的三分之一
    自動縮放，文字固定為純白色，不提供字號或顏色設定。
 7. `_startup_file_check()` 收集可恢復檔案警告；`required` 目前恆為空。
 8. 匯入 `lib` 模組。
@@ -332,14 +332,14 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 `lib/TextViewer.py`：
 
 - 說明/授權：`QTextBrowser` + `setMarkdown()`。
-- 日誌：`QPlainTextEdit` + `setPlainText()`。
+- 日誌：`QTextBrowser` + `setHtml()` 高亮等級。
 - 唯讀、停用復原/重做。
 - 非模態，可一邊執行程式一邊查看。
 - `QFileSystemWatcher` 監聽檔案與父目錄；`QTimer` 輪詢備援。
-- 保留捲動位置；原本在底部時跟隨新內容，使用者上捲後不強制跳到底部。
+- 說明與授權每次開啟都回到頂端；日誌保留跟隨底部，使用者上捲後不強制跳回。
 - 尺寸依父視窗螢幕的 `availableGeometry()`；不超過
   `available * max_screen_ratio` 再減 24px，最大 900×680，小螢幕自動縮小。
-- 觸控：`QScroller` 左鍵手勢、22px 捲動條、40px 關閉按鈕。
+- 觸控：`lib/Scrolling.py` 依裝置使用 `TouchGesture`／左鍵手勢、24px 單步、22px 捲動條、40px 關閉按鈕。
 - 同一路徑重複開啟時啟用既有視窗。
 - 說明/授權檔案修改後即時刷新。
 
@@ -354,13 +354,14 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
   （`label_MultiOutput`、`label_LiftOutput`、`label_ScrollMultiOutput`、
   `label_ScrollLiftOutput`）、按鈕、選單選取、狀態列。
 - ID 選擇器優先於 `.ui` 內的 `QLabel` 元素樣式。
-- 主題名依目前語言、系統語言、英語、鍵名回退。
+- 主題名依目前語言、簡繁備援語言、系統語言、英語、鍵名回退。
 
 ### 語言
 
 - `language.toml` 的 `preferred` 是首次啟動語言；舊 `app.language` 僅作後備。
 - `LanguageManager.ENGLISH` 是內建備援。
-- 缺少翻譯鍵時回退英語，再回退鍵名。
+- 缺少翻譯鍵時先找簡體/繁體對方，再回退英語，最後回退鍵名。
+- 缺少整個簡體或繁體語言包時，用另一方合成該語言包。
 - `{count}`、`{name}` 等佔位符必須保留。
 - 切換語言立即刷新選單、按鈕、占位文案與狀態列，不清除目前結果。
 
@@ -446,7 +447,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-目前版本：**3.11.1**。
+目前版本：**3.11.2**。
 
 3.8.x 主要變更：
 
@@ -599,3 +600,17 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - `[window]` 新增 `fullscreen`：為 true 時啟動直接 `showFullScreen()`，優先於 `size_mode`；執行中重新載入設定關閉該項會先 `showNormal()` 再依尺寸模式重排。
 - `OutputView` 與 `SlotOutputView` 新增 `_OutputExpansion`：僅在最小字號仍放不下時，把輸出框所在列的 stretch 設為 1 以佔用視窗上下空白；`set_message()`、`clear_round()` 或人數減少時恢復。使用重入旗標避免版面遞迴。
 - 版本更新為 3.11.1。
+
+
+## 35. 3.11.2 啟動與更新改進
+
+- 新增單實例保護：同一版本的 randname 只會存在一個視窗；即使把相同版本複製到其他目錄，也會連到同一個視窗。不同版本可同時執行。
+- 檢查更新同時向 GitHub 直連與 `[update].mirror_prefixes` 鏡像發出請求，首個有效回應即採用；全部失敗才顯示失敗並記錄各通道錯誤。
+- 更新視窗改用 Markdown 渲染完整的 `doc/releasenote.md`，保留所有 `## vX.Y.Z` 版本標題；查詢成功時用線上最新 Release 正文同步對應版本。
+- 更新視窗改用逐像素平滑滾動與觸屏手勢；「更新」按鈕開啟瀏覽器失敗時不再靜默關閉，會留在視窗顯示可選取的網址。
+- 「檔案 > 初始化」不再彈窗詢問，仍會重置四模式、清空記憶並在狀態列與日誌記錄。
+- 切換模式時先重置目標模式的顯示；Multi、ScrollMulti 清空結果與滾動池，Lift、ScrollLift 保留已抽名單與數量。
+- 說明與授權文件每次開啟都回到頂端；程式日誌仍自動跟隨最新行。
+- 簡體與繁體語言包互為備援：缺少語言包或單一詞條時自動使用另一方，名單與主題名稱同樣適用。
+- 修正名字過多時輸出框被誤收合、改用最小字號擠壓的問題；主題或樣式重繪後會重新排版並保持正常格子。
+- 版本更新為 3.11.2。

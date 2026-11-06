@@ -8,6 +8,34 @@
 3. 每个版本使用「中文 / English」两段，内容来自 doc/history.md 与 git 记录。
 -->
 
+## v3.11.2 — 2026-11-07
+
+### 中文
+
+- 同一版本只會開啟一個視窗；再次啟動時切換到已開啟的視窗，不同版本的可移植副本仍可同時執行。
+- 檢查更新同時向 GitHub 直連與鏡像站發出請求，取第一個有效回應；鏡像可在 `config/config.toml` 的 `[update].mirror_prefixes` 調整。
+- 更新視窗以 Markdown 渲染完整的 `doc/releasenote.md`，保留所有版本號標題，並用線上最新 Release 正文同步對應版本；觸屏與滑鼠滾動更順暢。
+- 「更新」按鈕在沒有預設瀏覽器的系統（例如 Windows 10 希沃白板）會改用系統介面或命令列開啟；仍失敗時保留視窗並顯示可選取的網址。
+- 「檔案 > 初始化」不再彈窗確認，直接重置並在狀態列與日誌記錄。
+- 切換模式時先初始化目標模式；多抽與滾動多抽清空上次結果，減量抽與滾動減量抽保留已抽後的名單，各模式數量不變。
+- 說明與授權文件每次開啟都從頭顯示；程式日誌仍持續跟隨最新內容。
+- 簡體與繁體語言包互為備援，缺少語言包或單一詞條時自動使用另一方。
+- 修正名字過多時輸出框被誤收合、改用最小字號擠壓的問題；主題或樣式重新套用後仍保持正常排版。
+- 版本更新為 3.11.2。
+
+### English
+
+- Only one window runs per version; launching the same version again activates the existing window, while different portable versions can still run together.
+- Update checks query GitHub directly and through mirror sites at the same time and use the first valid response; mirrors are configurable under `[update].mirror_prefixes` in `config/config.toml`.
+- The update dialog renders the complete `doc/releasenote.md` as Markdown with every version heading and syncs the matching version from the online release body; touch and mouse scrolling are smoother.
+- The Update button falls back to system APIs or command-line openers on systems without a registered browser (for example a Windows 10 Seewo whiteboard); if opening still fails, the dialog stays open and shows the selectable URL.
+- **File > Initialize** no longer asks for confirmation; it resets immediately and records the action in the status bar and log.
+- Switching modes initialises the target mode first: Multi and ScrollMulti clear the previous result, while Lift and ScrollLift keep the drawn pool; quantities are unchanged.
+- Help and licence documents start at the top every time; the program log still follows the newest content.
+- Simplified and Traditional Chinese language packs back each other up when a pack or key is missing.
+- Fixed the output box collapsing incorrectly and squeezing text at the minimum font size when many names are drawn; theme or stylesheet reapplies now keep the normal layout.
+- Version bumped to 3.11.2.
+
 ## v3.11.1 — 2026-10-30
 
 ### 中文
