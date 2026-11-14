@@ -80,6 +80,18 @@ class ConfigHelperTests(unittest.TestCase):
         self.assertEqual(main._splash_wait_ms(1, 4000, 4500), 0)
         self.assertEqual(main._splash_wait_ms("fixed", 1000, 1000), 0)
 
+    def test_splash_settings_defaults_and_clamping(self):
+        self.assertEqual(main._splash_settings({}), (True, 0, 1000, {}))
+        self.assertEqual(main._splash_settings(None), (True, 0, 1000, {}))
+        self.assertEqual(
+            main._splash_settings({"splash": {"enabled": False, "mode": 1, "duration_ms": -5}}),
+            (False, 1, 0, {"enabled": False, "mode": 1, "duration_ms": -5}),
+        )
+        self.assertEqual(
+            main._splash_settings({"splash": {"duration_ms": True}})[2], 1000
+        )
+        self.assertEqual(main._splash_settings({"splash": "bad"}), (True, 0, 1000, {}))
+
     def test_splash_version_pixel_size_scales_with_width(self):
         self.assertEqual(main._splash_version_pixel_size(300, 333), 111)
         self.assertEqual(main._splash_version_pixel_size(300, 500), 167)

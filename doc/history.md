@@ -12,6 +12,36 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 This file is appended per session: completed work, unresolved findings, and
 verification results.
 
+## 2026-11-14 / 3.11.3
+
+### 已完成 / Completed
+
+- 啟動流程改為先讀取最小設定、建立 `QApplication` 後立即顯示啟動框；單實例檢查、圖示載入、檔案檢查與 `lib` 模組匯入全部移到啟動框之後，縮短首屏時間。
+- 新增 `_splash_settings()` 集中解析 `[splash].enabled`/`mode`/`duration_ms`，非整數或布林值回退 1000、負數夾緊為 0；`script/test_config.py` 補對應單元測試。
+- `script/build.bat` 改為先安裝相依再編譯 UI，加入 `errorlevel` 檢查；`CI` 環境不執行 `pause`，手動執行仍會在結束或失敗時暫停。
+- `.github/workflows/BuildAndRelease.yml` 直接呼叫 `script/build.sh` 與 `script/build.bat`，刪除重複的安裝、UI 編譯與 Nuitka 命令，保留系統依賴、快取、產物校驗、打包命名、上傳與 Release。
+- 版本更新為 3.11.3，同步 README、manifest 與三語邏輯文件。
+
+### 發現但未解決 / Found but unresolved
+
+- 單實例檢查移到啟動框之後；重複啟動時可能短暫閃現啟動框（已由使用者確認接受）。
+- GitHub Actions 的 Windows `script\build.bat` 與 Ubuntu `script/build.sh` 實際流程尚未在 CI 實跑，只做語法、本地路徑與離屏啟動檢查。
+- `doc/releasenote.md` 未更新（本次非 `[upgrade]` 發版）。
+
+### 驗證 / Verification
+
+- `.venv/bin/python -m unittest discover -s script -p 'test_*.py'`：103 項通過。
+- `python -m py_compile main.py lib/*.py script/*.py`、`python -m json.tool doc/project-manifest.json`、`bash -n script/build.sh`、`git diff --check` 通過。
+- 離屏啟動冒煙：`QT_QPA_PLATFORM=offscreen timeout 6s .venv/bin/python main.py` 持續執行至逾時，日誌無 traceback。
+
+### English summary
+
+- Startup now shows the splash right after reading minimal config and creating `QApplication`; single-instance checks, icon loading, file checks, and `lib` imports all run after the splash, shortening the first frame.
+- Added `_splash_settings()` for `[splash]` parsing with clamping plus a unit test.
+- `script/build.bat` installs dependencies before compiling the UI, checks `errorlevel`, and only pauses outside CI.
+- The workflow calls `script/build.sh` and `script/build.bat` directly instead of duplicating the commands; verification, packaging, upload, and Release stay in the workflow.
+- Version bumped to 3.11.3 and README, manifest, and trilingual logic docs synced.
+
 ## 2026-11-07 / 3.11.2
 
 ### 已完成 / Completed

@@ -193,6 +193,19 @@ def _splash_wait_ms(mode, duration_ms, elapsed_ms) -> int:
     return max(0, duration - elapsed)
 
 
+def _splash_settings(config: dict | None) -> tuple[bool, object, int, dict]:
+    """解析启动框设置，返回 (enabled, mode, duration_ms, splash_config)。"""
+    splash_config = config.get("splash", {}) if isinstance(config, dict) else {}
+    if not isinstance(splash_config, dict):
+        splash_config = {}
+    enabled = splash_config.get("enabled", True) is True
+    mode = splash_config.get("mode", 0)
+    duration_ms = splash_config.get("duration_ms", 1000)
+    if not isinstance(duration_ms, int) or isinstance(duration_ms, bool):
+        duration_ms = 1000
+    return enabled, mode, max(0, duration_ms), splash_config
+
+
 def _rate_from_config(config: dict | None, default: int = 30) -> int:
     """Read a positive ticks-per-second rate, accepting old section names."""
     if not isinstance(config, dict):
@@ -1990,39 +2003,18 @@ def main():
     global BackgroundWidget, WindowTheme
     global ui_main, ui_widgetlift, ui_widgetmulti, ui_widgetscrollmulti, ui_widgetscrolllift
 
+    # 先读取启动框所需的最小配置；其余扫描与加载都放在启动框显示之后。
+    bootstrap_config, bootstrap_warnings = _bootstrap_config()
+
     app = QApplication(sys.argv)
 
-    # 单实例：同一版本已经在运行时，唤醒已有窗口并退出。
-    from lib.SingleInstance import SingleInstanceServer, notify_running
-
-    if notify_running():
-        return 0
-    instance_server = SingleInstanceServer()
-    if not instance_server.listening and notify_running():
-        return 0
-    activation_requests = []
-    instance_server.activated.connect(lambda: activation_requests.append(True))
-
-    bootstrap_config, bootstrap_warnings = _bootstrap_config()
-    icon_path = ICON_PATH
-    app_icon = QIcon(str(icon_path))
-    if not app_icon.isNull():
-        app.setWindowIcon(app_icon)
-    else:
-        bootstrap_warnings.append(f"Invalid application icon: {icon_path}")
     screen = app.primaryScreen()
     geometry = screen.availableGeometry() if screen is not None else None
     screen_width = geometry.width() if geometry is not None else 1280
     screen_height = geometry.height() if geometry is not None else 800
-    splash_config = bootstrap_config.get("splash", {})
-    if not isinstance(splash_config, dict):
-        splash_config = {}
-    splash_enabled = splash_config.get("enabled", True) is True
-    splash_mode = splash_config.get("mode", 0)
-    splash_duration_ms = splash_config.get("duration_ms", 1000)
-    if not isinstance(splash_duration_ms, int) or isinstance(splash_duration_ms, bool):
-        splash_duration_ms = 1000
-    splash_duration_ms = max(0, splash_duration_ms)
+    splash_enabled, splash_mode, splash_duration_ms, splash_config = _splash_settings(
+        bootstrap_config
+    )
     splash = None
     splash_timer = QElapsedTimer()
     splash_path = SPLASH_IMAGE_PATH
@@ -2050,6 +2042,28 @@ def main():
     elif splash_enabled:
         bootstrap_warnings.append(f"Missing or invalid splash image: {splash_path}")
 
+    # 启动框已显示后再做单实例检查与图标加载，避免挡在首屏之前。
+    from lib.SingleInstance import SingleInstanceServer, notify_running
+
+    if notify_running():
+        if splash is not None:
+            splash.close()
+        return 0
+    instance_server = SingleInstanceServer()
+    if not instance_server.listening and notify_running():
+        if splash is not None:
+            splash.close()
+        return 0
+    activation_requests = []
+    instance_server.activated.connect(lambda: activation_requests.append(True))
+
+    icon_path = ICON_PATH
+    app_icon = QIcon(str(icon_path))
+    if not app_icon.isNull():
+        app.setWindowIcon(app_icon)
+    else:
+        bootstrap_warnings.append(f"Invalid application icon: {icon_path}")
+
     missing_recoverable, missing_required = _startup_file_check(bootstrap_config)
     bootstrap_warnings.extend(missing_recoverable)
     if missing_required:
@@ -2062,7 +2076,6 @@ def main():
         )
         return 1
 
-    app.processEvents()
     try:
         from lib import Lift as lift_module
         from lib import Multi as multi_module

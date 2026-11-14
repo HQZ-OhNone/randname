@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "generated": "2026-10-27",
+  "generated": "2026-11-14",
   "repo": {
     "name": "randname",
     "type": "desktop_application",
     "license": "GPL-3.0-or-later",
     "entrypoint": "main.py",
     "version_file": "lib/version.py",
-    "app_version": "3.11.2",
+    "app_version": "3.11.3",
     "python": "3.12.10",
     "gui": "PySide6 6.11.1 (Qt 6)",
     "build_tool": "Nuitka 4.1.3",
@@ -96,7 +96,7 @@
       "side_effects": [
         "installs/upgrades pip and Nuitka/PySide6",
         "changes working directory to repository root",
-        "pauses before closing"
+        "pauses before closing unless CI is set"
       ],
       "referenced_by": [
         "README.md",
@@ -694,7 +694,7 @@
       }
     ],
     "notes": [
-      "Build commands duplicate script/build.sh and script/build.bat; update both when packaging changes.",
+      "CI calls script/build.sh and script/build.bat directly; update the scripts once when packaging changes.",
       "Release job checks out the repo only to read doc/releasenote.md."
     ]
   },

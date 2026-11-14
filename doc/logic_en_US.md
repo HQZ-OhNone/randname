@@ -9,7 +9,7 @@ version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
 This document records the actual behaviour, hidden mechanisms, and edge cases
-of randname 3.11.2. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
+of randname 3.11.3. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 `logic_zh_TW.md`.
 
 ## 1. Terms and modes
@@ -34,7 +34,7 @@ of randname 3.11.2. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 | Path | Responsibility |
 | --- | --- |
 | `main.py` | Startup, main window, menus, status bar, page switching, memory restore |
-| `lib/version.py` | `APP_VERSION = "3.11.2"` |
+| `lib/version.py` | `APP_VERSION = "3.11.3"` |
 | `lib/Multi.py` | Multi draw algorithm |
 | `lib/Lift.py` | Lift draw algorithm |
 | `lib/ScrollMulti.py` | ScrollMulti controller |
@@ -57,31 +57,38 @@ of randname 3.11.2. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 ## 3. Startup
 
 1. Print the GPL banner.
-2. Create `QApplication`.
-3. `_bootstrap_config()` reads `config/config.toml`, then
-   `.config.default.toml`, then the built-in configuration.
-4. Load the icon and create the splash screen.
-5. Scale the splash according to `[splash]`, keeping the image aspect ratio.
-6. `_draw_splash_version()` draws `v3.11.2` in the bottom-right corner. The
+2. `_bootstrap_config()` reads `config/config.toml` first (TOML only, for the
+   splash size), then `.config.default.toml`, then the built-in configuration.
+3. Create `QApplication`.
+4. `_splash_settings()` parses `[splash].enabled`/`mode`/`duration_ms` and clamps
+   invalid values.
+5. Load, scale, and show the splash immediately, keeping the image aspect ratio
+   according to `size_mode`/`screen_ratio`/`aspect_ratio`. `processEvents()` runs
+   right after it is shown; all other scanning and loading happens afterwards.
+6. `_draw_splash_version()` draws `v3.11.3` in the bottom-right corner. The
    font size always scales with the image width to one third of that width;
    the text is always pure white and has no size or colour configuration.
-7. `_startup_file_check()` collects recoverable-file warnings. `required` is
-   currently always empty, so the fatal startup-check branch is unreachable.
-8. Import `lib` modules.
-9. Asset, help, license, log, and memory paths are fixed in code; there is no
-   configurable path section.
-10. Memory preferences are not read; every startup reads the configuration and
+7. Only after the splash is visible does the app import `lib.SingleInstance` and
+   check for an existing instance; a duplicate wakes the existing window, closes
+   the splash, and exits.
+8. Load the icon, then `_startup_file_check()` collects recoverable-file
+   warnings. `required` is currently always empty, so the fatal startup-check
+   branch is unreachable.
+9. Import `lib` modules.
+10. Asset, help, license, log, and memory paths are fixed in code; there is no
+    configurable path section.
+11. Memory preferences are not read; every startup reads the configuration and
     dedicated theme/language files.
-11. Log level: `[logging].level` > `INFO`; it controls file writes only.
-12. Theme: `theme.toml` `default` > `config.toml` `app.theme` (legacy) >
+12. Log level: `[logging].level` > `INFO`; it controls file writes only.
+13. Theme: `theme.toml` `default` > `config.toml` `app.theme` (legacy) >
     first theme.
-13. Language: `language.toml` `preferred` > `config.toml` `app.language`
+14. Language: `language.toml` `preferred` > `config.toml` `app.language`
     (legacy) > system language > `en_US`.
-14. Roster: `config.toml` `app.roster` > first roster.
-15. Mode: `config.toml` `app.default_mode` > `Multi`; quantities start at 1.
-16. Create `MainWindow` and apply the theme; whether the window is shown
+15. Roster: `config.toml` `app.roster` > first roster.
+16. Mode: `config.toml` `app.default_mode` > `Multi`; quantities start at 1.
+17. Create `MainWindow` and apply the theme; whether the window is shown
     immediately depends on `[splash].mode`.
-17. With `[splash].mode = 1`, only the splash is shown until the remaining time
+18. With `[splash].mode = 1`, only the splash is shown until the remaining time
     elapses, then the main window appears and the splash closes. Other modes
     show the window and close the splash as soon as the window is ready.
 
@@ -461,6 +468,9 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 4. Version lives in `lib/version.py`; use `3.10.1[upgrade]_...` in the commit
    message to trigger the release workflow. Update checks use QtNetwork, so
    `PySide6.QtNetwork` is no longer excluded.
+5. GitHub Actions calls `script/build.sh` (Linux) and `script/build.bat`
+   (Windows) directly instead of duplicating the commands. `build.bat` skips
+   `pause` when `CI` is set but still pauses for manual runs.
 
 ## 18. Hidden mechanisms and edge cases
 
@@ -536,7 +546,7 @@ Run: `QT_QPA_PLATFORM=offscreen python -m unittest discover -s script -p 'test_*
 
 ## 20. Version
 
-Current version: **3.11.2**.
+Current version: **3.11.3**.
 
 Main changes in the 3.8.x series:
 
@@ -736,3 +746,20 @@ Main changes in the 3.8.x series:
 - Simplified and Traditional Chinese language packs back each other up for missing packs or individual keys, including roster and theme names.
 - Fixed the output box collapsing incorrectly and squeezing text at the minimum font size when many names are drawn; theme or stylesheet repaints now trigger a clean relayout.
 - Version bumped to 3.11.2.
+
+## 36. 3.11.3 splash timing and build flow
+
+- Startup now runs "read minimal config → create `QApplication` → show the
+  splash immediately → single-instance check → icon and file checks → load
+  `lib` and `MainWindow`", so scanning and loading no longer delay the first
+  frame.
+- Added `_splash_settings()`: it parses `[splash].enabled`/`mode`/`duration_ms`,
+  falls back to 1000 for non-integers or booleans, and clamps negatives to 0.
+- `build.bat` installs dependencies before compiling the UI and checks
+  `errorlevel` after each step. It skips `pause` when `CI` is set and still
+  pauses after success or failure for manual runs.
+- GitHub Actions calls `script/build.sh` and `script/build.bat` directly,
+  removing the duplicated install, UI compilation, and Nuitka commands.
+  Artifact verification, naming, upload, and Release creation stay in the
+  workflow.
+- Version bumped to 3.11.3.

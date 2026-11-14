@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文記錄 randname 3.11.2 的實際行為、隱藏機制與邊界。簡體中文見
+本文記錄 randname 3.11.3 的實際行為、隱藏機制與邊界。簡體中文見
 `logic_zh_CN.md`，英文見 `logic_en_US.md`。
 
 ## 1. 術語與模式
@@ -32,7 +32,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路徑 | 職責 |
 | --- | --- |
 | `main.py` | 啟動、主視窗、選單、狀態列、頁面切換、記憶回填 |
-| `lib/version.py` | `APP_VERSION = "3.11.2"` |
+| `lib/version.py` | `APP_VERSION = "3.11.3"` |
 | `lib/Multi.py` | 多抽演算法 |
 | `lib/Lift.py` | 減量抽演算法 |
 | `lib/ScrollMulti.py` | 滾動多抽控制器 |
@@ -55,24 +55,27 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 ## 3. 啟動流程
 
 1. 顯示 GPL 橫幅。
-2. 建立 `QApplication`。
-3. `_bootstrap_config()` 讀取 `config/config.toml`，失敗時讀
+2. `_bootstrap_config()` 先讀取設定（僅 TOML，供啟動框決定尺寸），失敗時讀
    `.config.default.toml`，再失敗使用內建設定。
-4. 載入圖示與啟動畫面。
-5. 依 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 縮放，保持比例。
-6. `_draw_splash_version()` 在右下角繪製 `v3.11.2`；字號始終依圖片寬度的三分之一
+3. 建立 `QApplication`。
+4. `_splash_settings()` 解析 `[splash]` 的 `enabled`/`mode`/`duration_ms` 並夾緊非法值。
+5. 立即載入、縮放並顯示啟動畫面；依 `size_mode`/`screen_ratio`/`aspect_ratio`
+   保持比例，顯示後執行 `processEvents()`，其餘掃描與載入都排在啟動框之後。
+6. `_draw_splash_version()` 在右下角繪製 `v3.11.3`；字號始終依圖片寬度的三分之一
    自動縮放，文字固定為純白色，不提供字號或顏色設定。
-7. `_startup_file_check()` 收集可恢復檔案警告；`required` 目前恆為空。
-8. 匯入 `lib` 模組。
-9. 圖示、啟動圖、說明、授權、日誌與記憶路徑固定於程式碼，不再有可設定路徑段。
-10. 不讀取記憶偏好；每次啟動都從設定檔與獨立設定檔讀取介面狀態。
-11. 日誌等級：`[logging].level` > `INFO`；該等級只控制檔案寫入。
-12. 主題：`theme.toml` 的 `default` > `config.toml` `app.theme`（舊鍵） > 第一個主題。
-13. 語言：`language.toml` 的 `preferred` > `config.toml` `app.language`（舊鍵） > 系統語言 > `en_US`。
-14. 名單：`[app].roster` > 第一組名單。
-15. 模式：`[app].default_mode` > `Multi`；數量固定從 1 開始。
-16. 建立 `MainWindow`、套用主題；主視窗是否立即顯示取決於 `[splash].mode`。
-17. `[splash].mode = 1` 時先只顯示啟動畫面，剩餘時間到後才顯示主視窗並關閉啟動畫面；其他模式在主視窗就緒後立即顯示並關閉啟動畫面。
+7. 啟動框顯示後才匯入 `lib.SingleInstance` 並檢查單實例；同一版本已在執行時
+   喚醒既有視窗、關閉啟動框並退出。
+8. 載入圖示，再以 `_startup_file_check()` 收集可恢復檔案警告；`required` 目前恆為空。
+9. 匯入 `lib` 模組。
+10. 圖示、啟動圖、說明、授權、日誌與記憶路徑固定於程式碼，不再有可設定路徑段。
+11. 不讀取記憶偏好；每次啟動都從設定檔與獨立設定檔讀取介面狀態。
+12. 日誌等級：`[logging].level` > `INFO`；該等級只控制檔案寫入。
+13. 主題：`theme.toml` 的 `default` > `config.toml` `app.theme`（舊鍵） > 第一個主題。
+14. 語言：`language.toml` 的 `preferred` > `config.toml` `app.language`（舊鍵） > 系統語言 > `en_US`。
+15. 名單：`[app].roster` > 第一組名單。
+16. 模式：`[app].default_mode` > `Multi`；數量固定從 1 開始。
+17. 建立 `MainWindow`、套用主題；主視窗是否立即顯示取決於 `[splash].mode`。
+18. `[splash].mode = 1` 時先只顯示啟動畫面，剩餘時間到後才顯示主視窗並關閉啟動畫面；其他模式在主視窗就緒後立即顯示並關閉啟動畫面。
 
 ## 4. 設定優先順序
 
@@ -385,6 +388,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 3. 已刪除 `WidgetScrollSingle.ui`、`ui_widgetscrollsingle.py`、
    `ScrollSingle.py`、`randname-start_v3.6.png`、`randname-start_v3.7.png`。
 4. 版本在 `lib/version.py`；提交訊息使用 `3.10.1[upgrade]_...` 觸發發布。檢查更新使用 QtNetwork，建置時不再排除 `PySide6.QtNetwork`。
+5. GitHub Actions 直接呼叫 `script/build.sh`（Linux）與 `script/build.bat`（Windows），不再重複打包命令；`build.bat` 在 `CI` 環境不暫停，手動執行仍會暫停。
 
 ## 18. 隱藏機制與邊界
 
@@ -447,7 +451,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-目前版本：**3.11.2**。
+目前版本：**3.11.3**。
 
 3.8.x 主要變更：
 
@@ -614,3 +618,11 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - 簡體與繁體語言包互為備援：缺少語言包或單一詞條時自動使用另一方，名單與主題名稱同樣適用。
 - 修正名字過多時輸出框被誤收合、改用最小字號擠壓的問題；主題或樣式重繪後會重新排版並保持正常格子。
 - 版本更新為 3.11.2。
+
+## 36. 3.11.3 啟動框與打包流程
+
+- 啟動順序改為「讀取最小設定 → 建立 `QApplication` → 立即顯示啟動框 → 單實例檢查 → 圖示與檔案檢查 → 載入 `lib` 與 `MainWindow`」，掃描與載入不再擋在首屏之前。
+- 新增 `_splash_settings()`：集中解析 `[splash].enabled`/`mode`/`duration_ms`，非整數或布林值回退 1000，負數夾緊為 0。
+- `build.bat` 先安裝相依再編譯 UI，加入 `errorlevel` 檢查；`CI` 環境不執行 `pause`，手動執行仍會在結束或失敗時暫停。
+- GitHub Actions 直接呼叫 `script/build.sh` 與 `script/build.bat`，移除重複的安裝、UI 編譯與 Nuitka 命令；產物校驗、命名、上傳與 Release 仍由工作流負責。
+- 版本更新為 3.11.3。

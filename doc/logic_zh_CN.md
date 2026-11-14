@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文记录 randname 3.11.2 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
+本文记录 randname 3.11.3 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
 `logic_en_US.md`，正體中文版见 `logic_zh_TW.md`。
 
 ## 1. 术语与模式
@@ -31,7 +31,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路径 | 职责 |
 | --- | --- |
 | `main.py` | 启动、主窗口、菜单、状态栏、页面切换、记忆回填、查看器入口 |
-| `lib/version.py` | `APP_VERSION = "3.11.2"` |
+| `lib/version.py` | `APP_VERSION = "3.11.3"` |
 | `lib/Multi.py` | 多抽算法 |
 | `lib/Lift.py` | 减量抽算法 |
 | `lib/ScrollMulti.py` | 滚动多抽控制器 |
@@ -58,22 +58,23 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 ## 3. 启动流程
 
 1. `main.py` 打印 GPL 横幅。
-2. 创建 `QApplication`。
-3. `_bootstrap_config()` 读取 `config/config.toml`；失败时读取 `.config.default.toml`，再失败使用内建配置。
-4. 读取图标；创建启动画面。
-5. 启动画面按 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 缩放，保持宽高比。
-6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.11.2`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
-7. `_startup_file_check()` 检查可恢复文件；缺失项加入启动警告。`required` 当前恒为空，因此“启动检查失败”分支不可达。
-8. 导入 `lib` 模块。
-9. 图标、启动图、帮助、许可证、日志与记忆路径固定于代码，不再有可配置路径段。
-10. 不读取记忆偏好；每次启动都从配置档与独立配置档读取界面状态。
-11. 日志等级：`[logging].level` > `INFO`；该等级只控制文件写入。
-12. 主题：`theme.toml` 的 `default` > `config.toml` `app.theme`（旧键，兼容） > 主题目录第一项。
-13. 语言：`language.toml` 的 `preferred` > `config.toml` `app.language`（旧键，兼容） > 系统语言 > `en_US`。
-14. 名单：`config.toml` 的 `app.roster` > 名单目录第一项。
-15. 模式：`config.toml` 的 `app.default_mode` > `Multi`；数量固定从 1 开始。
-16. 创建 `MainWindow`，应用主题；主窗口是否立即显示取决于 `[splash].mode`。
-17. `[splash].mode = 1` 时先只显示启动画面，剩余时间到后才显示主窗口并关闭启动画面；其他模式在主窗口准备好后立即显示并关闭启动画面。
+2. `_bootstrap_config()` 先读取配置（仅 TOML，供启动画面决定尺寸）；失败时读取 `.config.default.toml`，再失败使用内建配置。
+3. 创建 `QApplication`。
+4. `_splash_settings()` 解析 `[splash]` 的 `enabled`/`mode`/`duration_ms` 并夹紧非法值。
+5. 立即加载、缩放并显示启动画面；按 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 保持宽高比，显示后执行 `processEvents()`，其余扫描与加载都排在启动画面之后。
+6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.11.3`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
+7. 启动画面显示后才导入 `lib.SingleInstance` 并检查单实例；同一版本已在运行时唤醒既有窗口、关闭启动画面并退出。
+8. 加载图标，再以 `_startup_file_check()` 收集可恢复文件警告。`required` 当前恒为空，因此“启动检查失败”分支不可达。
+9. 导入 `lib` 模块。
+10. 图标、启动图、帮助、许可证、日志与记忆路径固定于代码，不再有可配置路径段。
+11. 不读取记忆偏好；每次启动都从配置档与独立配置档读取界面状态。
+12. 日志等级：`[logging].level` > `INFO`；该等级只控制文件写入。
+13. 主题：`theme.toml` 的 `default` > `config.toml` `app.theme`（旧键，兼容） > 主题目录第一项。
+14. 语言：`language.toml` 的 `preferred` > `config.toml` `app.language`（旧键，兼容） > 系统语言 > `en_US`。
+15. 名单：`config.toml` 的 `app.roster` > 名单目录第一项。
+16. 模式：`config.toml` 的 `app.default_mode` > `Multi`；数量固定从 1 开始。
+17. 创建 `MainWindow`，应用主题；主窗口是否立即显示取决于 `[splash].mode`。
+18. `[splash].mode = 1` 时先只显示启动画面，剩余时间到后才显示主窗口并关闭启动画面；其他模式在主窗口准备好后立即显示并关闭启动画面。
 
 ## 4. 配置优先级
 
@@ -417,6 +418,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 3. 旧文件 `WidgetScrollSingle.ui`、`ui_widgetscrollsingle.py`、`ScrollSingle.py`、`randname-start_v3.6.png`、`randname-start_v3.7.png` 已删除。
 4. 版本号在 `lib/version.py`；提交信息使用 `3.10.1[upgrade]_...` 触发发布流程。检查更新使用 QtNetwork，构建时不再排除 `PySide6.QtNetwork`。
 5. CI 在提交信息含 `[upgrade]` 时构建 Linux/Windows 包并创建 Release。
+6. GitHub Actions 直接调用 `script/build.sh`（Linux）与 `script/build.bat`（Windows），不再重复打包命令；`build.bat` 在 `CI` 环境不暂停，手动执行仍会暂停。
 
 ## 18. 隐藏机制与边界
 
@@ -484,7 +486,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-当前版本：**3.11.2**。
+当前版本：**3.11.3**。
 
 3.8.x 主要变化：
 
@@ -645,3 +647,11 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - 简体与繁体语言包互为备援：缺少语言包或单一词条时自动使用另一方，名单与主题名称同样适用。
 - 修复名字过多时输出框被误收合、改用最小字号挤压的问题；主题或样式重绘后会重新排版并保持正常格子。
 - 版本更新为 3.11.2。
+
+## 36. 3.11.3 启动画面与打包流程
+
+- 启动顺序改为“读取最小配置 → 创建 `QApplication` → 立即显示启动画面 → 单实例检查 → 图标与文件检查 → 加载 `lib` 与 `MainWindow`”，扫描与加载不再挡在首屏之前。
+- 新增 `_splash_settings()`：集中解析 `[splash].enabled`/`mode`/`duration_ms`，非整数或布尔值回退 1000，负数夹紧为 0。
+- `build.bat` 先安装依赖再编译 UI，加入 `errorlevel` 检查；`CI` 环境不执行 `pause`，手动执行仍会在结束或失败时暂停。
+- GitHub Actions 直接调用 `script/build.sh` 与 `script/build.bat`，移除重复的安装、UI 编译与 Nuitka 命令；产物校验、命名、上传与 Release 仍由工作流负责。
+- 版本更新为 3.11.3。

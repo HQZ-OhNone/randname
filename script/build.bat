@@ -19,13 +19,16 @@ REM Windows build: compile every UI, package TOML data, and exclude unused Qt mo
 REM 无论从哪个目录调用，都切换到仓库根目录。
 cd /d "%~dp0.."
 
+echo 安裝 Nuitka 與 PySide6
+python -m pip install --upgrade pip
+if errorlevel 1 goto :fail
+pip install nuitka==4.1.3 PySide6==6.11.1
+if errorlevel 1 goto :fail
+
 echo 編譯全部 .ui 為 Python 模塊到 lib\ ...
 if not exist lib mkdir lib
 python -c "import pathlib, subprocess; [subprocess.run(['pyside6-uic', str(p), '-o', 'lib/ui_' + p.stem.lower() + '.py'], check=True) for p in sorted(pathlib.Path('ui').glob('*.ui'))]"
-
-echo 安裝 Nuitka 與 PySide6
-python -m pip install --upgrade pip
-pip install nuitka==4.1.3 PySide6==6.11.1 || echo "pip install failed, please install dependencies manually"
+if errorlevel 1 goto :fail
 
 echo 用 Nuitka 編譯項目
 nuitka ^
@@ -50,6 +53,13 @@ nuitka ^
   --nofollow-import-to=PySide6.QtTest ^
   --nofollow-import-to=PySide6.QtXml ^
   main.py
+if errorlevel 1 goto :fail
 
 echo 構建完成，輸出目錄：build\
-pause
+if not defined CI pause
+exit /b 0
+
+:fail
+echo 構建失敗，請檢查上方訊息。
+if not defined CI pause
+exit /b 1
