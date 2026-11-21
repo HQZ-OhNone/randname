@@ -77,11 +77,7 @@ class _OutputExpansion:
         self._row = None
         self._base_height = 0
         self._expanded = False
-        # 布局稳定后再采样收合高度，避免记录到扩张/收合过程中的过渡值。
-        self._base_timer = QTimer(label)
-        self._base_timer.setSingleShot(True)
-        self._base_timer.setInterval(50)
-        self._base_timer.timeout.connect(self._capture_base)
+        self._target_height = 0
         self._resolve()
 
     def _resolve(self):
@@ -108,23 +104,8 @@ class _OutputExpansion:
         return self._expanded
 
     def note_resize(self):
-        """收合状态下延迟记录布局给出的基准高度。"""
-        if self._expanded or not self.available:
-            return
-        self._base_timer.start()
-
-    def _capture_base(self):
-        """只在未展开、行 stretch 为 0 时记录稳定的收合高度。"""
-        if self._expanded or not self.available:
-            return
-        try:
-            if self._layout.rowStretch(self._row) != 0:
-                return
-        except (RuntimeError, AttributeError):
-            return
-        height = self.label.height()
-        if height > 32:
-            self._base_height = height
+        """布局尺寸变化由 base_height 在收合状态直接采样。"""
+        return
 
     @property
     def base_height(self) -> int:
@@ -143,24 +124,44 @@ class _OutputExpansion:
                 self._base_height = height
         return max(1, self._base_height)
 
-    def set_expanded(self, expanded: bool) -> bool:
-        """切换展开状态；返回是否真的发生了变化。"""
-        expanded = bool(expanded) and self.available
-        if expanded == self._expanded:
-            return False
-        if expanded and self._base_height <= 0:
-            self._base_height = max(1, self.label.height())
-        self._expanded = expanded
+    def set_target_height(self, target: int) -> bool:
+        """按内容需要扩张到 target 像素；target 小于收合高度时收合。
+
+        行 stretch 保持为 1，让布局把输出框所在行留足空间；再用 QLabel 的
+        最大高度限制可见背景框，从而做到“需要多少扩多少”，而不是一次占满。
+        """
         if not self.available:
             return False
-        self._layout.setRowStretch(self._row, 1 if expanded else 0)
-        # 文本变短后 QGridLayout 不会自动回收旧行高，必须主动失效并重排。
+        target = max(0, int(target))
+        base = self.base_height
+        if target <= base:
+            if not self._expanded and self._target_height == 0:
+                return False
+            self._expanded = False
+            self._target_height = 0
+            self.label.setMaximumHeight(16777215)
+            self._layout.setRowStretch(self._row, 0)
+            # 文本变短后 QGridLayout 不会自动回收旧行高，必须主动失效并重排。
+            self.label.updateGeometry()
+            self._layout.invalidate()
+            self._layout.activate()
+            return True
+
+        changed = (not self._expanded) or target != self._target_height
+        self._expanded = True
+        self._target_height = target
+        self.label.setMaximumHeight(target)
+        self._layout.setRowStretch(self._row, 1)
         self.label.updateGeometry()
         self._layout.invalidate()
         self._layout.activate()
-        if not expanded:
-            self._base_timer.start()
-        return True
+        return changed
+
+    def set_expanded(self, expanded: bool) -> bool:
+        """兼容布尔接口：True 表示占满可用高度，False 表示收合。"""
+        if expanded:
+            return self.set_target_height(16777215)
+        return self.set_target_height(0)
 
 
 class OutputView(QObject):
@@ -192,6 +193,10 @@ class OutputView(QObject):
         self.label.setMinimumSize(0, 0)
         self._expansion = _OutputExpansion(label)
         self._relayout_guard = False
+        # 延迟重排定时器绑定到 label，控件销毁后不会再回调已失效的视图。
+        self._relayout_timer = QTimer(label)
+        self._relayout_timer.setSingleShot(True)
+        self._relayout_timer.timeout.connect(self._relayout)
         self.configure(config, fallback_point_size)
         self.label.installEventFilter(self)
         self.set_message("")
@@ -337,14 +342,13 @@ class OutputView(QObject):
             self._apply(self._names, desired_size)
             # 一律以收合状态的高度判断是否展开，避免过渡尺寸造成误判。
             needed = self._needed_height(self._names, desired_size)
-            changed = self._expansion.set_expanded(
-                needed > self._expansion.base_height
-            )
+            target = needed if needed > self._expansion.base_height else 0
+            changed = self._expansion.set_target_height(target)
         finally:
             self._relayout_guard = False
         if changed:
             # 等布局分配好新的高度后再计算字号与换行。
-            QTimer.singleShot(0, self._relayout)
+            self._relayout_timer.start(0)
             return
         point_size = self._locked_point_size
         if point_size is None:
@@ -355,7 +359,7 @@ class OutputView(QObject):
         """主题、字体或页面布局变化后重新计算排版。"""
         if self._message_mode or not self._names:
             return
-        QTimer.singleShot(0, self._relayout)
+        self._relayout_timer.start(0)
 
     def _needed_height(self, names, point_size):
         """返回字号为 point_size 时显示这些姓名需要的总高度。"""
@@ -589,6 +593,10 @@ class SlotOutputView(QObject):
         self.grid.setGeometry(label.contentsRect())
         self._expansion = _OutputExpansion(label)
         self._relayout_guard = False
+        # 延迟布局定时器同样绑定到 label，避免控件销毁后回调。
+        self._layout_timer = QTimer(label)
+        self._layout_timer.setSingleShot(True)
+        self._layout_timer.timeout.connect(self._ensure_layout)
         label.installEventFilter(self)
         self.configure(config, fallback_point_size)
         self.set_message("")
@@ -694,7 +702,7 @@ class SlotOutputView(QObject):
         self._cell_limit = None
         self._columns = 0
         self._rows = 0
-        QTimer.singleShot(0, self._ensure_layout)
+        self._layout_timer.start(0)
 
     @property
     def current_text(self):
@@ -744,33 +752,32 @@ class SlotOutputView(QObject):
             for name in names
         )
 
-    def _fits_any_slot_layout(self, point_size) -> bool:
-        """收合高度下是否存在任意一种能放下全部姓名的格子布局。"""
-        width = max(1, self.label.contentsRect().width())
-        height = max(1, self._expansion.base_height)
+    def _required_height_at_base(self) -> int:
+        """返回基准字号放下全部格子所需的最小高度；放得下则返回 0。"""
+        if not self._names:
+            return 0
+        width, _height = self._available()
         gap = self._gap()
         count = max(1, len(self.grid.slots))
-        metrics = QFontMetrics(_font_at_size(self._base_font, point_size))
+        metrics = QFontMetrics(_font_at_size(self._base_font, self.base_point_size))
+        name_width = max(
+            (metrics.horizontalAdvance(name) for name in self._names), default=0
+        )
+        line_height = max(1, int(math.ceil(metrics.lineSpacing()))) + 2
+        base = self._expansion.base_height
+        best = None
         for columns in range(1, count + 1):
             rows = math.ceil(count / columns)
             cell_width = (width - (columns - 1) * gap) / columns
-            cell_height = (height - (rows - 1) * gap) / rows
-            if cell_width <= 1 or cell_height <= 1:
+            if cell_width < name_width + 4:
                 continue
-            if metrics.lineSpacing() > max(1.0, cell_height - 2.0):
-                continue
-            if all(
-                metrics.horizontalAdvance(name) <= max(1.0, cell_width - 4.0)
-                for name in self._names
-            ):
-                return True
-        return False
-
-    def _needs_expansion(self) -> bool:
-        """基准字号在收合状态的高度下放不进任何格子布局时返回 True。"""
-        if not self._names:
-            return False
-        return not self._fits_any_slot_layout(self.base_point_size)
+            required = rows * line_height + (rows - 1) * gap
+            if required <= base:
+                return 0
+            if best is None or required < best:
+                best = required
+        # 基准字号连单列都放不下时先扩张到上限，再在可用高度内缩小字号。
+        return 16777215 if best is None else best
 
     def _ensure_layout(self):
         if not self._names or self._relayout_guard:
@@ -794,10 +801,10 @@ class SlotOutputView(QObject):
             )
         ):
             return
-        # 以收合高度判断是否需要展开，避免主题重绘等过渡尺寸触发误判。
-        if self._expansion.set_expanded(self._needs_expansion()):
+        # 以收合高度判断需要多少空间，按内容逐步扩张而不是一次占满。
+        if self._expansion.set_target_height(self._required_height_at_base()):
             # 等输出框取得新的高度后再重新计算。
-            QTimer.singleShot(0, self._ensure_layout)
+            self._layout_timer.start(0)
             return
         width, height = self._available()
         gap = self._gap()

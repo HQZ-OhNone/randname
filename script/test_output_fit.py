@@ -52,6 +52,97 @@ class OutputFitTests(unittest.TestCase):
         }}, 30)
         return label, view
 
+    def make_grid_page(self, width=1000, height=700):
+        from PySide6.QtWidgets import QGridLayout, QWidget
+
+        page = QWidget()
+        page.resize(width, height)
+        grid = QGridLayout(page)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setSpacing(8)
+        grid.addWidget(QWidget(), 0, 0)
+        label = QLabel()
+        grid.addWidget(label, 1, 0)
+        grid.addWidget(QWidget(), 2, 0)
+        page.show()
+        self.app.processEvents()
+        return page, label
+
+    def test_output_expansion_tracks_content_height(self):
+        page, label = self.make_grid_page()
+        view = OutputView(label, {"ui": {
+            "display_font_size": 30,
+            "display_min_font_size": 12,
+            "display_font_step": 1,
+            "display_padding": 8,
+            "display_line_spacing": 1.0,
+        }}, 30)
+        view.set_names(["短名字"], use_lock=False)
+        for _ in range(4):
+            self.app.processEvents()
+        initial = label.height()
+
+        thirty = [f"较长的名字{i:02d}" for i in range(30)]
+        view.set_names(thirty, use_lock=False)
+        for _ in range(6):
+            self.app.processEvents()
+        thirty_height = label.height()
+        self.assertGreater(thirty_height, initial)
+        self.assertLess(thirty_height, page.height())
+
+        sixty = [f"较长的名字{i:02d}" for i in range(60)]
+        view.set_names(sixty, use_lock=False)
+        for _ in range(6):
+            self.app.processEvents()
+        sixty_height = label.height()
+        self.assertGreater(sixty_height, thirty_height)
+
+        view.set_names(thirty, use_lock=False)
+        for _ in range(6):
+            self.app.processEvents()
+        self.assertEqual(label.height(), thirty_height)
+
+        view.set_names(["短名字"], use_lock=False)
+        for _ in range(6):
+            self.app.processEvents()
+        self.assertEqual(label.height(), initial)
+        page.close()
+
+    def test_slot_expansion_tracks_content_height(self):
+        page, label = self.make_grid_page()
+        view = SlotOutputView(label, {"ui": {
+            "display_font_size": 30,
+            "display_min_font_size": 12,
+            "display_font_step": 1,
+            "display_padding": 8,
+            "display_line_spacing": 1.0,
+        }}, 30)
+        base_height = label.height()
+
+        names = [f"学生{i:02d}号" for i in range(1, 50)]
+        view.begin_round(names, 30)
+        view.set_names(names[:30])
+        for _ in range(6):
+            self.app.processEvents()
+        thirty_height = label.height()
+        self.assertGreater(thirty_height, base_height)
+
+        view.begin_round(names, 45)
+        view.set_names(names[:45])
+        for _ in range(6):
+            self.app.processEvents()
+        fortyfive_height = label.height()
+        self.assertGreater(fortyfive_height, thirty_height)
+        self.assertLess(fortyfive_height, page.height())
+
+        view.begin_round(names, 6)
+        view.set_names(names[:6])
+        for _ in range(6):
+            self.app.processEvents()
+        self.assertFalse(view._expansion.expanded)
+        self.assertEqual(label.height(), base_height)
+        page.close()
+
     def test_short_names_stay_on_one_line(self):
         label, view = self.make_view()
         view.set_names(["张三", "李四"], use_lock=False)
@@ -205,7 +296,7 @@ class OutputFitTests(unittest.TestCase):
     def test_refresh_layout_recomputes_slot_grid(self):
         label, view = self.make_slot_view()
         names = [f"学生{i:02d}号" for i in range(1, 13)]
-        view.begin_round(names, 12)
+        view.begin_round(names, 30)
         view.set_names(names)
         self.app.processEvents()
         view._columns = 0
