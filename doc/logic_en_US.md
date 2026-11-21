@@ -9,7 +9,7 @@ version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
 This document records the actual behaviour, hidden mechanisms, and edge cases
-of randname 3.11.4. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
+of randname 3.11.5. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 `logic_zh_TW.md`.
 
 ## 1. Terms and modes
@@ -34,7 +34,7 @@ of randname 3.11.4. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 | Path | Responsibility |
 | --- | --- |
 | `main.py` | Startup, main window, menus, status bar, page switching, memory restore |
-| `lib/version.py` | `APP_VERSION = "3.11.4"` |
+| `lib/version.py` | `APP_VERSION = "3.11.5"` |
 | `lib/Multi.py` | Multi draw algorithm |
 | `lib/Lift.py` | Lift draw algorithm |
 | `lib/ScrollMulti.py` | ScrollMulti controller |
@@ -65,7 +65,7 @@ of randname 3.11.4. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 5. Load, scale, and show the splash immediately, keeping the image aspect ratio
    according to `size_mode`/`screen_ratio`/`aspect_ratio`. `processEvents()` runs
    right after it is shown; all other scanning and loading happens afterwards.
-6. `_draw_splash_version()` draws `v3.11.4` in the bottom-right corner. The
+6. `_draw_splash_version()` draws `v3.11.5` in the bottom-right corner. The
    font size always scales with the image width to one third of that width;
    the text is always pure white and has no size or colour configuration.
 7. Only after the splash is visible does the app import `lib.SingleInstance` and
@@ -189,15 +189,15 @@ The splash uses the same algorithm with `screen_ratio = 0.25` and
    `display_line_spacing`; padding: `display_padding`.
 3. Names are packed greedily into lines by rendered width, separated by two
    spaces, never split in the middle of a name.
-4. Lay out at the base font first. If it does not fit, expand the output row
-   into the surrounding blank space first; shrink the font only if the expanded
-   box still does not fit.
+4. Lay out at the base font first. If it does not fit, expand the output box by
+   the content height instead of consuming all available space; shrink the
+   font only if the expanded box still does not fit.
 5. If even the minimum font cannot fit one extreme name, Qt may wrap inside
    the name so that content remains visible.
 6. `set_message()` is used for "Ready", "No result", etc. and always uses the
    base font.
-7. `resizeEvent` re-runs layout; the collapsed baseline is debounced so
-   transitional sizes are not recorded.
+7. `resizeEvent` re-runs layout; the collapsed baseline is sampled only while
+   collapsed so transitional sizes are not recorded.
 
 ### 6.2 Rolling modes (SlotOutputView)
 
@@ -214,9 +214,9 @@ and places child `QLabel`s with `_SlotGrid`:
    an incomplete last row is centred as a row.
 4. After locking, every tick only changes text. Slot geometry is stable, so
    names already fixed do not move.
-5. If the base font cannot fit any grid within the collapsed height, the
-   output box expands first; only if it still does not fit does the font shrink
-   and the layout re-lock.
+5. If the base font cannot fit within the collapsed height, the output box
+   expands stepwise by the required content height; only if it still does not
+   fit does the font shrink and the layout re-lock.
 6. `clear_round()`, the next `start()`, reset, or result import clears the
    lock. A quantity change does not disturb the current result; the next
    `begin_round()` rebuilds it.
@@ -798,3 +798,24 @@ Main changes in the 3.8.x series:
   draw, mode switch, log viewer, or other operation follows.
 - Structured log timestamps now include milliseconds.
 - Version bumped to 3.11.4.
+
+## 38. 3.11.5 dynamic expansion and wheel acceleration
+
+- Non-rolling output boxes no longer consume all available height as soon as
+  the base font does not fit. `_OutputExpansion.set_target_height()` caps the
+  visible label at the content height and collapses in step when content
+  shrinks.
+- Rolling output boxes also compute the minimum height needed at the base font
+  for their grid: 12 names expand to about 368 px while 20 names continue to
+  the limit, instead of every case filling the page at once.
+- The output row still uses stretch=1 to reserve space, but the QLabel maximum
+  height decides the visible box. Both expansion and collapse invalidate the
+  layout explicitly.
+- Deferred relayout timers are now children of the output QLabel, so a
+  destroyed widget cannot call back into an invalid view.
+- Wheel-up on the four draw buttons no longer clicks the button or starts a
+  new round. During a rolling round it only calls `accelerate()` to advance the
+  current round further; wheel-down keeps its previous behaviour.
+- Plain Multi/Lift have no current round to accelerate, so wheel-up performs no
+  draw there.
+- Version bumped to 3.11.5.

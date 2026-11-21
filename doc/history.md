@@ -12,6 +12,40 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 This file is appended per session: completed work, unresolved findings, and
 verification results.
 
+## 2026-11-22 / 3.11.5
+
+### 已完成 / Completed
+
+- 非滚动模式（Multi/Lift）的输出框改为按内容所需高度扩张：`_OutputExpansion.set_target_height()` 通过 QLabel 最大高度限制实际可见框，不再一次占满可用高度。
+- 滚动模式（ScrollMulti/ScrollLift）按基准字号与格子布局计算最小所需高度，内容增加时逐步扩张、减少时收合；例如 12 人扩张到约 368 px，20 人继续增至上限。
+- 输出框收合与扩张均主动失效布局；延迟重排定时器改为 QLabel 子对象，修复跨测试销毁后回调导致的崩溃。
+- 四个抽取按钮的滚轮上滑不再点击按钮或开启新一轮；滚动模式运行中只调用 `ScrollMultiController.accelerate()` 加速当前轮次，下滑保持原行为。
+- Multi/Lift 没有可加速的当前轮次，滚轮上滑不执行抽取。
+- 版本更新为 3.11.5。
+
+### 发现但未解决 / Found but unresolved
+
+- 滚轮加速目前是每个滚轮格额外推进 3 次滚动，未提供可配置倍率；实际触控板体验仍需实机确认。
+- 动态扩张在内容高度接近可用上限时仍会占满空间，这是内容真实需要的最大高度。
+- 本次仍只在 `dev` 本地提交，未 push、未合并 main。
+
+### 验证 / Verification
+
+- `.venv/bin/python -m unittest discover -s script -p 'test_*.py'`：113 項通過。
+- 动态高度测试：Multi 30/60 人与 ScrollMulti 30/45 人高度递增，内容减少后回到相同高度。
+- 滚轮测试：上滑不抽取；滚动执行中调用 `accelerate()`；下滑不调用。
+- 跨测试回归：修正 QLabel 销毁后延迟重排定时器造成的 Qt 崩溃。
+
+### English summary
+
+- Non-rolling output boxes now expand by required content height through `_OutputExpansion.set_target_height()`, which caps the visible QLabel instead of filling all available height.
+- Rolling modes compute the minimum height needed at the base font for their grid, growing with content and collapsing when content shrinks. For example, 12 names expand to about 368 px and 20 names continue toward the limit.
+- Expansion and collapse invalidate the layout explicitly. Deferred relayout timers are now children of the output QLabel, fixing a crash when a widget was destroyed before a queued callback.
+- Wheel-up on the four draw buttons no longer clicks or starts a round. During a rolling round it only calls `ScrollMultiController.accelerate()`; wheel-down keeps its previous behaviour.
+- Multi/Lift have no current round to accelerate, so wheel-up performs no draw there.
+- Version bumped to 3.11.5.
+- Verification: 113 unit tests pass, dynamic-height probes, wheel behaviour tests, and a cross-test Qt lifetime regression.
+
 ## 2026-11-22 / 3.11.4
 
 ### 已完成 / Completed

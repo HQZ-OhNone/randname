@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文記錄 randname 3.11.4 的實際行為、隱藏機制與邊界。簡體中文見
+本文記錄 randname 3.11.5 的實際行為、隱藏機制與邊界。簡體中文見
 `logic_zh_CN.md`，英文見 `logic_en_US.md`。
 
 ## 1. 術語與模式
@@ -32,7 +32,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路徑 | 職責 |
 | --- | --- |
 | `main.py` | 啟動、主視窗、選單、狀態列、頁面切換、記憶回填 |
-| `lib/version.py` | `APP_VERSION = "3.11.4"` |
+| `lib/version.py` | `APP_VERSION = "3.11.5"` |
 | `lib/Multi.py` | 多抽演算法 |
 | `lib/Lift.py` | 減量抽演算法 |
 | `lib/ScrollMulti.py` | 滾動多抽控制器 |
@@ -61,7 +61,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 4. `_splash_settings()` 解析 `[splash]` 的 `enabled`/`mode`/`duration_ms` 並夾緊非法值。
 5. 立即載入、縮放並顯示啟動畫面；依 `size_mode`/`screen_ratio`/`aspect_ratio`
    保持比例，顯示後執行 `processEvents()`，其餘掃描與載入都排在啟動框之後。
-6. `_draw_splash_version()` 在右下角繪製 `v3.11.4`；字號始終依圖片寬度的三分之一
+6. `_draw_splash_version()` 在右下角繪製 `v3.11.5`；字號始終依圖片寬度的三分之一
    自動縮放，文字固定為純白色，不提供字號或顏色設定。
 7. 啟動框顯示後才匯入 `lib.SingleInstance` 並檢查單實例；同一版本已在執行時
    喚醒既有視窗、關閉啟動框並退出。
@@ -160,11 +160,11 @@ language.toml preferred（有效）
 2. 基準字號 `[ui].display_font_size`；下限 `display_min_font_size`；步長
    `display_font_step`；行距 `display_line_spacing`；內距 `display_padding`。
 3. 姓名依顯示寬度貪婪分行，姓名間兩個空格，不會從姓名中間斷開。
-4. 先用基準字號排版；基準字號放不下時優先擴張輸出框佔用上下空白，擴張後仍
-   放不下才逐步縮字號。
+4. 先用基準字號排版；基準字號放不下時依內容所需高度擴張輸出框，而不是一次
+   佔滿可用空間；擴張後仍放不下才逐步縮字號。
 5. 極端長姓名在最小字號仍超寬時，允許 Qt 在字元間換行。
 6. `set_message()` 用於「等待輸入」「暫無結果」，固定使用基準字號。
-7. `resizeEvent` 重新排版；收合基準高度以防抖取樣，避免記錄過渡尺寸。
+7. `resizeEvent` 重新排版；收合狀態下才取樣基準高度，避免記錄擴張過渡尺寸。
 
 ### 6.2 滾動模式（SlotOutputView）
 
@@ -177,8 +177,8 @@ language.toml preferred（有效）
    3 欄。
 3. 每格等寬等高，文字水平/垂直置中；最後一列不足時整列置中。
 4. 鎖定後每次 tick 只更新文字，格子幾何不變，已停止的名字不會移動。
-5. 基準字號在收合高度下放不進任何格子佈局時先擴張輸出框；擴張後仍放不下才
-   縮小字號並重新鎖定。
+5. 基準字號在收合高度下放不進時，依內容所需高度逐步擴張輸出框；擴張後仍
+   放不下才縮小字號並重新鎖定。
 6. `clear_round()`、下一輪 `start()`、重設或匯入結果時清除鎖定；調整數量不
    立即破壞目前結果，由下一輪 `begin_round()` 重建。
 7. 匯入歷史結果時依結果人數建立格子並計算一次佈局。
@@ -456,7 +456,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-目前版本：**3.11.4**。
+目前版本：**3.11.5**。
 
 3.8.x 主要變更：
 
@@ -645,3 +645,18 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - 數量調整日誌改為掛起合併：調整時不立即寫入，在抽取、切換模式、開啟日誌等操作時寫一行最終值。
 - 結構化日誌時間精確到毫秒。
 - 版本更新為 3.11.4。
+
+## 38. 3.11.5 動態擴張與滾輪加速
+
+- 非滾動輸出框不再一遇到基準字號放不下就佔滿可用高度；
+  `_OutputExpansion.set_target_height()` 依內容所需高度設定可見框最大高度，
+  內容減少時同步收合。
+- 滾動輸出框同樣依基準字號與格子佈局計算最小所需高度：12 人只擴張到約
+  368 px，20 人才繼續增加到上限，而不是所有情況都一次佔滿。
+- 輸出框所在列仍使用 stretch=1 留出空間，但 QLabel 最大高度決定實際可見
+  背景框；擴張與收合都會主動失效佈局。
+- 延遲重排計時器改為綁定輸出 QLabel，避免控件銷毀後回呼已失效的視圖。
+- 四個抽取按鈕的滾輪上滑不再觸發點擊或開啟新一輪；滾動模式執行中上滑只呼叫
+  `accelerate()` 額外推進目前輪次，下滑保持原行為。
+- 一般多抽／減量抽沒有「目前輪次」可加速，滾輪上滑不執行抽取。
+- 版本更新為 3.11.5。
