@@ -200,6 +200,26 @@ class QuantitySliderTests(unittest.TestCase):
             self.assertEqual(args[1], "quantity")
             self.assertIn("Multi=", log_mock.call_args.kwargs["result"])
 
+    def test_quantity_controls_do_not_stretch_with_output(self):
+        window = self.window
+        window._show_multi_page()
+        self.app.processEvents()
+        up = window.multi_up_button
+        label = window.multi_quantity_label
+        down = window.multi_down_button
+        before = (up.height(), label.height(), down.height())
+        before_widths = (up.width(), label.width(), down.width())
+        collapsed_output = window.ui_multi.label_MultiOutput.height()
+
+        window.multi_view.set_names(
+            [f"较长的名字{i:02d}" for i in range(30)], use_lock=False
+        )
+        for _ in range(8):
+            self.app.processEvents()
+        self.assertGreater(window.ui_multi.label_MultiOutput.height(), collapsed_output)
+        self.assertEqual((up.height(), label.height(), down.height()), before)
+        self.assertEqual((up.width(), label.width(), down.width()), before_widths)
+
     def test_theme_menu_has_dark_and_light_columns(self):
         from PySide6.QtWidgets import QLabel, QToolButton
 

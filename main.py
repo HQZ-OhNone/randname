@@ -59,6 +59,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QMenu,
     QSplashScreen,
+    QSizePolicy,
     QSlider,
     QToolButton,
     QVBoxLayout,
@@ -448,6 +449,7 @@ class MainWindow(QMainWindow):
         self._quantity_touch_filters = []
         self._draw_wheel_filters = []
         self._pending_quantity_log = {}
+        self._quantity_layouts_prepared = set()
 
         self.status_widgets = {}
         self.status_separators = []
@@ -1161,6 +1163,10 @@ class MainWindow(QMainWindow):
         self.multi_up_button = getattr(self.ui_multi, "pushButton_MultiQuantityUp", None)
         self.multi_down_button = getattr(self.ui_multi, "pushButton_MultiQuantityDown", None)
         self.multi_quantity_slider = getattr(self.ui_multi, "verticalSlider_MultiQuantity", None)
+        self._prepare_quantity_layout(
+            getattr(self.ui_multi, "verticalLayout_MultiQuantity", None),
+            self.multi_up_button, self.multi_quantity_label, self.multi_down_button,
+        )
         self._prepare_quantity_slider(self.multi_quantity_slider, MODE_MULTI)
         self._set_quantity_label(self.multi_quantity_label, self.multi_quantity)
         if self.multi_up_button is not None:
@@ -1182,6 +1188,10 @@ class MainWindow(QMainWindow):
         self.lift_up_button = getattr(self.ui_lift, "pushButton_LiftQuantityUp", None)
         self.lift_down_button = getattr(self.ui_lift, "pushButton_LiftQuantityDown", None)
         self.lift_quantity_slider = getattr(self.ui_lift, "verticalSlider_LiftQuantity", None)
+        self._prepare_quantity_layout(
+            getattr(self.ui_lift, "verticalLayout_LiftQuantity", None),
+            self.lift_up_button, self.lift_quantity_label, self.lift_down_button,
+        )
         self._prepare_quantity_slider(self.lift_quantity_slider, MODE_LIFT)
         self.lift_renew_button = getattr(self.ui_lift, "pushButton_LiftRenew", None)
         self._set_quantity_label(self.lift_quantity_label, self.lift_quantity)
@@ -1208,6 +1218,11 @@ class MainWindow(QMainWindow):
             self.scroll_multi_down_button = getattr(self.ui_scroll_multi, "pushButton_ScrollMultiQuantityDown", None)
             self.scroll_multi_quantity_slider = getattr(
                 self.ui_scroll_multi, "verticalSlider_ScrollMultiQuantity", None
+            )
+            self._prepare_quantity_layout(
+                getattr(self.ui_scroll_multi, "verticalLayout_ScrollMultiQuantity", None),
+                self.scroll_multi_up_button, self.scroll_multi_quantity_label,
+                self.scroll_multi_down_button,
             )
             self._prepare_quantity_slider(self.scroll_multi_quantity_slider, MODE_SCROLL_MULTI)
             self._set_quantity_label(self.scroll_multi_quantity_label, self.scroll_multi_quantity)
@@ -1243,6 +1258,11 @@ class MainWindow(QMainWindow):
             self.scroll_lift_down_button = getattr(self.ui_scroll_lift, "pushButton_ScrollLiftQuantityDown", None)
             self.scroll_lift_quantity_slider = getattr(
                 self.ui_scroll_lift, "verticalSlider_ScrollLiftQuantity", None
+            )
+            self._prepare_quantity_layout(
+                getattr(self.ui_scroll_lift, "verticalLayout_ScrollLiftQuantity", None),
+                self.scroll_lift_up_button, self.scroll_lift_quantity_label,
+                self.scroll_lift_down_button,
             )
             self._prepare_quantity_slider(self.scroll_lift_quantity_slider, MODE_SCROLL_LIFT)
             self.scroll_lift_renew_button = getattr(self.ui_scroll_lift, "pushButton_ScrollLiftRenew", None)
@@ -1634,6 +1654,21 @@ class MainWindow(QMainWindow):
                 self.scroll_lift_controller,
             ),
         }.get(mode, (None, None, None))
+
+    def _prepare_quantity_layout(self, layout, up_button, label, down_button):
+        """让数量按钮保持紧凑，不随输出框一起被纵向拉伸。"""
+        for widget in (up_button, label, down_button):
+            if widget is None:
+                continue
+            policy = widget.sizePolicy()
+            policy.setVerticalPolicy(QSizePolicy.Policy.Fixed)
+            widget.setSizePolicy(policy)
+        if layout is None or id(layout) in self._quantity_layouts_prepared:
+            return
+        self._quantity_layouts_prepared.add(id(layout))
+        # 上下留弹性空白，把“增加/数量/减少”作为一个整体居中放置。
+        layout.insertStretch(0, 1)
+        layout.addStretch(1)
 
     def _prepare_quantity_slider(self, slider, mode):
         """安装触控过滤器并连接数值变化信号。"""
