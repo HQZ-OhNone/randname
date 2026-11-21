@@ -34,6 +34,7 @@ import gc
 import logging
 import sys
 import tomllib
+from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import QElapsedTimer, QEvent, QObject, QPointF, QTimer, QUrl, Qt
@@ -107,6 +108,31 @@ def _bootstrap_config() -> tuple[dict, list[str]]:
         except (OSError, tomllib.TOMLDecodeError) as exc:
             warnings.append(f"{path.relative_to(ROOT_DIR)}: {exc}")
     return {}, warnings
+
+
+def _append_log_text(text: str, path: Path | None = None) -> None:
+    """直接向日志文件追加文本；启动早期日志模块尚未配置。"""
+    try:
+        log_path = path or (DOC_DIR / "log.log")
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        with log_path.open("a", encoding="utf-8") as log_file:
+            log_file.write(text)
+    except OSError:
+        pass
+
+
+def _append_startup_log_gap(lines: int = 3, path: Path | None = None) -> None:
+    """正常启动时在日志开头追加空行，区分不同会话。"""
+    _append_log_text("\n" * max(0, int(lines)), path)
+
+
+def _append_duplicate_startup_log(path: Path | None = None) -> None:
+    """重复启动不写空行，只记录一行。"""
+    timestamp = datetime.now().isoformat(sep=" ", timespec="milliseconds")
+    _append_log_text(
+        f"time={timestamp} level=INFO action=startup result=duplicate_instance\n",
+        path,
+    )
 
 
 def _as_float(value, default, minimum=None, maximum=None):
@@ -288,6 +314,33 @@ class _QuantitySliderTouchFilter(QObject):
         return True
 
 
+class _DrawButtonWheelFilter(QObject):
+    """在抽取按钮上滚轮上滑触发一次点击；下滑保留原行为。"""
+
+    def __init__(self, button):
+        super().__init__(button)
+        self.button = button
+        self._accumulated = 0
+
+    def eventFilter(self, watched, event):
+        if event.type() != QEvent.Type.Wheel:
+            return False
+        delta = event.angleDelta().y()
+        if delta <= 0:
+            # 下滑不触发抽取，也不拦截事件，保持按钮原有行为。
+            self._accumulated = 0
+            return False
+        self._accumulated += delta
+        if self._accumulated >= 120:
+            self._accumulated = 0
+            try:
+                self.button.click()
+            except RuntimeError:
+                pass
+        event.accept()
+        return True
+
+
 class MainWindow(QMainWindow):
     def __init__(
         self,
@@ -384,6 +437,8 @@ class MainWindow(QMainWindow):
         self.scroll_lift_controller = None
         self._syncing_quantity = False
         self._quantity_touch_filters = []
+        self._draw_wheel_filters = []
+        self._pending_quantity_log = {}
 
         self.status_widgets = {}
         self.status_separators = []
@@ -896,6 +951,7 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------------ menus / state
     def _select_log_level(self, level):
+        self._flush_quantity_log()
         selected = StateManager.configure_logging(level)
         self._build_log_level_menu()
         StateManager.log(selected, "log_level_changed", result=selected)
@@ -903,6 +959,7 @@ class MainWindow(QMainWindow):
         self._update_status_info()
 
     def _select_language(self, code):
+        self._flush_quantity_log()
         self.current_language = LanguageManager.resolve_language(code, self.languages)
         self._build_language_menu()
         self._build_theme_menu()
@@ -915,6 +972,7 @@ class MainWindow(QMainWindow):
         self._update_status_info()
 
     def _select_roster(self, key):
+        self._flush_quantity_log()
         self.names = importnames.select_roster(key)
         self.current_roster = importnames.active_roster
         self.lift_current_dict = None
@@ -1011,6 +1069,7 @@ class MainWindow(QMainWindow):
         app = QApplication.instance()
         if not isinstance(app, QApplication):
             return
+        self._flush_quantity_log()
         try:
             self.selected_theme = ThemeManager.apply_theme(app, name, self.themes)
             StateManager.log("INFO", "theme", result=self.selected_theme)
@@ -1085,6 +1144,7 @@ class MainWindow(QMainWindow):
 
         # Multi
         self.multi_button = getattr(self.ui_multi, "pushButton_Multi", None)
+        self._prepare_draw_button(self.multi_button)
         output = getattr(self.ui_multi, "label_MultiOutput", None)
         if output is not None:
             self.multi_view = OutputView(output, config, 33)
@@ -1105,6 +1165,7 @@ class MainWindow(QMainWindow):
 
         # Lift
         self.lift_button = getattr(self.ui_lift, "pushButton_Lift", None)
+        self._prepare_draw_button(self.lift_button)
         output = getattr(self.ui_lift, "label_LiftOutput", None)
         if output is not None:
             self.lift_view = OutputView(output, config, 33)
@@ -1129,6 +1190,7 @@ class MainWindow(QMainWindow):
         # ScrollMulti
         try:
             self.scroll_multi_button = getattr(self.ui_scroll_multi, "pushButton_ScrollMulti", None)
+            self._prepare_draw_button(self.scroll_multi_button)
             self.scroll_multi_quantity_label = getattr(self.ui_scroll_multi, "label_ScrollMultiQuantity", None)
             output = getattr(self.ui_scroll_multi, "label_ScrollMultiOutput", None)
             if output is not None:
@@ -1163,6 +1225,7 @@ class MainWindow(QMainWindow):
         # ScrollLift
         try:
             self.scroll_lift_button = getattr(self.ui_scroll_lift, "pushButton_ScrollLift", None)
+            self._prepare_draw_button(self.scroll_lift_button)
             self.scroll_lift_quantity_label = getattr(self.ui_scroll_lift, "label_ScrollLiftQuantity", None)
             output = getattr(self.ui_scroll_lift, "label_ScrollLiftOutput", None)
             if output is not None:
@@ -1215,6 +1278,7 @@ class MainWindow(QMainWindow):
 
     def _switch_mode(self, mode, quantity=None):
         """切换模式前先重置目标模式的显示状态，再切换页面。"""
+        self._flush_quantity_log()
         target = self._normalize_mode(mode)[0]
         if quantity is not None:
             self._set_quantity(target, quantity, log=False)
@@ -1386,8 +1450,8 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------------ draws
     def _handle_multi(self):
+        self._flush_quantity_log()
         try:
-            logging.info("执行多抽，数量=%s", self.multi_quantity)
             result = multi_module.Multi(self.names, self.multi_quantity)
             names = self._names_from_result(result)
             self.multi_result_names = names
@@ -1407,7 +1471,10 @@ class MainWindow(QMainWindow):
                     "result": result, "time": StateManager._now_iso()
                 }
                 StateManager.save_memory(state)
-                StateManager.log("INFO", "Multi", result=result)
+                StateManager.log(
+                    "INFO", "Multi",
+                    result=f"count={len(names)} names={','.join(names)}",
+                )
             except Exception:
                 logging.exception("记录 multi 结果失败")
         except Exception as exc:
@@ -1423,8 +1490,8 @@ class MainWindow(QMainWindow):
                 pass
 
     def _handle_lift(self):
+        self._flush_quantity_log()
         try:
-            logging.info("执行减量抽，数量=%s", self.lift_quantity)
             lift_dict = self.names if self.lift_current_dict is None else self.lift_current_dict
             result = lift_module.Lift(self.names, lift_dict, self.lift_quantity)
             names = self._names_from_result(result)
@@ -1447,7 +1514,10 @@ class MainWindow(QMainWindow):
                     "result": result, "time": StateManager._now_iso()
                 }
                 StateManager.save_memory(state)
-                StateManager.log("INFO", "Lift", result=result)
+                StateManager.log(
+                    "INFO", "Lift",
+                    result=f"count={len(names)} names={','.join(names)}",
+                )
             except Exception:
                 logging.exception("记录 lift 结果失败")
         except Exception as exc:
@@ -1463,13 +1533,14 @@ class MainWindow(QMainWindow):
                 pass
 
     def _on_scroll_multi_result(self, result, meta):
+        self._flush_quantity_log()
         try:
-            logging.info("ScrollMulti result: %s", result)
             selected = 0
             if isinstance(result, dict):
                 quantity = result.get("quantity", {})
                 if isinstance(quantity, dict):
                     selected = quantity.get("selected", 0)
+            names = self._names_from_result(result)
             self._show_status_message(
                 self._t("state.scroll_multi_result", count=selected)
             )
@@ -1477,7 +1548,10 @@ class MainWindow(QMainWindow):
             state = StateManager.load_memory()
             state.setdefault("last_results", {})["ScrollMulti"] = {"result": result, "meta": meta}
             StateManager.save_memory(state)
-            StateManager.log("INFO", "ScrollMulti", result=result)
+            StateManager.log(
+                "INFO", "ScrollMulti",
+                result=f"count={len(names)} names={','.join(names)}",
+            )
         except Exception as exc:
             logging.exception("处理 ScrollMulti 结果失败: %s", exc)
             try:
@@ -1486,13 +1560,14 @@ class MainWindow(QMainWindow):
                 pass
 
     def _on_scroll_lift_result(self, result, meta):
+        self._flush_quantity_log()
         try:
-            logging.info("ScrollLift result: %s", result)
             selected = 0
             if isinstance(result, dict):
                 quantity = result.get("quantity", {})
                 if isinstance(quantity, dict):
                     selected = quantity.get("selected", 0)
+            names = self._names_from_result(result)
             self._show_status_message(
                 self._t("state.scroll_lift_result", count=selected)
             )
@@ -1500,7 +1575,10 @@ class MainWindow(QMainWindow):
             state = StateManager.load_memory()
             state.setdefault("last_results", {})["ScrollLift"] = {"result": result, "meta": meta}
             StateManager.save_memory(state)
-            StateManager.log("INFO", "ScrollLift", result=result)
+            StateManager.log(
+                "INFO", "ScrollLift",
+                result=f"count={len(names)} names={','.join(names)}",
+            )
         except Exception as exc:
             logging.exception("处理 ScrollLift 结果失败: %s", exc)
             try:
@@ -1552,22 +1630,32 @@ class MainWindow(QMainWindow):
             lambda value, selected_mode=mode: self._on_quantity_slider_changed(selected_mode, value)
         )
 
+    def _prepare_draw_button(self, button):
+        """为抽取按钮安装滚轮过滤器，并在按下时先落盘待写的数量日志。"""
+        if button is None:
+            return
+        wheel_filter = _DrawButtonWheelFilter(button)
+        button.installEventFilter(wheel_filter)
+        self._draw_wheel_filters.append(wheel_filter)
+        button.pressed.connect(self._flush_quantity_log)
+
     def _set_quantity(self, mode, value, *, log=True):
-        """统一更新数量值、标签、滑动条和滚动控制器。"""
+        """统一更新数量值、标签、滑动条和滚动控制器。
+
+        log=True 时只挂起一条待写日志，避免连续调整数量刷屏；真正的日志
+        在用户执行抽取、切换模式、打开日志等操作时由 _flush_quantity_log()
+        一次写入。
+        """
         maximum = max(1, len(self.names))
         value = _clamp_quantity(value, maximum)
         if mode == MODE_MULTI:
             self.multi_quantity = value
-            logging_message = "更新多抽数量=%s"
         elif mode == MODE_LIFT:
             self.lift_quantity = value
-            logging_message = "更新减量抽数量=%s"
         elif mode == MODE_SCROLL_MULTI:
             self.scroll_multi_quantity = value
-            logging_message = "更新滚动多抽数量=%s"
         elif mode == MODE_SCROLL_LIFT:
             self.scroll_lift_quantity = value
-            logging_message = "更新滚动减量抽数量=%s"
         else:
             return value
 
@@ -1586,8 +1674,27 @@ class MainWindow(QMainWindow):
         if controller is not None:
             controller.set_quantity(value)
         if log:
-            logging.info(logging_message, value)
+            self._pending_quantity_log[mode] = value
+        else:
+            # 程序性重置（启动、初始化、刷新配置）不保留旧的数量调整记录。
+            self._pending_quantity_log.pop(mode, None)
         return value
+
+    def _flush_quantity_log(self):
+        """把挂起的数量调整合并成一行写入日志。"""
+        if not self._pending_quantity_log:
+            return
+        order = (MODE_MULTI, MODE_LIFT, MODE_SCROLL_MULTI, MODE_SCROLL_LIFT)
+        parts = [
+            f"{mode}={self._pending_quantity_log[mode]}"
+            for mode in order
+            if mode in self._pending_quantity_log
+        ]
+        self._pending_quantity_log.clear()
+        try:
+            StateManager.log("INFO", "quantity", result=" ".join(parts))
+        except Exception:
+            pass
 
     def _quantity_value(self, mode):
         return {
@@ -1605,7 +1712,7 @@ class MainWindow(QMainWindow):
     def _on_quantity_slider_changed(self, mode, value):
         if self._syncing_quantity:
             return
-        self._set_quantity(mode, value, log=False)
+        self._set_quantity(mode, value)
         self._update_status_info()
 
     def _adjust_quantity(self, mode, delta):
@@ -1613,6 +1720,7 @@ class MainWindow(QMainWindow):
         self._update_status_info()
 
     def _reset_lift_page(self):
+        self._flush_quantity_log()
         self.lift_current_dict = None
         self.lift_result = None
         self.lift_result_names = []
@@ -1622,6 +1730,7 @@ class MainWindow(QMainWindow):
         self._show_status_message(self._t("state.waiting"))
 
     def _reset_scroll_lift_page(self):
+        self._flush_quantity_log()
         if self.scroll_lift_controller is not None:
             self.scroll_lift_controller.reset()
         if self.scroll_lift_view is not None:
@@ -1643,6 +1752,7 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------------ file menu
     def _on_import_memory(self):
+        self._flush_quantity_log()
         try:
             fname, _ = QFileDialog.getOpenFileName(
                 self, self._t("dialog.import_title"), "", self._t("dialog.json_filter")
@@ -1664,6 +1774,7 @@ class MainWindow(QMainWindow):
             )
 
     def _on_export_memory(self):
+        self._flush_quantity_log()
         try:
             fname, _ = QFileDialog.getSaveFileName(
                 self, self._t("dialog.export_title"), "memory-export.json",
@@ -1683,6 +1794,7 @@ class MainWindow(QMainWindow):
             )
 
     def _on_reload_config(self):
+        self._flush_quantity_log()
         try:
             previous_theme = self.selected_theme
             previous_language = self.current_language
@@ -1777,6 +1889,7 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------ initialize
     def _on_initialize(self):
         """清空记忆与本次运行状态，所有模式回到数量 1。"""
+        self._flush_quantity_log()
         try:
             StateManager.reset_memory()
             for mode in (MODE_MULTI, MODE_LIFT, MODE_SCROLL_MULTI, MODE_SCROLL_LIFT):
@@ -1851,6 +1964,7 @@ class MainWindow(QMainWindow):
         return True
 
     def _show_program_log(self):
+        self._flush_quantity_log()
         self._open_viewer(
             self._t("action.program_log"), StateManager.LOG_PATH, markdown=False,
             empty_text=self._t("state.no_logs"),
@@ -1894,7 +2008,6 @@ class MainWindow(QMainWindow):
 
     def _open_repository(self):
         try:
-            logging.info("打开项目仓库: %s", REPOSITORY_URL)
             QDesktopServices.openUrl(QUrl(REPOSITORY_URL))
         except Exception as exc:
             logging.exception("打开仓库链接失败: %s", exc)
@@ -1905,7 +2018,6 @@ class MainWindow(QMainWindow):
 
     def _open_feedback_github(self):
         try:
-            logging.info("打开反馈页面: %s", FEEDBACK_URL)
             QDesktopServices.openUrl(QUrl(FEEDBACK_URL))
         except Exception as exc:
             logging.exception("打开反馈链接失败: %s", exc)
@@ -1917,7 +2029,6 @@ class MainWindow(QMainWindow):
     def _open_feedback_email(self):
         mailto = f"mailto:{EMAIL_ADDRESS}?subject=randname%20feedback"
         try:
-            logging.info("打开邮件反馈: %s", EMAIL_ADDRESS)
             if QDesktopServices.openUrl(QUrl(mailto)):
                 return
         except Exception:
@@ -1943,7 +2054,11 @@ class MainWindow(QMainWindow):
         dialog.exec()
 
     def _on_exit(self):
-        logging.info("用户请求退出程序")
+        self._flush_quantity_log()
+        try:
+            StateManager.log("INFO", "exit")
+        except Exception:
+            pass
         app = QApplication.instance()
         if app is not None:
             app.quit()
@@ -2046,14 +2161,18 @@ def main():
     from lib.SingleInstance import SingleInstanceServer, notify_running
 
     if notify_running():
+        _append_duplicate_startup_log()
         if splash is not None:
             splash.close()
         return 0
     instance_server = SingleInstanceServer()
     if not instance_server.listening and notify_running():
+        _append_duplicate_startup_log()
         if splash is not None:
             splash.close()
         return 0
+    # 单实例检查通过后再写会话分隔，重复启动只保留上面的一行记录。
+    _append_startup_log_gap()
     activation_requests = []
     instance_server.activated.connect(lambda: activation_requests.append(True))
 

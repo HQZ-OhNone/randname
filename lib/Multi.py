@@ -30,7 +30,6 @@ def Multi(alllist, quantity):
     多抽
     """
     # 初始化量
-    print(f"=> mode: Multi")
     output = {"mode": "Multi",
               "quantity": {"total": len(alllist),
                            "selected": quantity},
@@ -45,12 +44,8 @@ def Multi(alllist, quantity):
 
     # 判斷是否滿足多抽
     if quantity > len(alllist):  # 如果不滿足，則提示後退出
-        print(f"===> warn: 給定數量({quantity})大於總數({len(alllist)})，無法進行多抽。")
         # 生成 outdict ，直接返回空字典
         output["outdict"] = {}
-        # 輸出結果
-        print(f"===> output: {output}")
-        print("===> exit: Multi")
         return output
     else:    # 如果滿足多抽，則執行
         keys_remain = list(alllist.keys())
@@ -59,7 +54,6 @@ def Multi(alllist, quantity):
             selected_key = random.choice(keys_remain)
             selected_keys.append(selected_key)
             keys_remain.remove(selected_key)
-            print(keys_remain)
 
         # 生成 outdict ，每次循環加入一個選中的鍵值對
         for i in range(len(selected_keys)):
@@ -67,7 +61,4 @@ def Multi(alllist, quantity):
                                "name": alllist[selected_keys[i]]}
         output["outdict"] = outdict
 
-        # 輸出結果
-        print(f"===> output: {output}")
-        print("===> exit: Multi\n")
         return output

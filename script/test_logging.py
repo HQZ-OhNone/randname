@@ -59,6 +59,26 @@ class LoggingTests(unittest.TestCase):
         self.assertIn("[INFO]", html)
         self.assertNotIn("<script>", html)
 
+    def test_structured_log_uses_millisecond_timestamp(self):
+        with mock.patch.object(StateManager, "LOG_PATH", self.log_path):
+            StateManager.configure_logging("INFO")
+            StateManager.log("INFO", "unit_time", result="ok")
+        content = self.log_path.read_text(encoding="utf-8")
+        self.assertRegex(content, r"time=\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}")
+
+    def test_startup_gap_and_duplicate_marker(self):
+        from main import _append_duplicate_startup_log, _append_startup_log_gap
+
+        _append_startup_log_gap(3, self.log_path)
+        self.assertEqual(self.log_path.read_text(encoding="utf-8"), "\n\n\n")
+
+        _append_duplicate_startup_log(self.log_path)
+        content = self.log_path.read_text(encoding="utf-8")
+        self.assertTrue(content.endswith("action=startup result=duplicate_instance\n"))
+        self.assertRegex(
+            content, r"time=\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -19,13 +19,18 @@ with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import os
 import unittest
+from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtCore import QPoint, QPointF, Qt
+from PySide6.QtGui import QWheelEvent
 from PySide6.QtWidgets import QApplication
 
 import main
 from lib import LanguageManager, ScrollLift, ScrollMulti, StateManager, ThemeManager, importnames
+from lib import Lift as lift_module
+from lib import Multi as multi_module
 from lib import WindowTheme
 from lib import ui_main, ui_widgetlift, ui_widgetmulti, ui_widgetscrolllift, ui_widgetscrollmulti
 from lib.BackgroundWidget import BackgroundWidget
@@ -46,6 +51,8 @@ def _install_main_globals():
     main.WindowTheme = WindowTheme
     main.ScrollMulti = ScrollMulti
     main.ScrollLift = ScrollLift
+    main.multi_module = multi_module
+    main.lift_module = lift_module
     main.ui_main = ui_main
     main.ui_widgetmulti = ui_widgetmulti
     main.ui_widgetlift = ui_widgetlift
@@ -139,6 +146,52 @@ class QuantitySliderTests(unittest.TestCase):
         self.window.multi_down_button.click()
         self.app.processEvents()
         self.assertEqual(self.window.multi_quantity, 1)
+
+    @staticmethod
+    def _wheel_button(button, delta):
+        event = QWheelEvent(
+            QPointF(1, 1), QPointF(1, 1), QPoint(0, 0), QPoint(0, int(delta)),
+            Qt.MouseButton.NoButton, Qt.KeyboardModifier.NoModifier,
+            Qt.ScrollPhase.NoScrollPhase, False,
+        )
+        QApplication.sendEvent(button, event)
+
+    def test_multi_button_wheel_up_draws_and_down_does_nothing(self):
+        window = self.window
+        window._set_quantity(main.MODE_MULTI, 1, log=False)
+        window.multi_result_names = []
+        self._wheel_button(window.multi_button, 120)
+        self.app.processEvents()
+        self.assertTrue(window.multi_result_names)
+
+        window.multi_result_names = []
+        self._wheel_button(window.multi_button, -120)
+        self.app.processEvents()
+        self.assertEqual(window.multi_result_names, [])
+
+    def test_multi_button_wheel_accumulates_notches(self):
+        window = self.window
+        window.multi_result_names = []
+        self._wheel_button(window.multi_button, 60)
+        self.app.processEvents()
+        self.assertEqual(window.multi_result_names, [])
+        self._wheel_button(window.multi_button, 60)
+        self.app.processEvents()
+        self.assertTrue(window.multi_result_names)
+
+    def test_quantity_adjustment_log_is_coalesced(self):
+        window = self.window
+        window._set_quantity(main.MODE_MULTI, 1, log=False)
+        window._pending_quantity_log.clear()
+        with mock.patch.object(main.StateManager, "log") as log_mock:
+            for _ in range(5):
+                window._adjust_quantity(main.MODE_MULTI, 1)
+            log_mock.assert_not_called()
+            window._flush_quantity_log()
+            log_mock.assert_called_once()
+            args = log_mock.call_args.args
+            self.assertEqual(args[1], "quantity")
+            self.assertIn("Multi=", log_mock.call_args.kwargs["result"])
 
     def test_theme_menu_has_dark_and_light_columns(self):
         from PySide6.QtWidgets import QLabel, QToolButton

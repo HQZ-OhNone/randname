@@ -40,8 +40,6 @@ def Lift(alllist, Liftdict, quantity):
     減量抽取
     """
     # 初始化量
-    print(f"=> mode: Lift")
-    print(f"===> quantity: {quantity}")
     output = {"mode": "Lift",
               "quantity": {"total": len(alllist),
                            "wasted": len(alllist) - len(Liftdict),
@@ -59,22 +57,14 @@ def Lift(alllist, Liftdict, quantity):
 
     # 判斷是否滿足減量抽取
     if len(Liftdict) == 0:  # 如果 Liftdict 為空，則提示後退出
-        print(f"===> warn: Liftdict 為空，無法進行減量抽取。")
         # 生成 Liftdict ，直接返回原始 Liftdict
         output["Liftdict"] = Liftdict
         output["outdict"] = {}
-        # 輸出結果
-        print(f"===> output: {output}")
-        print("===> exit: Lift\n")
         return output
     elif quantity > len(Liftdict):  # 如果不滿足，則提示後退出
-        print(f"===> warn: 給定數量({quantity})大於總數({len(Liftdict)})，無法進行減量抽取。")
         # 生成 Liftdict ，直接返回原始 Liftdict
         output["Liftdict"] = Liftdict
         output["outdict"] = {}
-        # 輸出結果
-        print(f"===> output: {output}")
-        print("===> exit: Lift\n")
         return output
     else:    # 如果滿足減量抽取，則執行
         keys_remain = list(Liftdict.keys())
@@ -83,7 +73,6 @@ def Lift(alllist, Liftdict, quantity):
             selected_key = random.choice(keys_remain)
             selected_keys.append(selected_key)
             keys_remain.remove(selected_key)
-            print(keys_remain)
 
         # 生成 outdict ，每次循環加入一個選中的鍵值對
         for i in range(len(selected_keys)):
@@ -96,8 +85,5 @@ def Lift(alllist, Liftdict, quantity):
             Liftdict_remain[key] = Liftdict[key]
         output["Liftdict"] = Liftdict_remain
 
-        # 輸出結果
-        print(f"===> output: {output}")
-        print("===> exit: Lift\n")
         return output
 

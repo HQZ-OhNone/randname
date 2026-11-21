@@ -111,7 +111,7 @@ BUILTIN_CONFIG = {
 
 
 def _now_iso() -> str:
-    return datetime.now().isoformat(sep=" ", timespec="seconds")
+    return datetime.now().isoformat(sep=" ", timespec="milliseconds")
 
 
 class _SessionLogHandler(logging.Handler):
