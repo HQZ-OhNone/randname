@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文记录 randname 3.11.6 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
+本文记录 randname 3.12.0 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
 `logic_en_US.md`，正體中文版见 `logic_zh_TW.md`。
 
 ## 1. 术语与模式
@@ -31,7 +31,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路径 | 职责 |
 | --- | --- |
 | `main.py` | 启动、主窗口、菜单、状态栏、页面切换、记忆回填、查看器入口 |
-| `lib/version.py` | `APP_VERSION = "3.11.6"` |
+| `lib/version.py` | `APP_VERSION = "3.12.0"` |
 | `lib/Multi.py` | 多抽算法 |
 | `lib/Lift.py` | 减量抽算法 |
 | `lib/ScrollMulti.py` | 滚动多抽控制器 |
@@ -62,7 +62,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 3. 创建 `QApplication`。
 4. `_splash_settings()` 解析 `[splash]` 的 `enabled`/`mode`/`duration_ms` 并夹紧非法值。
 5. 立即加载、缩放并显示启动画面；按 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 保持宽高比，显示后执行 `processEvents()`，其余扫描与加载都排在启动画面之后。
-6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.11.6`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
+6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.12.0`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
 7. 启动画面显示后才导入 `lib.SingleInstance` 并检查单实例；同一版本已在运行时唤醒既有窗口、关闭启动画面并退出。
 8. 加载图标，再以 `_startup_file_check()` 收集可恢复文件警告。`required` 当前恒为空，因此“启动检查失败”分支不可达。
 9. 导入 `lib` 模块。
@@ -396,6 +396,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
   - `ui/WidgetScrollMulti.ui` → 滚动多抽；
   - `ui/WidgetScrollLift.ui` → 滚动减量抽（比滚动多抽多一个“重置”按钮）。
 - 四个数量页面在数量列右侧各有一个纵向 `QSlider`，范围 `1..len(names)`；`_prepare_quantity_slider()` 安装触控过滤器，`_set_quantity()` 统一同步数值、标签、滑条和滚动控制器。
+- `_prepare_quantity_layout()` 把“增加/数量/减少”设为固定高度并在上下插入弹性空白，输出框扩张时这组控件保持紧凑并居中，不随输出框拉伸；纵向滑条仍随输出框高度伸展。
 - 文本窗口：`ui/TextViewer.ui` → `lib/ui_textviewer.py`；检查更新窗口：`ui/Update.ui` → `lib/ui_update.py`。
 - 模式菜单顺序：单抽、多抽、减量抽、分隔线、滚动单抽、滚动多抽、滚动减量抽。
 - 关于菜单：帮助、程序日志、检查更新、日志等级、分隔线、许可证、项目仓库、反馈。
@@ -486,7 +487,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-当前版本：**3.11.6**。
+当前版本：**3.12.0**。
 
 3.8.x 主要变化：
 
@@ -687,3 +688,10 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - 下滑保持原行为，不触发抽取。
 - Multi/Lift 是同步完成、没有活跃轮次，滚轮上滑仍不执行抽取。
 - 版本更新为 3.11.6。
+
+## 40. 3.12.0 数量控件不随输出框拉伸
+
+- 新增 `_prepare_quantity_layout()`：将四个模式页面的“增加/数量/减少”纵向尺寸策略设为 `Fixed`，并在该纵向布局上下插入弹性空白。
+- 输出框按内容扩张时，数量按钮和数字标签保持原有高度并在数量列中居中，不再被纵向拉成长条。
+- 纵向数量滑条仍随输出框高度伸展，属于预期行为。
+- 版本更新为 3.12.0。

@@ -8,6 +8,28 @@
 3. 每个版本使用「中文 / English」两段，内容来自 doc/history.md 与 git 记录。
 -->
 
+## v3.12.0 — 2026-11-22
+
+### 中文
+
+- 輸出框改為依內容所需高度動態擴張，不再一次佔滿可用空間；內容減少時同步收合。
+- 多抽、減量抽與兩種滾動模式的輸出框擴張邏輯保持一致；滾動格子依基準字號計算所需高度。
+- 修正輸出框擴張時，右側「增加／數量／減少」控件被縱向拉成長條的問題；數量按鈕與數字標籤保持緊湊並置中，縱向滑條仍隨輸出框伸展。
+- 抽取按鈕滾輪上滑：滾動模式執行中觸發一次按鈕動作，停止下一個姓名；沒有活躍抽取時不會開啟新一輪。下滑保持原行為。
+- 精簡日誌：正常操作不再輸出完整結果字典，抽取日誌保留人數與詳細名單；數量調整日誌合併寫入。
+- 啟動日誌在開頭加入三行空行；重複啟動只記錄一行狀態。結構化日誌時間精確到毫秒。
+- 版本更新為 3.12.0。
+
+### English
+
+- Output boxes now expand dynamically by the height content needs instead of filling all available space, and collapse when content shrinks.
+- Multi, Lift, ScrollMulti, and ScrollLift share consistent expansion logic; rolling grids compute the required height at the base font.
+- Fixed the increase/value/decrease group on the right stretching into tall bars when the output box expands. The buttons and number label stay compact and centred, while the vertical slider still follows the output height.
+- Wheel-up on a draw button triggers one button action during an active rolling round, stopping the next name. It never starts a new round while idle. Wheel-down keeps its previous behaviour.
+- Logging is quieter: normal operations no longer dump complete result dictionaries, draw logs keep the count and detailed names, and quantity changes are coalesced.
+- Startup logs begin with three blank lines; duplicate launches record a single status line. Structured timestamps now include milliseconds.
+- Version bumped to 3.12.0.
+
 ## v3.11.2 — 2026-11-07
 
 ### 中文

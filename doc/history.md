@@ -12,6 +12,35 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 This file is appended per session: completed work, unresolved findings, and
 verification results.
 
+## 2026-11-22 / 3.12.0
+
+### 已完成 / Completed
+
+- 修复多抽等模式输出框扩张时，右侧“增加/数量/减少”控件被纵向拉成长条的问题。
+- 新增 `_prepare_quantity_layout()`：四个模式页面的数量按钮与数字标签改为固定高度，并在纵向布局上下加入弹性空白，使整组控件保持紧凑、居中。
+- 纵向数量滑条保持随输出框高度伸展，不做固定。
+- 版本更新为 3.12.0，按 `[upgrade]` 要求合并到 `main` 并推送远端。
+
+### 发现但未解决 / Found but unresolved
+
+- 数量控件采用固定高度，若系统字体或主题大幅改变，可能需要重新确认按钮高度是否仍合适。
+- 滑条仍会随输出框变长；若后续希望滑条固定长度，需要单独调整。
+- 7 个 `lib/ui_*.py` 的既有行尾空行修改仍与本次无关，未纳入提交。
+
+### 验证 / Verification
+
+- `.venv/bin/python -m unittest discover -s script -p 'test_*.py'`：113 项通过。
+- 离屏 MainWindow 探针：输出框由 188 px 扩张到 562 px 时，增加按钮保持 46 px、数量标签 32 px、减少按钮 46 px，三者的宽度与纵向位置不变。
+- 四个模式页面共用同一数量控件处理逻辑。
+
+### English summary
+
+- Fixed the quantity increase/value/decrease group stretching into tall bars when the output box expands.
+- Added `_prepare_quantity_layout()`: all four mode pages give the quantity buttons and number label a fixed height and elastic space above/below, keeping the group compact and centred.
+- The vertical quantity slider still follows the output height and is intentionally not fixed.
+- Version bumped to 3.12.0 and released with `[upgrade]` by merging into `main` and pushing to the remote.
+- Verification: 113 unit tests pass; an offscreen MainWindow probe confirms the quantity controls keep their size while the output grows from 188 px to 562 px.
+
 ## 2026-11-22 / 3.11.6
 
 ### 已完成 / Completed

@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文記錄 randname 3.11.6 的實際行為、隱藏機制與邊界。簡體中文見
+本文記錄 randname 3.12.0 的實際行為、隱藏機制與邊界。簡體中文見
 `logic_zh_CN.md`，英文見 `logic_en_US.md`。
 
 ## 1. 術語與模式
@@ -32,7 +32,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路徑 | 職責 |
 | --- | --- |
 | `main.py` | 啟動、主視窗、選單、狀態列、頁面切換、記憶回填 |
-| `lib/version.py` | `APP_VERSION = "3.11.6"` |
+| `lib/version.py` | `APP_VERSION = "3.12.0"` |
 | `lib/Multi.py` | 多抽演算法 |
 | `lib/Lift.py` | 減量抽演算法 |
 | `lib/ScrollMulti.py` | 滾動多抽控制器 |
@@ -61,7 +61,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 4. `_splash_settings()` 解析 `[splash]` 的 `enabled`/`mode`/`duration_ms` 並夾緊非法值。
 5. 立即載入、縮放並顯示啟動畫面；依 `size_mode`/`screen_ratio`/`aspect_ratio`
    保持比例，顯示後執行 `processEvents()`，其餘掃描與載入都排在啟動框之後。
-6. `_draw_splash_version()` 在右下角繪製 `v3.11.6`；字號始終依圖片寬度的三分之一
+6. `_draw_splash_version()` 在右下角繪製 `v3.12.0`；字號始終依圖片寬度的三分之一
    自動縮放，文字固定為純白色，不提供字號或顏色設定。
 7. 啟動框顯示後才匯入 `lib.SingleInstance` 並檢查單實例；同一版本已在執行時
    喚醒既有視窗、關閉啟動框並退出。
@@ -378,6 +378,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - 主視窗：`ui/Main.ui` → `lib/ui_main.py`。
 - 頁面：多抽、減量抽、滾動多抽、滾動減量抽。
 - 四個數量頁面在數量欄右側各有一個縱向 `QSlider`；`_prepare_quantity_slider()` 安裝觸控過濾器，`_set_quantity()` 統一同步數值、標籤、滑動條與滾動控制器。
+- `_prepare_quantity_layout()` 把「增加／數量／減少」設為固定高度並在上下插入彈性空白，輸出框擴張時這組控件保持緊湊並置中，不隨輸出框拉伸；縱向滑動條仍隨輸出框高度伸展。
 - 文字視窗：`ui/TextViewer.ui`；檢查更新視窗：`ui/Update.ui`。
 - 模式選單順序：單抽、多抽、減量抽、分隔線、滾動單抽、滾動多抽、滾動減量抽。
 - 關於選單：說明、程式日誌、檢查更新、記錄等級、分隔線、授權、專案原始碼、回饋。
@@ -456,7 +457,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-目前版本：**3.11.6**。
+目前版本：**3.12.0**。
 
 3.8.x 主要變更：
 
@@ -669,3 +670,12 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - 下滑保持原行為，不觸發抽取。
 - Multi/Lift 同步完成、沒有活躍輪次，滾輪上滑仍不執行抽取。
 - 版本更新為 3.11.6。
+
+## 40. 3.12.0 數量控件不隨輸出框拉伸
+
+- 新增 `_prepare_quantity_layout()`：將四個模式頁面的「增加／數量／減少」縱向
+  尺寸策略設為 `Fixed`，並在該縱向佈局上下插入彈性空白。
+- 輸出框依內容擴張時，數量按鈕與數字標籤保持原有高度並在數量欄中置中，不再
+  被縱向拉成長條。
+- 縱向數量滑動條仍隨輸出框高度伸展，屬於預期行為。
+- 版本更新為 3.12.0。

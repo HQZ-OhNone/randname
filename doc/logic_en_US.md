@@ -9,7 +9,7 @@ version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
 This document records the actual behaviour, hidden mechanisms, and edge cases
-of randname 3.11.6. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
+of randname 3.12.0. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 `logic_zh_TW.md`.
 
 ## 1. Terms and modes
@@ -34,7 +34,7 @@ of randname 3.11.6. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 | Path | Responsibility |
 | --- | --- |
 | `main.py` | Startup, main window, menus, status bar, page switching, memory restore |
-| `lib/version.py` | `APP_VERSION = "3.11.6"` |
+| `lib/version.py` | `APP_VERSION = "3.12.0"` |
 | `lib/Multi.py` | Multi draw algorithm |
 | `lib/Lift.py` | Lift draw algorithm |
 | `lib/ScrollMulti.py` | ScrollMulti controller |
@@ -65,7 +65,7 @@ of randname 3.11.6. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 5. Load, scale, and show the splash immediately, keeping the image aspect ratio
    according to `size_mode`/`screen_ratio`/`aspect_ratio`. `processEvents()` runs
    right after it is shown; all other scanning and loading happens afterwards.
-6. `_draw_splash_version()` draws `v3.11.6` in the bottom-right corner. The
+6. `_draw_splash_version()` draws `v3.12.0` in the bottom-right corner. The
    font size always scales with the image width to one third of that width;
    the text is always pure white and has no size or colour configuration.
 7. Only after the splash is visible does the app import `lib.SingleInstance` and
@@ -453,6 +453,10 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - Every quantity page has a vertical `QSlider` to the right of the quantity
   column. `_prepare_quantity_slider()` installs the touch filter, and
   `_set_quantity()` synchronises value, label, slider, and rolling controller.
+- `_prepare_quantity_layout()` fixes the height of the increase/value/decrease
+  group and adds elastic space above and below. When the output box expands,
+  this group stays compact and centred instead of stretching; the vertical
+  slider still follows the output height.
 - Text viewer: `ui/TextViewer.ui`; update dialog: `ui/Update.ui`.
 - Mode menu order: Single, Multi, Lift, separator, ScrollSingle,
   ScrollMulti, ScrollLift.
@@ -831,3 +835,15 @@ Main changes in the 3.8.x series:
 - Multi/Lift finish synchronously and have no active round, so wheel-up still
   performs no draw there.
 - Version bumped to 3.11.6.
+
+## 40. 3.12.0 quantity controls stay compact
+
+- Added `_prepare_quantity_layout()`: on all four mode pages the
+  increase/value/decrease group gets a fixed vertical size policy and elastic
+  space above and below.
+- When the output box expands with content, the quantity buttons and number
+  label keep their original height and stay centred in the quantity column
+  instead of stretching into tall bars.
+- The vertical quantity slider still follows the output height; this is
+  intentional.
+- Version bumped to 3.12.0.
