@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文记录 randname 3.11.3 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
+本文记录 randname 3.11.4 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
 `logic_en_US.md`，正體中文版见 `logic_zh_TW.md`。
 
 ## 1. 术语与模式
@@ -31,7 +31,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路径 | 职责 |
 | --- | --- |
 | `main.py` | 启动、主窗口、菜单、状态栏、页面切换、记忆回填、查看器入口 |
-| `lib/version.py` | `APP_VERSION = "3.11.3"` |
+| `lib/version.py` | `APP_VERSION = "3.11.4"` |
 | `lib/Multi.py` | 多抽算法 |
 | `lib/Lift.py` | 减量抽算法 |
 | `lib/ScrollMulti.py` | 滚动多抽控制器 |
@@ -62,7 +62,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 3. 创建 `QApplication`。
 4. `_splash_settings()` 解析 `[splash]` 的 `enabled`/`mode`/`duration_ms` 并夹紧非法值。
 5. 立即加载、缩放并显示启动画面；按 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 保持宽高比，显示后执行 `processEvents()`，其余扫描与加载都排在启动画面之后。
-6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.11.3`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
+6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.11.4`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
 7. 启动画面显示后才导入 `lib.SingleInstance` 并检查单实例；同一版本已在运行时唤醒既有窗口、关闭启动画面并退出。
 8. 加载图标，再以 `_startup_file_check()` 收集可恢复文件警告。`required` 当前恒为空，因此“启动检查失败”分支不可达。
 9. 导入 `lib` 模块。
@@ -155,24 +155,24 @@ language.toml 的 preferred（有效）
 
 `lib/OutputView.py` 包装一个 `QLabel`：
 
-1. `setSizePolicy(Ignored, Ignored)`、`setMinimumSize(0, 0)`，防止 `QLabel.sizeHint()` 把窗口撑大。
+1. `setSizePolicy(Expanding, Ignored)`、`setMinimumSize(0, 0)`：保留 `.ui` 的 160 水平 stretch，垂直高度完全由布局行 stretch 决定，`minimumSizeHint` 不撑大窗口。
 2. 基准字号 `[ui].display_font_size`；下限 `display_min_font_size`；步长 `display_font_step`；行距 `display_line_spacing`；内边距 `display_padding`。
 3. 显示姓名列表时按显示宽度贪婪分行，姓名之间两个空格，不会从姓名中间断开。
-4. 先用基准字号尝试单行；单行放不下且高度足够时改为多行；仍放不下则逐步缩小字号。
+4. 先用基准字号排版；基准字号放不下时优先把输出框所在行的 stretch 设为 1 占用上下空白，扩张后仍放不下才逐步缩小字号。
 5. 极端情况下单个姓名仍比结果框宽时，允许 Qt 在字符间换行，避免内容完全不可见。
 6. `set_message()` 用于“等待输入”“暂无结果”等占位文案，始终使用基准字号。
-7. `resizeEvent` 触发重新排版；用户拉伸窗口后自动重新选择单行/多行/字号。
+7. `resizeEvent` 触发重新排版；收合基准高度采用防抖采样，避免记录过渡尺寸。
 
 ### 6.2 滚动模式（SlotOutputView）
 
 `SlotOutputView` 复用原输出 `QLabel` 作为背景容器，内部用 `_SlotGrid` 手动摆放子 `QLabel`：
 
 1. `begin_round(pool, quantity)` 创建 `quantity` 个固定格子。
-2. 第一次 `set_names()` 时计算布局并锁定：目标行数按 `round(sqrt(N * H / W))` 估算；比较所有栏数组合，优先字号最大，字号相同时选择最接近目标行数的配置。6 人、宽输出框通常为 2 行 × 3 列。
+2. 第一次 `set_names()` 时计算布局并锁定：目标行数按 `round(sqrt(N * H / W))` 估算；比较所有栏数组合，优先字号最大，字号相同时优先真正放得下的布局，再选择最接近目标行数的配置。6 人、宽输出框通常为 2 行 × 3 列。
 3. 每个格子等宽等高，文字水平/垂直居中；最后一行不足时整行居中。
 4. 锁定后每次 tick 只更新格子文字，格子几何不变，已停止的名字不会移动。
-5. 若当前姓名无法放进锁定格子，重新计算列数/行数/字号并再次锁定；这是布局唯一的变动时机。
-6. `clear_round()`、下一轮 `start()`、更改数量、重置时清除锁定，下次抽取重新布局。
+5. 基准字号在收合高度下放不进任何格子布局时，先扩张输出框；扩张后仍放不下才缩小字号并重新锁定。
+6. `clear_round()`、下一轮 `start()`、重置或导入结果时清除锁定；调整数量不立即破坏当前结果，由下一轮 `begin_round()` 重建。
 7. `set_message()` 显示占位文案；导入历史结果时按结果人数建立格子并计算一次布局。
 8. ScrollMulti 与 ScrollLift 共用该视图。
 
@@ -486,7 +486,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-当前版本：**3.11.3**。
+当前版本：**3.11.4**。
 
 3.8.x 主要变化：
 
@@ -655,3 +655,17 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - `build.bat` 先安装依赖再编译 UI，加入 `errorlevel` 检查；`CI` 环境不执行 `pause`，手动执行仍会在结束或失败时暂停。
 - GitHub Actions 直接调用 `script/build.sh` 与 `script/build.bat`，移除重复的安装、UI 编译与 Nuitka 命令；产物校验、命名、上传与 Release 仍由工作流负责。
 - 版本更新为 3.11.3。
+
+## 37. 3.11.4 显示框布局与日志改进
+
+- 输出框垂直尺寸策略由 `Expanding` 改为 `Ignored`：长姓名换行产生的 `minimumSizeHint` 不再撑大窗口或残留旧行高，名字减少后输出框能回到原始高度。
+- `_OutputExpansion` 的收合基准高度改为防抖采样，只在未展开、行 stretch 为 0 时记录；收合时主动 `invalidate()` 与 `activate()`，避免过渡尺寸污染基准。
+- 扩张策略改为“基准字号放不下时优先扩张，扩张后仍放不下才缩小字号”；`OutputView` 与 `SlotOutputView` 保持一致。
+- `choose_slot_layout()` 评分加入“是否真正放得下”的判断；`_needs_expansion()` 遍历所有列数，避免选中放不下的格子后误扩张。
+- 滚动模式调整数量时不再立即清除当前结果布局；下一轮 `begin_round()` 统一重建格子，避免已显示结果被拉伸铺满输出框。
+- 四个抽取按钮支持滚轮上滑触发一次抽取，下滑保留原行为；连续滚轮按 120 单位累计一格。
+- 正常启动在日志开头追加三行空行；重复启动不写空行，只记录一行 `action=startup result=duplicate_instance`。
+- 正常操作日志统一为结构化 `StateManager.log`，移除完整结果字典、模式切换调试输出与 `Multi`/`Lift` 的 `print` 调试信息；抽取日志保留数量与详细名单。
+- 数量调整日志改为挂起合并：调整时不立即写入，在抽取、切换模式、打开日志等操作时写一行最终值。
+- 结构化日志时间精确到毫秒。
+- 版本更新为 3.11.4。

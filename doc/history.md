@@ -12,6 +12,49 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 This file is appended per session: completed work, unresolved findings, and
 verification results.
 
+## 2026-11-22 / 3.11.4
+
+### 已完成 / Completed
+
+- 輸出框垂直尺寸策略由 `Expanding` 改為 `Ignored`，保留 160 水平 stretch；長姓名換行不再撐大視窗或留下舊行高，名字減少後可回到原始高度。
+- `_OutputExpansion` 的收合基準高度改為防抖取樣，只在未展開且列 stretch 為 0 時記錄；收合時主動 `invalidate()`／`activate()`，避免過渡尺寸污染基準。
+- 擴張策略改為「基準字號放不下時優先擴張，擴張後仍放不下才縮小字號」，`OutputView` 與 `SlotOutputView` 同步。
+- `choose_slot_layout()` 評分加入是否真正放得下；`_needs_expansion()` 走訪所有欄數，修正滾動模式誤選放不下的格子並誤擴張的問題。
+- 滾動模式調整數量時不再立即清除目前結果佈局，改由下一輪 `begin_round()` 重建，修正結果被拉伸鋪滿輸出框的問題。
+- 四個抽取按鈕支援滾輪上滑觸發一次抽取，下滑保留原行為；滾輪以 120 單位累計一格。
+- 正常啟動在日誌開頭追加三行空行；重複啟動只寫一行 `action=startup result=duplicate_instance`。
+- 正常操作日誌統一為結構化 `StateManager.log`；移除完整結果字典、模式切換除錯輸出與 `Multi`／`Lift` 的 `print`；抽取日誌保留數量與完整抽出名單。
+- 數量調整日誌改為掛起合併，在抽取、切換模式、開啟日誌等操作時寫入一行最終值。
+- 結構化日誌時間精確到毫秒。
+- 版本更新為 3.11.4，同步 README、manifest 與三語邏輯文件。
+
+### 發現但未解決 / Found but unresolved
+
+- 新的「基準字號優先擴張」策略會讓更多一般結果使用上下空白；若實際課堂觀感不佳，可能需要改回「僅最小字號放不下才擴張」。
+- 滾輪上滑在滾動模式中會逐個停止轉盤，與點擊語義相同；尚未在真實高解析度觸控板或 Windows 滾輪裝置上實測。
+- 三行空行與重複啟動日誌僅以單元測試與離屏啟動驗證，尚未在打包版本確認日誌檢視器顯示效果。
+- 本次僅在 `dev` 分支本地提交，未 push、未合併 main、未觸發 CI Release。
+
+### 驗證 / Verification
+
+- `.venv/bin/python -m unittest discover -s script -p 'test_*.py'`：110 項通過。
+- `python -m py_compile main.py lib/*.py script/*.py` 通過。
+- 離屏 Qt 探針：輸出框長→短高度可回到 158 px；基準字號優先擴張生效；滾輪上滑抽取、下滑不抽取；數量調整日誌合併為一行。
+
+### English summary
+
+- Changed the output label's vertical size policy from `Expanding` to `Ignored` while keeping the 160 horizontal stretch. Wrapped long names no longer grow the window or leave stale row heights, and the box returns to its original height when names decrease.
+- `_OutputExpansion` now debounces its collapsed baseline and only records it while collapsed with zero row stretch. Collapsing invalidates and re-activates the layout so transitional sizes cannot poison the baseline.
+- The expansion rule is now "expand at the base font first; shrink only if the expanded box still does not fit" for both `OutputView` and `SlotOutputView`.
+- `choose_slot_layout()` now scores whether a grid truly fits, and `_needs_expansion()` checks every column count, fixing false expansion in scroll modes.
+- Quantity changes in scroll modes no longer clear the current result layout; the next `begin_round()` rebuilds it, so displayed results are not stretched across the output box.
+- All four draw buttons accept wheel-up to trigger one draw; wheel-down keeps its previous behaviour. Wheel deltas accumulate to one 120-unit notch.
+- A normal start appends three blank lines to the log; a duplicate start writes only one `action=startup result=duplicate_instance` line.
+- Normal operation logs now use structured `StateManager.log` only. Full result dictionaries, mode-switch debug output, and `Multi`/`Lift` debug `print` calls were removed; draw logs keep the count and complete drawn names.
+- Quantity adjustments are buffered and written as one final-value line on the next draw, mode switch, log viewer, or other operation.
+- Structured log timestamps now include milliseconds.
+- Version bumped to 3.11.4 and README, manifest, and trilingual logic documents were synced.
+
 ## 2026-11-14 / 3.11.3
 
 ### 已完成 / Completed

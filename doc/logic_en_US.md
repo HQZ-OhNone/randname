@@ -9,7 +9,7 @@ version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
 This document records the actual behaviour, hidden mechanisms, and edge cases
-of randname 3.11.3. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
+of randname 3.11.4. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 `logic_zh_TW.md`.
 
 ## 1. Terms and modes
@@ -34,7 +34,7 @@ of randname 3.11.3. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 | Path | Responsibility |
 | --- | --- |
 | `main.py` | Startup, main window, menus, status bar, page switching, memory restore |
-| `lib/version.py` | `APP_VERSION = "3.11.3"` |
+| `lib/version.py` | `APP_VERSION = "3.11.4"` |
 | `lib/Multi.py` | Multi draw algorithm |
 | `lib/Lift.py` | Lift draw algorithm |
 | `lib/ScrollMulti.py` | ScrollMulti controller |
@@ -65,7 +65,7 @@ of randname 3.11.3. Simplified Chinese: `logic_zh_CN.md`. Traditional Chinese:
 5. Load, scale, and show the splash immediately, keeping the image aspect ratio
    according to `size_mode`/`screen_ratio`/`aspect_ratio`. `processEvents()` runs
    right after it is shown; all other scanning and loading happens afterwards.
-6. `_draw_splash_version()` draws `v3.11.3` in the bottom-right corner. The
+6. `_draw_splash_version()` draws `v3.11.4` in the bottom-right corner. The
    font size always scales with the image width to one third of that width;
    the text is always pure white and has no size or colour configuration.
 7. Only after the splash is visible does the app import `lib.SingleInstance` and
@@ -181,20 +181,23 @@ The splash uses the same algorithm with `screen_ratio = 0.25` and
 
 `lib/OutputView.py` wraps a `QLabel`:
 
-1. `setSizePolicy(Ignored, Ignored)` and `setMinimumSize(0, 0)` prevent the
-   label size hint from enlarging the window.
+1. `setSizePolicy(Expanding, Ignored)` and `setMinimumSize(0, 0)` keep the
+   `.ui` horizontal stretch of 160, let the layout control the height, and stop
+   the label size hint from enlarging the window.
 2. Base font: `[ui].display_font_size`; minimum:
    `display_min_font_size`; step: `display_font_step`; line spacing:
    `display_line_spacing`; padding: `display_padding`.
 3. Names are packed greedily into lines by rendered width, separated by two
    spaces, never split in the middle of a name.
-4. Try one line at the base size; if it does not fit and there is enough
-   height, wrap to multiple lines; if it still does not fit, reduce the font.
+4. Lay out at the base font first. If it does not fit, expand the output row
+   into the surrounding blank space first; shrink the font only if the expanded
+   box still does not fit.
 5. If even the minimum font cannot fit one extreme name, Qt may wrap inside
    the name so that content remains visible.
 6. `set_message()` is used for "Ready", "No result", etc. and always uses the
    base font.
-7. `resizeEvent` re-runs layout, so user resizing is handled.
+7. `resizeEvent` re-runs layout; the collapsed baseline is debounced so
+   transitional sizes are not recorded.
 
 ### 6.2 Rolling modes (SlotOutputView)
 
@@ -204,16 +207,19 @@ and places child `QLabel`s with `_SlotGrid`:
 1. `begin_round(pool, quantity)` creates `quantity` fixed slots.
 2. The first `set_names()` computes and locks the layout. The target row count
    is estimated as `round(sqrt(N * H / W))`; every column count is compared,
-   preferring the largest font and, on a tie, the layout closest to the target
-   row count. Six names in a wide box usually become 2 rows × 3 columns.
+   preferring the largest font and, on a tie, a grid that truly fits before the
+   layout closest to the target row count. Six names in a wide box usually
+   become 2 rows × 3 columns.
 3. Cells are equal-sized and centre their text horizontally and vertically;
    an incomplete last row is centred as a row.
 4. After locking, every tick only changes text. Slot geometry is stable, so
    names already fixed do not move.
-5. If a current name cannot fit its locked slot, the column/row/font
-   calculation runs again and the new layout is locked.
-6. `clear_round()`, the next `start()`, a quantity change, reset, or result
-   import clears the lock so the next draw re-lays out.
+5. If the base font cannot fit any grid within the collapsed height, the
+   output box expands first; only if it still does not fit does the font shrink
+   and the layout re-lock.
+6. `clear_round()`, the next `start()`, reset, or result import clears the
+   lock. A quantity change does not disturb the current result; the next
+   `begin_round()` rebuilds it.
 7. Imported results create slots from the result count and lock one layout.
 8. ScrollMulti and ScrollLift share this view.
 
@@ -763,3 +769,32 @@ Main changes in the 3.8.x series:
   Artifact verification, naming, upload, and Release creation stay in the
   workflow.
 - Version bumped to 3.11.3.
+
+## 37. 3.11.4 output layout and logging
+
+- The output label's vertical size policy changed from `Expanding` to
+  `Ignored`. Wrapped long names no longer grow the window or leave stale row
+  heights, and the box returns to its original height when names decrease.
+- `_OutputExpansion` now debounces its collapsed baseline and records it only
+  while collapsed with a zero row stretch. Collapsing invalidates and
+  re-activates the layout so transitional sizes cannot poison the baseline.
+- The expansion rule is now "expand at the base font size first; shrink the
+  font only if the expanded box still does not fit" for both `OutputView` and
+  `SlotOutputView`.
+- `choose_slot_layout()` now scores whether a grid truly fits, and
+  `_needs_expansion()` checks every column count instead of trusting one
+  candidate, preventing false expansion in scroll modes.
+- Changing the quantity in scroll modes no longer clears the current result
+  layout. The next round's `begin_round()` rebuilds the grid, so displayed
+  results are not stretched across the whole output box.
+- All four draw buttons accept wheel-up to trigger one draw; wheel-down keeps
+  its previous behaviour. Wheel deltas accumulate to one 120-unit notch.
+- A normal start appends three blank lines to the log; a duplicate start writes
+  only one `action=startup result=duplicate_instance` line.
+- Normal operation logs use structured `StateManager.log` lines only. Full
+  result dictionaries, mode-switch debug output, and `Multi`/`Lift` debug
+  `print` calls were removed; draw logs keep the count and detailed names.
+- Quantity adjustments are buffered and written as one final-value line when a
+  draw, mode switch, log viewer, or other operation follows.
+- Structured log timestamps now include milliseconds.
+- Version bumped to 3.11.4.

@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文記錄 randname 3.11.3 的實際行為、隱藏機制與邊界。簡體中文見
+本文記錄 randname 3.11.4 的實際行為、隱藏機制與邊界。簡體中文見
 `logic_zh_CN.md`，英文見 `logic_en_US.md`。
 
 ## 1. 術語與模式
@@ -32,7 +32,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路徑 | 職責 |
 | --- | --- |
 | `main.py` | 啟動、主視窗、選單、狀態列、頁面切換、記憶回填 |
-| `lib/version.py` | `APP_VERSION = "3.11.3"` |
+| `lib/version.py` | `APP_VERSION = "3.11.4"` |
 | `lib/Multi.py` | 多抽演算法 |
 | `lib/Lift.py` | 減量抽演算法 |
 | `lib/ScrollMulti.py` | 滾動多抽控制器 |
@@ -61,7 +61,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 4. `_splash_settings()` 解析 `[splash]` 的 `enabled`/`mode`/`duration_ms` 並夾緊非法值。
 5. 立即載入、縮放並顯示啟動畫面；依 `size_mode`/`screen_ratio`/`aspect_ratio`
    保持比例，顯示後執行 `processEvents()`，其餘掃描與載入都排在啟動框之後。
-6. `_draw_splash_version()` 在右下角繪製 `v3.11.3`；字號始終依圖片寬度的三分之一
+6. `_draw_splash_version()` 在右下角繪製 `v3.11.4`；字號始終依圖片寬度的三分之一
    自動縮放，文字固定為純白色，不提供字號或顏色設定。
 7. 啟動框顯示後才匯入 `lib.SingleInstance` 並檢查單實例；同一版本已在執行時
    喚醒既有視窗、關閉啟動框並退出。
@@ -154,15 +154,17 @@ language.toml preferred（有效）
 
 `lib/OutputView.py` 包裝一個 `QLabel`：
 
-1. `setSizePolicy(Ignored, Ignored)`、`setMinimumSize(0, 0)`，避免
-   `QLabel.sizeHint()` 撐大視窗。
+1. `setSizePolicy(Expanding, Ignored)`、`setMinimumSize(0, 0)`：保留 `.ui` 的
+   160 水平 stretch，垂直高度完全由佈局列 stretch 決定，
+   `minimumSizeHint` 不撐大視窗。
 2. 基準字號 `[ui].display_font_size`；下限 `display_min_font_size`；步長
    `display_font_step`；行距 `display_line_spacing`；內距 `display_padding`。
 3. 姓名依顯示寬度貪婪分行，姓名間兩個空格，不會從姓名中間斷開。
-4. 先嘗試基準字號單行；放不下且高度足夠時多行；仍放不下時逐步縮字號。
+4. 先用基準字號排版；基準字號放不下時優先擴張輸出框佔用上下空白，擴張後仍
+   放不下才逐步縮字號。
 5. 極端長姓名在最小字號仍超寬時，允許 Qt 在字元間換行。
 6. `set_message()` 用於「等待輸入」「暫無結果」，固定使用基準字號。
-7. `resizeEvent` 重新排版，使用者拉伸後自動調整。
+7. `resizeEvent` 重新排版；收合基準高度以防抖取樣，避免記錄過渡尺寸。
 
 ### 6.2 滾動模式（SlotOutputView）
 
@@ -171,11 +173,14 @@ language.toml preferred（有效）
 1. `begin_round(pool, quantity)` 建立 `quantity` 個固定格子。
 2. 第一次 `set_names()` 時計算並鎖定佈局：目標列數以
    `round(sqrt(N * H / W))` 估算；比較所有欄數組合，優先字號最大，字號相同時
-   選擇最接近目標列數者。6 人、寬輸出框通常為 2 列 × 3 欄。
+   優先真正放得下的佈局，再選擇最接近目標列數者。6 人、寬輸出框通常為 2 列 ×
+   3 欄。
 3. 每格等寬等高，文字水平/垂直置中；最後一列不足時整列置中。
 4. 鎖定後每次 tick 只更新文字，格子幾何不變，已停止的名字不會移動。
-5. 目前姓名放不進鎖定格時，重新計算欄數/列數/字號並再次鎖定。
-6. `clear_round()`、下一輪 `start()`、更改數量、重設時清除鎖定，下次抽取重新佈局。
+5. 基準字號在收合高度下放不進任何格子佈局時先擴張輸出框；擴張後仍放不下才
+   縮小字號並重新鎖定。
+6. `clear_round()`、下一輪 `start()`、重設或匯入結果時清除鎖定；調整數量不
+   立即破壞目前結果，由下一輪 `begin_round()` 重建。
 7. 匯入歷史結果時依結果人數建立格子並計算一次佈局。
 8. ScrollMulti 與 ScrollLift 共用此視圖。
 
@@ -451,7 +456,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-目前版本：**3.11.3**。
+目前版本：**3.11.4**。
 
 3.8.x 主要變更：
 
@@ -626,3 +631,17 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - `build.bat` 先安裝相依再編譯 UI，加入 `errorlevel` 檢查；`CI` 環境不執行 `pause`，手動執行仍會在結束或失敗時暫停。
 - GitHub Actions 直接呼叫 `script/build.sh` 與 `script/build.bat`，移除重複的安裝、UI 編譯與 Nuitka 命令；產物校驗、命名、上傳與 Release 仍由工作流負責。
 - 版本更新為 3.11.3。
+
+## 37. 3.11.4 顯示框版面與日誌改進
+
+- 輸出框垂直尺寸策略由 `Expanding` 改為 `Ignored`：長姓名換行產生的 `minimumSizeHint` 不再撐大視窗或殘留舊行高，名字減少後輸出框能回到原始高度。
+- `_OutputExpansion` 的收合基準高度改為防抖取樣，只在未展開、列 stretch 為 0 時記錄；收合時主動 `invalidate()` 與 `activate()`，避免過渡尺寸污染基準。
+- 擴張策略改為「基準字號放不下時優先擴張，擴張後仍放不下才縮小字號」；`OutputView` 與 `SlotOutputView` 保持一致。
+- `choose_slot_layout()` 評分加入「是否真正放得下」判斷；`_needs_expansion()` 走訪所有欄數，避免選到放不下的格子後誤擴張。
+- 滾動模式調整數量時不再立即清除目前結果版面；下一輪 `begin_round()` 統一重建格子，避免已顯示結果被拉伸鋪滿輸出框。
+- 四個抽取按鈕支援滾輪上滑觸發一次抽取，下滑保留原行為；連續滾輪以 120 單位累計一格。
+- 正常啟動在日誌開頭追加三行空行；重複啟動不寫空行，只記錄一行 `action=startup result=duplicate_instance`。
+- 正常操作日誌統一為結構化 `StateManager.log`，移除完整結果字典、模式切換除錯輸出與 `Multi`/`Lift` 的 `print` 除錯資訊；抽取日誌保留數量與詳細名單。
+- 數量調整日誌改為掛起合併：調整時不立即寫入，在抽取、切換模式、開啟日誌等操作時寫一行最終值。
+- 結構化日誌時間精確到毫秒。
+- 版本更新為 3.11.4。
