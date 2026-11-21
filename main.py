@@ -315,7 +315,7 @@ class _QuantitySliderTouchFilter(QObject):
 
 
 class _DrawButtonWheelFilter(QObject):
-    """抽取按钮上的滚轮上滑只加速当前滚动轮次，不开启新一轮。"""
+    """抽取按钮滚轮上滑：仅在当前轮次未结束时触发按钮动作。"""
 
     def __init__(self, button, on_wheel_up=None):
         super().__init__(button)
@@ -334,10 +334,16 @@ class _DrawButtonWheelFilter(QObject):
         self._accumulated += delta
         if self._accumulated >= 120:
             self._accumulated = 0
+            handled = False
             if self.on_wheel_up is not None:
                 try:
-                    self.on_wheel_up()
+                    handled = bool(self.on_wheel_up())
                 except Exception:
+                    handled = False
+            if handled:
+                try:
+                    self.button.click()
+                except RuntimeError:
                     pass
         # 上滑始终由过滤器消费，避免按钮默认行为被触发。
         event.accept()
@@ -1193,7 +1199,7 @@ class MainWindow(QMainWindow):
         # ScrollMulti
         try:
             self.scroll_multi_button = getattr(self.ui_scroll_multi, "pushButton_ScrollMulti", None)
-            self._prepare_draw_button(self.scroll_multi_button, self._accelerate_scroll_multi)
+            self._prepare_draw_button(self.scroll_multi_button, self._wheel_can_trigger_scroll_multi)
             self.scroll_multi_quantity_label = getattr(self.ui_scroll_multi, "label_ScrollMultiQuantity", None)
             output = getattr(self.ui_scroll_multi, "label_ScrollMultiOutput", None)
             if output is not None:
@@ -1228,7 +1234,7 @@ class MainWindow(QMainWindow):
         # ScrollLift
         try:
             self.scroll_lift_button = getattr(self.ui_scroll_lift, "pushButton_ScrollLift", None)
-            self._prepare_draw_button(self.scroll_lift_button, self._accelerate_scroll_lift)
+            self._prepare_draw_button(self.scroll_lift_button, self._wheel_can_trigger_scroll_lift)
             self.scroll_lift_quantity_label = getattr(self.ui_scroll_lift, "label_ScrollLiftQuantity", None)
             output = getattr(self.ui_scroll_lift, "label_ScrollLiftOutput", None)
             if output is not None:
@@ -1452,17 +1458,13 @@ class MainWindow(QMainWindow):
             logging.exception("应用导入记忆失败: %s", exc)
 
     # ------------------------------------------------------------------ draws
-    def _accelerate_scroll_multi(self):
+    def _wheel_can_trigger_scroll_multi(self):
         controller = self.scroll_multi_controller
-        if controller is None or not controller.running:
-            return False
-        return controller.accelerate(1)
+        return controller is not None and controller.running
 
-    def _accelerate_scroll_lift(self):
+    def _wheel_can_trigger_scroll_lift(self):
         controller = self.scroll_lift_controller
-        if controller is None or not controller.running:
-            return False
-        return controller.accelerate(1)
+        return controller is not None and controller.running
 
     def _handle_multi(self):
         self._flush_quantity_log()

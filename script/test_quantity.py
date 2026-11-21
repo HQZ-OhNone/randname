@@ -168,32 +168,23 @@ class QuantitySliderTests(unittest.TestCase):
         self.app.processEvents()
         self.assertEqual(window.multi_result_names, [])
 
-    def test_scroll_wheel_up_accelerates_only_running_round(self):
+    def test_scroll_wheel_up_triggers_action_only_running_round(self):
         window = self.window
         controller = window.scroll_multi_controller
         self.assertIsNotNone(controller)
-        with mock.patch.object(controller, "accelerate", return_value=True) as accelerated:
+        with mock.patch.object(window.scroll_multi_button, "click") as click_mock:
             controller.running = True
             self._wheel_button(window.scroll_multi_button, 120)
-            accelerated.assert_called_once_with(1)
+            click_mock.assert_called_once()
 
-            accelerated.reset_mock()
+            click_mock.reset_mock()
             self._wheel_button(window.scroll_multi_button, -120)
-            accelerated.assert_not_called()
+            click_mock.assert_not_called()
 
-            accelerated.reset_mock()
+            click_mock.reset_mock()
             controller.running = False
             self._wheel_button(window.scroll_multi_button, 120)
-            accelerated.assert_not_called()
-
-    def test_scroll_accelerate_only_ticks_running_round(self):
-        controller = self.window.scroll_multi_controller
-        controller.running = False
-        self.assertFalse(controller.accelerate(1))
-        controller.running = True
-        with mock.patch.object(controller, "_tick") as tick:
-            self.assertTrue(controller.accelerate(1))
-            self.assertGreaterEqual(tick.call_count, 1)
+            click_mock.assert_not_called()
 
     def test_quantity_adjustment_log_is_coalesced(self):
         window = self.window
