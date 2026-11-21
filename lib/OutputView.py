@@ -77,6 +77,11 @@ class _OutputExpansion:
         self._row = None
         self._base_height = 0
         self._expanded = False
+        # 布局稳定后再采样收合高度，避免记录到扩张/收合过程中的过渡值。
+        self._base_timer = QTimer(label)
+        self._base_timer.setSingleShot(True)
+        self._base_timer.setInterval(50)
+        self._base_timer.timeout.connect(self._capture_base)
         self._resolve()
 
     def _resolve(self):
@@ -103,14 +108,39 @@ class _OutputExpansion:
         return self._expanded
 
     def note_resize(self):
-        """未展开时记录布局给出的基准高度。"""
-        if not self._expanded and self.label.height() > 32:
-            self._base_height = self.label.height()
+        """收合状态下延迟记录布局给出的基准高度。"""
+        if self._expanded or not self.available:
+            return
+        self._base_timer.start()
+
+    def _capture_base(self):
+        """只在未展开、行 stretch 为 0 时记录稳定的收合高度。"""
+        if self._expanded or not self.available:
+            return
+        try:
+            if self._layout.rowStretch(self._row) != 0:
+                return
+        except (RuntimeError, AttributeError):
+            return
+        height = self.label.height()
+        if height > 32:
+            self._base_height = height
 
     @property
     def base_height(self) -> int:
-        if self._base_height <= 0 and self.label.height() > 32:
-            self._base_height = self.label.height()
+        # 收合状态下的当前高度就是最可靠的基准；展开时绝不覆盖基准。
+        if not self._expanded and self.available:
+            try:
+                if self._layout.rowStretch(self._row) == 0:
+                    height = self.label.height()
+                    if height > 32:
+                        self._base_height = height
+            except (RuntimeError, AttributeError):
+                pass
+        if self._base_height <= 0:
+            height = self.label.height()
+            if height > 32:
+                self._base_height = height
         return max(1, self._base_height)
 
     def set_expanded(self, expanded: bool) -> bool:
@@ -124,7 +154,12 @@ class _OutputExpansion:
         if not self.available:
             return False
         self._layout.setRowStretch(self._row, 1 if expanded else 0)
+        # 文本变短后 QGridLayout 不会自动回收旧行高，必须主动失效并重排。
+        self.label.updateGeometry()
+        self._layout.invalidate()
         self._layout.activate()
+        if not expanded:
+            self._base_timer.start()
         return True
 
 
@@ -147,10 +182,10 @@ class OutputView(QObject):
 
         # 输出框必须保留 .ui 中 160 的水平 stretch，否则 QGridLayout 会把
         # 大部分宽度分给左右 spacer，输出框只剩几十像素。
-        # Expanding + wordWrap=True 让 minimumSizeHint 保持较小，长名字
-        # 由 OutputView 手动分行/缩字号处理，同时窗口不会被内容撑大。
+        # 垂直方向使用 Ignored：高度完全由布局行 stretch 决定，长姓名换行
+        # 产生的 minimumSizeHint 不会反向撑大窗口或残留旧行高。
         self.label.setWordWrap(True)
-        policy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        policy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
         policy.setHorizontalStretch(160)
         policy.setVerticalStretch(0)
         self.label.setSizePolicy(policy)
@@ -293,13 +328,15 @@ class OutputView(QObject):
         self._relayout_guard = True
         changed = False
         try:
-            point_size = self._locked_point_size
-            if point_size is None:
-                point_size = self._font_size_for(self._names)
+            # 优先用基准字号判断：基准字号放不下时先占用上下空白扩张，
+            # 扩张后仍放不下才逐步缩小字号。
+            desired_size = self._locked_point_size
+            if desired_size is None:
+                desired_size = self.base_point_size
             # 先更新文字，避免旧文本的最小高度限制输出框回缩。
-            self._apply(self._names, point_size)
+            self._apply(self._names, desired_size)
             # 一律以收合状态的高度判断是否展开，避免过渡尺寸造成误判。
-            needed = self._needed_height(self._names, self.min_point_size)
+            needed = self._needed_height(self._names, desired_size)
             changed = self._expansion.set_expanded(
                 needed > self._expansion.base_height
             )
@@ -349,12 +386,26 @@ def _font_at_size(base_font, point_size):
     return font
 
 
+def _grid_fits(names, cell_width, cell_height, base_font, point_size):
+    """判断一组姓名在给定格子尺寸与字号下是否全部放得下。"""
+    if cell_width <= 1 or cell_height <= 1:
+        return False
+    metrics = QFontMetrics(_font_at_size(base_font, point_size))
+    if metrics.lineSpacing() > max(1.0, cell_height - 2.0):
+        return False
+    return all(
+        metrics.horizontalAdvance(name) <= max(1.0, cell_width - 4.0)
+        for name in names
+    )
+
+
 def choose_slot_layout(names, width, height, base_font, max_size, min_size,
                        step, gap=8, count=None):
     """选择固定格子布局，返回 (columns, rows, point_size)。
 
-    优先保证字号最大；字号相同时选择最接近目标行数的配置。目标行数按
-    输出框宽高比与人数估算，例如 6 人、宽输出框会得到 2 行（3×2）。
+    优先保证字号最大；字号相同时优先选择真正放得下的布局，再选择最接近
+    目标行数的配置。目标行数按输出框宽高比与人数估算，例如 6 人、宽输出框
+    会得到 2 行（3×2）。
     """
     values = [str(name) for name in names if name is not None]
     try:
@@ -377,7 +428,8 @@ def choose_slot_layout(names, width, height, base_font, max_size, min_size,
         size = _largest_font_for_grid(
             values, cell_width, cell_height, base_font, max_size, min_size, step
         )
-        score = (size, -abs(rows - target_rows), -rows, -columns)
+        fits = _grid_fits(values, cell_width, cell_height, base_font, size)
+        score = (size, 1 if fits else 0, -abs(rows - target_rows), -rows, -columns)
         if best is None or score > best[0]:
             best = (score, columns, rows, size)
     if best is None:
@@ -527,7 +579,8 @@ class SlotOutputView(QObject):
         # 沿用原输出 QLabel 作为背景容器，子控件负责固定格子排版。
         label.setText("")
         label.setWordWrap(False)
-        policy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        # 外层 QLabel 只作背景容器；垂直 Ignored 防止子控件或历史文本影响行高。
+        policy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
         policy.setHorizontalStretch(160)
         policy.setVerticalStretch(0)
         label.setSizePolicy(policy)
@@ -691,36 +744,33 @@ class SlotOutputView(QObject):
             for name in names
         )
 
-    def _needs_expansion(self) -> bool:
-        """最小字号在收合状态的高度下仍放不进格子时返回 True。"""
-        if not self._names:
-            return False
+    def _fits_any_slot_layout(self, point_size) -> bool:
+        """收合高度下是否存在任意一种能放下全部姓名的格子布局。"""
         width = max(1, self.label.contentsRect().width())
         height = max(1, self._expansion.base_height)
         gap = self._gap()
         count = max(1, len(self.grid.slots))
-        columns, rows, _size = choose_slot_layout(
-            self._names,
-            width,
-            height,
-            self._base_font,
-            self.min_point_size,
-            self.min_point_size,
-            self.font_step,
-            gap,
-            count,
-        )
-        cell_width = (width - (columns - 1) * gap) / max(1, columns)
-        cell_height = (height - (rows - 1) * gap) / max(1, rows)
-        if cell_width <= 1 or cell_height <= 1:
-            return True
-        metrics = QFontMetrics(_font_at_size(self._base_font, self.min_point_size))
-        if metrics.lineSpacing() > max(1.0, cell_height - 2.0):
-            return True
-        return any(
-            metrics.horizontalAdvance(name) > max(1.0, cell_width - 4.0)
-            for name in self._names
-        )
+        metrics = QFontMetrics(_font_at_size(self._base_font, point_size))
+        for columns in range(1, count + 1):
+            rows = math.ceil(count / columns)
+            cell_width = (width - (columns - 1) * gap) / columns
+            cell_height = (height - (rows - 1) * gap) / rows
+            if cell_width <= 1 or cell_height <= 1:
+                continue
+            if metrics.lineSpacing() > max(1.0, cell_height - 2.0):
+                continue
+            if all(
+                metrics.horizontalAdvance(name) <= max(1.0, cell_width - 4.0)
+                for name in self._names
+            ):
+                return True
+        return False
+
+    def _needs_expansion(self) -> bool:
+        """基准字号在收合状态的高度下放不进任何格子布局时返回 True。"""
+        if not self._names:
+            return False
+        return not self._fits_any_slot_layout(self.base_point_size)
 
     def _ensure_layout(self):
         if not self._names or self._relayout_guard:

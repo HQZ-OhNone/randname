@@ -25,7 +25,14 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication, QLabel
 
-from lib.OutputView import OutputView, SlotOutputView, choose_slot_layout, pack_names
+from lib.OutputView import (
+    OutputView,
+    SlotOutputView,
+    _grid_fits,
+    choose_slot_layout,
+    pack_names,
+)
+from lib.ScrollMulti import ScrollMultiController
 
 
 class OutputFitTests(unittest.TestCase):
@@ -56,7 +63,8 @@ class OutputFitTests(unittest.TestCase):
         label, _view = self.make_view()
         policy = label.sizePolicy()
         self.assertEqual(policy.horizontalPolicy(), QSizePolicy.Policy.Expanding)
-        self.assertEqual(policy.verticalPolicy(), QSizePolicy.Policy.Expanding)
+        # 垂直方向必须是 Ignored，长文本换行不能反向撑大布局。
+        self.assertEqual(policy.verticalPolicy(), QSizePolicy.Policy.Ignored)
         self.assertEqual(policy.horizontalStretch(), 160)
         self.assertTrue(label.wordWrap())
 
@@ -66,11 +74,11 @@ class OutputFitTests(unittest.TestCase):
         self.assertTrue("\n" in label.text() or label.font().pointSizeF() < 30)
         self.assertGreaterEqual(label.font().pointSizeF(), 12)
 
-    def test_output_expands_only_when_min_font_does_not_fit(self):
+    def test_output_expands_before_shrinking_font(self):
         from PySide6.QtWidgets import QGridLayout, QLabel as _QLabel, QWidget
 
         page = QWidget()
-        page.resize(480, 220)
+        page.resize(560, 260)
         grid = QGridLayout(page)
         grid.setContentsMargins(0, 0, 0, 0)
         grid.setSpacing(8)
@@ -90,22 +98,32 @@ class OutputFitTests(unittest.TestCase):
         }}, 30)
         page.show()
         self.app.processEvents()
+        initial_height = label.height()
 
         view.set_names(["短名字", "短名字"], use_lock=False)
         self.app.processEvents()
         self.assertFalse(view._expansion.expanded)
+
+        # 基准字号放不下、但最小字号可以放下时，也应优先扩张输出框。
+        medium = [f"较长的名字{i:02d}" for i in range(8)]
+        view.set_names(medium, use_lock=False)
+        for _ in range(4):
+            self.app.processEvents()
+        self.assertTrue(view._expansion.expanded)
+        self.assertEqual(grid.rowStretch(1), 1)
 
         many = [f"非常非常非常长的名字{i:02d}" for i in range(40)]
         view.set_names(many, use_lock=False)
-        self.app.processEvents()
+        for _ in range(4):
+            self.app.processEvents()
         self.assertTrue(view._expansion.expanded)
-        self.assertEqual(grid.rowStretch(1), 1)
-        self.assertGreater(label.height(), 0)
 
         view.set_names(["短名字", "短名字"], use_lock=False)
-        self.app.processEvents()
+        for _ in range(8):
+            self.app.processEvents()
         self.assertFalse(view._expansion.expanded)
         self.assertEqual(grid.rowStretch(1), 0)
+        self.assertEqual(label.height(), initial_height)
         page.close()
 
     def test_output_layout_survives_stylesheet_change(self):
@@ -285,6 +303,40 @@ class OutputFitTests(unittest.TestCase):
         left = min(rect.left() for rect in rects)
         right = max(rect.right() for rect in rects)
         self.assertLess(right - left, 1600 * 0.6)
+
+    def test_choose_slot_layout_prefers_fitting_grid(self):
+        names = [f"学生{i:02d}号" for i in range(1, 50)]
+        columns, rows, size = choose_slot_layout(
+            names, 1000, 384, QFont(), 36, 15, 1, 4, 49,
+        )
+        self.assertEqual(columns * rows >= len(names), True)
+        gap = 4
+        cell_width = (1000 - (columns - 1) * gap) / columns
+        cell_height = (384 - (rows - 1) * gap) / rows
+        self.assertTrue(
+            _grid_fits(names, cell_width, cell_height, QFont(), size)
+        )
+
+    def test_quantity_change_keeps_scroll_result_layout(self):
+        names = [f"学生{i:02d}号" for i in range(1, 50)]
+        _label, view = self.make_slot_view(1000, 400)
+        controller = ScrollMultiController(
+            view, None, {str(i): name for i, name in enumerate(names)}
+        )
+        view.begin_round(names, 6)
+        view.set_names(names[:6])
+        for _ in range(4):
+            self.app.processEvents()
+        before = view.slot_geometries()
+        limit = view._cell_limit
+        columns = view._columns
+
+        controller.set_quantity(20)
+        for _ in range(4):
+            self.app.processEvents()
+        self.assertEqual(view.slot_geometries(), before)
+        self.assertEqual(view._cell_limit, limit)
+        self.assertEqual(view._columns, columns)
 
     def test_choose_slot_layout_handles_missing_size(self):
         columns, rows, size = choose_slot_layout(["张三"], 1, 1, QFont(), 30, 12, 1, 8, 1)
