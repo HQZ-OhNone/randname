@@ -315,11 +315,12 @@ class _QuantitySliderTouchFilter(QObject):
 
 
 class _DrawButtonWheelFilter(QObject):
-    """在抽取按钮上滚轮上滑触发一次点击；下滑保留原行为。"""
+    """抽取按钮上的滚轮上滑只加速当前滚动轮次，不开启新一轮。"""
 
-    def __init__(self, button):
+    def __init__(self, button, on_wheel_up=None):
         super().__init__(button)
         self.button = button
+        self.on_wheel_up = on_wheel_up
         self._accumulated = 0
 
     def eventFilter(self, watched, event):
@@ -333,10 +334,12 @@ class _DrawButtonWheelFilter(QObject):
         self._accumulated += delta
         if self._accumulated >= 120:
             self._accumulated = 0
-            try:
-                self.button.click()
-            except RuntimeError:
-                pass
+            if self.on_wheel_up is not None:
+                try:
+                    self.on_wheel_up()
+                except Exception:
+                    pass
+        # 上滑始终由过滤器消费，避免按钮默认行为被触发。
         event.accept()
         return True
 
@@ -1190,7 +1193,7 @@ class MainWindow(QMainWindow):
         # ScrollMulti
         try:
             self.scroll_multi_button = getattr(self.ui_scroll_multi, "pushButton_ScrollMulti", None)
-            self._prepare_draw_button(self.scroll_multi_button)
+            self._prepare_draw_button(self.scroll_multi_button, self._accelerate_scroll_multi)
             self.scroll_multi_quantity_label = getattr(self.ui_scroll_multi, "label_ScrollMultiQuantity", None)
             output = getattr(self.ui_scroll_multi, "label_ScrollMultiOutput", None)
             if output is not None:
@@ -1225,7 +1228,7 @@ class MainWindow(QMainWindow):
         # ScrollLift
         try:
             self.scroll_lift_button = getattr(self.ui_scroll_lift, "pushButton_ScrollLift", None)
-            self._prepare_draw_button(self.scroll_lift_button)
+            self._prepare_draw_button(self.scroll_lift_button, self._accelerate_scroll_lift)
             self.scroll_lift_quantity_label = getattr(self.ui_scroll_lift, "label_ScrollLiftQuantity", None)
             output = getattr(self.ui_scroll_lift, "label_ScrollLiftOutput", None)
             if output is not None:
@@ -1449,6 +1452,18 @@ class MainWindow(QMainWindow):
             logging.exception("应用导入记忆失败: %s", exc)
 
     # ------------------------------------------------------------------ draws
+    def _accelerate_scroll_multi(self):
+        controller = self.scroll_multi_controller
+        if controller is None or not controller.running:
+            return False
+        return controller.accelerate(1)
+
+    def _accelerate_scroll_lift(self):
+        controller = self.scroll_lift_controller
+        if controller is None or not controller.running:
+            return False
+        return controller.accelerate(1)
+
     def _handle_multi(self):
         self._flush_quantity_log()
         try:
@@ -1630,11 +1645,11 @@ class MainWindow(QMainWindow):
             lambda value, selected_mode=mode: self._on_quantity_slider_changed(selected_mode, value)
         )
 
-    def _prepare_draw_button(self, button):
+    def _prepare_draw_button(self, button, on_wheel_up=None):
         """为抽取按钮安装滚轮过滤器，并在按下时先落盘待写的数量日志。"""
         if button is None:
             return
-        wheel_filter = _DrawButtonWheelFilter(button)
+        wheel_filter = _DrawButtonWheelFilter(button, on_wheel_up)
         button.installEventFilter(wheel_filter)
         self._draw_wheel_filters.append(wheel_filter)
         button.pressed.connect(self._flush_quantity_log)

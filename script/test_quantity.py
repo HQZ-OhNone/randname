@@ -156,28 +156,44 @@ class QuantitySliderTests(unittest.TestCase):
         )
         QApplication.sendEvent(button, event)
 
-    def test_multi_button_wheel_up_draws_and_down_does_nothing(self):
+    def test_multi_button_wheel_does_not_start_draw(self):
         window = self.window
         window._set_quantity(main.MODE_MULTI, 1, log=False)
         window.multi_result_names = []
         self._wheel_button(window.multi_button, 120)
         self.app.processEvents()
-        self.assertTrue(window.multi_result_names)
+        self.assertEqual(window.multi_result_names, [])
 
-        window.multi_result_names = []
         self._wheel_button(window.multi_button, -120)
         self.app.processEvents()
         self.assertEqual(window.multi_result_names, [])
 
-    def test_multi_button_wheel_accumulates_notches(self):
+    def test_scroll_wheel_up_accelerates_only_running_round(self):
         window = self.window
-        window.multi_result_names = []
-        self._wheel_button(window.multi_button, 60)
-        self.app.processEvents()
-        self.assertEqual(window.multi_result_names, [])
-        self._wheel_button(window.multi_button, 60)
-        self.app.processEvents()
-        self.assertTrue(window.multi_result_names)
+        controller = window.scroll_multi_controller
+        self.assertIsNotNone(controller)
+        with mock.patch.object(controller, "accelerate", return_value=True) as accelerated:
+            controller.running = True
+            self._wheel_button(window.scroll_multi_button, 120)
+            accelerated.assert_called_once_with(1)
+
+            accelerated.reset_mock()
+            self._wheel_button(window.scroll_multi_button, -120)
+            accelerated.assert_not_called()
+
+            accelerated.reset_mock()
+            controller.running = False
+            self._wheel_button(window.scroll_multi_button, 120)
+            accelerated.assert_not_called()
+
+    def test_scroll_accelerate_only_ticks_running_round(self):
+        controller = self.window.scroll_multi_controller
+        controller.running = False
+        self.assertFalse(controller.accelerate(1))
+        controller.running = True
+        with mock.patch.object(controller, "_tick") as tick:
+            self.assertTrue(controller.accelerate(1))
+            self.assertGreaterEqual(tick.call_count, 1)
 
     def test_quantity_adjustment_log_is_coalesced(self):
         window = self.window

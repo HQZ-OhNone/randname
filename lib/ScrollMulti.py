@@ -156,6 +156,20 @@ class ScrollMultiController:
         self.timer.setInterval(interval)
         return interval
 
+    def accelerate(self, notches=1) -> bool:
+        """加速当前轮次：额外推进若干次滚动，不停止也不开启新一轮。"""
+        if not self.running:
+            return False
+        try:
+            extra = max(1, min(12, int(notches) * 3))
+        except (TypeError, ValueError):
+            extra = 3
+        for _ in range(extra):
+            if not self.running:
+                break
+            self._tick()
+        return True
+
     def set_button_texts(self, draw_text: str, stop_format: str, reset_text=None) -> None:
         self.draw_text = draw_text
         self.stop_format = stop_format
