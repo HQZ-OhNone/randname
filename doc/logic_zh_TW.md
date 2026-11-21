@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文記錄 randname 3.11.5 的實際行為、隱藏機制與邊界。簡體中文見
+本文記錄 randname 3.11.6 的實際行為、隱藏機制與邊界。簡體中文見
 `logic_zh_CN.md`，英文見 `logic_en_US.md`。
 
 ## 1. 術語與模式
@@ -32,7 +32,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路徑 | 職責 |
 | --- | --- |
 | `main.py` | 啟動、主視窗、選單、狀態列、頁面切換、記憶回填 |
-| `lib/version.py` | `APP_VERSION = "3.11.5"` |
+| `lib/version.py` | `APP_VERSION = "3.11.6"` |
 | `lib/Multi.py` | 多抽演算法 |
 | `lib/Lift.py` | 減量抽演算法 |
 | `lib/ScrollMulti.py` | 滾動多抽控制器 |
@@ -61,7 +61,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 4. `_splash_settings()` 解析 `[splash]` 的 `enabled`/`mode`/`duration_ms` 並夾緊非法值。
 5. 立即載入、縮放並顯示啟動畫面；依 `size_mode`/`screen_ratio`/`aspect_ratio`
    保持比例，顯示後執行 `processEvents()`，其餘掃描與載入都排在啟動框之後。
-6. `_draw_splash_version()` 在右下角繪製 `v3.11.5`；字號始終依圖片寬度的三分之一
+6. `_draw_splash_version()` 在右下角繪製 `v3.11.6`；字號始終依圖片寬度的三分之一
    自動縮放，文字固定為純白色，不提供字號或顏色設定。
 7. 啟動框顯示後才匯入 `lib.SingleInstance` 並檢查單實例；同一版本已在執行時
    喚醒既有視窗、關閉啟動框並退出。
@@ -456,7 +456,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-目前版本：**3.11.5**。
+目前版本：**3.11.6**。
 
 3.8.x 主要變更：
 
@@ -660,3 +660,12 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
   `accelerate()` 額外推進目前輪次，下滑保持原行為。
 - 一般多抽／減量抽沒有「目前輪次」可加速，滾輪上滑不執行抽取。
 - 版本更新為 3.11.5。
+
+## 39. 3.11.6 滾輪觸發目前抽取
+
+- 滾動模式執行中，抽取按鈕上的滾輪上滑會觸發一次按鈕動作，即停止下一個滾動
+  姓名；它不會在閒置狀態下啟動新一輪。
+- 閒置時上滑只被過濾器消費，不呼叫按鈕，也不觸發「抽取」。
+- 下滑保持原行為，不觸發抽取。
+- Multi/Lift 同步完成、沒有活躍輪次，滾輪上滑仍不執行抽取。
+- 版本更新為 3.11.6。

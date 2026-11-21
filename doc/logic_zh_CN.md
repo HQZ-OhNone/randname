@@ -8,7 +8,7 @@ Foundation, either version 3 of the License, or (at your option) any later
 version. This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 
-本文记录 randname 3.11.5 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
+本文记录 randname 3.11.6 的实际业务逻辑、隐藏机制和容易踩坑的边界。英文版见
 `logic_en_US.md`，正體中文版见 `logic_zh_TW.md`。
 
 ## 1. 术语与模式
@@ -31,7 +31,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 | 路径 | 职责 |
 | --- | --- |
 | `main.py` | 启动、主窗口、菜单、状态栏、页面切换、记忆回填、查看器入口 |
-| `lib/version.py` | `APP_VERSION = "3.11.5"` |
+| `lib/version.py` | `APP_VERSION = "3.11.6"` |
 | `lib/Multi.py` | 多抽算法 |
 | `lib/Lift.py` | 减量抽算法 |
 | `lib/ScrollMulti.py` | 滚动多抽控制器 |
@@ -62,7 +62,7 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 3. 创建 `QApplication`。
 4. `_splash_settings()` 解析 `[splash]` 的 `enabled`/`mode`/`duration_ms` 并夹紧非法值。
 5. 立即加载、缩放并显示启动画面；按 `[splash]` 的 `size_mode`/`screen_ratio`/`aspect_ratio` 保持宽高比，显示后执行 `processEvents()`，其余扫描与加载都排在启动画面之后。
-6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.11.5`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
+6. `_draw_splash_version()` 在缩放后的图片右下角绘制 `v3.11.6`；字号始终按图片宽度的三分之一自动缩放，文字固定为纯白色，不提供字号或颜色配置。
 7. 启动画面显示后才导入 `lib.SingleInstance` 并检查单实例；同一版本已在运行时唤醒既有窗口、关闭启动画面并退出。
 8. 加载图标，再以 `_startup_file_check()` 收集可恢复文件警告。`required` 当前恒为空，因此“启动检查失败”分支不可达。
 9. 导入 `lib` 模块。
@@ -486,7 +486,7 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 
 ## 20. 版本
 
-当前版本：**3.11.5**。
+当前版本：**3.11.6**。
 
 3.8.x 主要变化：
 
@@ -679,3 +679,11 @@ time=2026-10-18 12:00:00 level=INFO action=Multi result=(...)
 - 四个抽取按钮的滚轮上滑不再触发点击或开启新一轮；滚动模式运行中上滑只调用 `accelerate()` 额外推进当前轮次，下滑保持原行为。
 - 公共多抽/减量抽没有“当前轮次”可加速，滚轮上滑不执行抽取。
 - 版本更新为 3.11.5。
+
+## 39. 3.11.6 滚轮触发当前抽取
+
+- 滚动模式运行中，抽取按钮上的滚轮上滑会触发一次按钮动作，即停止下一个滚动姓名；它不会在空闲状态下启动新一轮。
+- 空闲时上滑只被过滤器消费，不调用按钮，也不触发“抽取”。
+- 下滑保持原行为，不触发抽取。
+- Multi/Lift 是同步完成、没有活跃轮次，滚轮上滑仍不执行抽取。
+- 版本更新为 3.11.6。

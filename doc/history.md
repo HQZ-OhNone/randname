@@ -12,6 +12,35 @@ WITHOUT ANY WARRANTY; see the GNU General Public License for more details.
 This file is appended per session: completed work, unresolved findings, and
 verification results.
 
+## 2026-11-22 / 3.11.6
+
+### 已完成 / Completed
+
+- 修正滚轮上滑完全不触发抽取的问题：滚动模式运行中，上滑触发一次抽取按钮动作，停止下一个滚动姓名。
+- 空闲状态下上滑仍不启动新抽取；下滑保持原行为。
+- Multi/Lift 没有活跃轮次，上滑仍不执行抽取。
+- 移除不再使用的 `ScrollMultiController.accelerate()`。
+- 版本更新为 3.11.6。
+
+### 发现但未解决 / Found but unresolved
+
+- 滚动模式上滑会逐个停止转盘，语义等同于连续点击按钮；尚未在真实触控板/Windows 滚轮装置上验证节奏。
+- 本次仅本地提交，未 push、未合并 main。
+
+### 验证 / Verification
+
+- `.venv/bin/python -m unittest discover -s script -p 'test_*.py'`：112 项通过。
+- 滚轮测试：运行中上滑触发按钮、下滑不触发、空闲上滑不触发；Multi 上滑不抽取。
+
+### English summary
+
+- Fixed wheel-up doing nothing: during a rolling round it now triggers one draw-button action, stopping the next rolling name.
+- Idle wheel-up still cannot start a new round; wheel-down keeps its previous behaviour.
+- Multi/Lift have no active round, so wheel-up still performs no draw.
+- Removed the unused `ScrollMultiController.accelerate()`.
+- Version bumped to 3.11.6.
+- Verification: 112 unit tests pass; wheel tests cover running, idle, wheel-down, and Multi behaviour.
+
 ## 2026-11-22 / 3.11.5
 
 ### 已完成 / Completed
@@ -31,7 +60,7 @@ verification results.
 
 ### 验证 / Verification
 
-- `.venv/bin/python -m unittest discover -s script -p 'test_*.py'`：113 項通過。
+- `.venv/bin/python -m unittest discover -s script -p 'test_*.py'`：113 项通过。
 - 动态高度测试：Multi 30/60 人与 ScrollMulti 30/45 人高度递增，内容减少后回到相同高度。
 - 滚轮测试：上滑不抽取；滚动执行中调用 `accelerate()`；下滑不调用。
 - 跨测试回归：修正 QLabel 销毁后延迟重排定时器造成的 Qt 崩溃。
